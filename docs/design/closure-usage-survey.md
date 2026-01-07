@@ -209,13 +209,15 @@ If composition always works → no expression language needed, just a rich op li
 | Lua | Slow | Full | Yes |
 | Op composition (dyn dispatch) | Good | Medium | Yes |
 
-**Per-pixel textures:** MUST be GPU or generated code. Lua/interpreted not viable.
+**Per-pixel textures:** MUST be GPU or generated code. Lua not viable (millions of pixels).
 
-**Audio real-time:** Must be fast. Lua per-sample not viable.
+**Audio real-time:** Must be fast. Lua per-sample not viable (44100 samples/sec).
 
-**Mesh ops:** Usually batch, less perf critical. Lua viable.
+**Mesh ops:** Usually batch, less perf critical. LuaJIT viable (~0.6-1x C speed for numeric loops).
 
 **Rigging:** Per-frame, Lua viable.
+
+**Note:** LuaJIT is surprisingly competitive with C for numeric array ops. Tracing JIT has runtime info static compilers lack. See [LuaJIT benchmarks](https://luajit.org/performance.html).
 
 ## Multiple Backends?
 
@@ -290,12 +292,12 @@ s("bd sd [~ bd] sd").speed("1 2 1.5")
 - **Composable**: patterns are values, combine with operators
 - **Time-aware**: patterns are functions of time
 
-Key insight: domain-specific notation >> general expressions for this use case. The mini-notation is essentially a serializable DSL.
+Key insight: **patterns as composable values**, not the mini-notation syntax. The notation is TidalCycles-specific; resin would use Rust API instead.
 
 **Relevance to resin:**
-- Could audio domain have similar pattern notation?
-- Patterns are serializable (they're strings/ASTs)
-- Composable transformations = our ops model
+- Patterns are values with composable transformations
+- `fast()`, `slow()`, `rev()` = ops
+- Same model we're already planning
 
 ### Vector expressions
 TODO: SVG filters? Path effects?

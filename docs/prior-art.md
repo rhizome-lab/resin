@@ -85,7 +85,7 @@ s("bd sd [~ bd] sd").speed("1 2 1.5")
 - **Patterns as values**: composable, higher-order
 - **Time is fundamental**: patterns are functions of time
 
-Key insight: domain-specific notation >> general expressions. Mini-notation is concise, serializable, and captures domain concepts directly.
+Key insight: **patterns as composable values**. The mini-notation is TidalCycles-specific; the real insight is that pattern transformations (`fast`, `slow`, `rev`) are composable ops - same model as resin.
 
 ## Animation & Motion
 
