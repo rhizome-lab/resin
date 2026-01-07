@@ -36,6 +36,7 @@ export default withMermaid(
               { text: 'Architecture', link: '/architecture' },
               { text: 'Cross-Domain Analysis', link: '/cross-domain-analysis' },
               { text: 'Domain Differences', link: '/domain-differences' },
+              { text: 'Open Questions', link: '/open-questions' },
             ]
           },
           {
