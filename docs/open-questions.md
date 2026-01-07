@@ -19,7 +19,7 @@ Single source of truth for design decisions. Updated as we resolve questions.
 | Portable workflows | ❓ Open | Should graphs be serializable/shareable artifacts? |
 | Parameter system | 🔶 Leaning | Yes, first-class across all domains |
 | Modularity | 🔶 Leaning | Very modular, bevy philosophy |
-| Bevy integration | ❓ Open | Optional feature flags? Separate adapter crates? |
+| Bevy integration | 🔶 Leaning | Low priority. Separate adapter crate if needed. Must not affect core design - resin is standalone first |
 | Evaluation strategy | ❓ Open | Lazy vs eager? Pull vs push? |
 | Time models | ❓ Open | Stateless vs stateful vs streaming. See [time-models](./design/time-models.md) |
 
@@ -44,7 +44,7 @@ Backend strategy resolved. Language design still open.
 | Ops as values | 🔶 Leaning | Yes, ops are serializable structs. See [ops-as-values](./design/ops-as-values.md) |
 | Plugin op registration | ✅ Resolved | Core defines trait + serialization contract. Plugin *loading* is host's responsibility. Optional adapters (resin-wasm-plugins, etc.) for common cases. See [plugin-architecture](./design/plugin-architecture.md) |
 | Graph evaluation caching | ✅ Resolved | Hash-based caching at node boundaries (salsa-style). Inputs unchanged → return cached output |
-| External references | ❓ Open | How to serialize refs to textures/meshes? IDs? Inline graphs? |
+| External references | 🔶 Leaning | IDs + resolution context (ComfyUI pattern). Maybe support embedding small assets for reproducibility? |
 
 ## Meshes
 
@@ -71,10 +71,10 @@ Backend strategy resolved. Language design still open.
 | Question | Status | Notes |
 |----------|--------|-------|
 | GPU vs CPU | ✅ Resolved | Abstract over both via burn/CubeCL. See [prior-art](./prior-art.md#burn--cubecl) |
-| Tiling | ❓ Open | Automatic seamless tiling? Explicit tile operator? |
+| Tiling | ✅ Resolved | Explicit operators. Tiling isn't fundamental to most generators. `MakeSeamless`, `Tile`, etc. |
 | Resolution/materialization | ❓ Open | When to materialize vs keep lazy? Blur/normal-from-height need neighbors |
 | 3D textures | ✅ Resolved | Same nodes, Vec3 input. Vec4 for looping animation (time as 4th dim). Memory/preview are host concerns. |
-| Texture vs field | ❓ Open | Unify texture sampling with mesh attribute evaluation? |
+| Texture vs field | ❓ Open | In shaders they're the same (sample at coord). Needs exploration. Textures need materialization, fields are lazy. |
 
 ## Vector 2D
 
@@ -101,7 +101,7 @@ Backend strategy resolved. Language design still open.
 
 ## Summary by Status
 
-### ✅ Resolved (12)
+### ✅ Resolved (13)
 - GPU vs CPU abstraction (burn/CubeCL)
 - Precision f32/f64 (generic `T: Float`)
 - Winding rule (both, default non-zero)
@@ -113,8 +113,9 @@ Backend strategy resolved. Language design still open.
 - Plugin architecture (core = contract, host = loading)
 - Graph caching (hash-based at node boundaries)
 - 3D textures (same nodes, Vec3/Vec4 input)
+- Tiling (explicit operators)
 
-### 🔶 Leaning (9)
+### 🔶 Leaning (11)
 - Type system for slots (simpler than maki)
 - Parameter system (yes, first-class)
 - Modularity (very modular)
@@ -123,9 +124,11 @@ Backend strategy resolved. Language design still open.
 - Unified 2D/3D rig (yes)
 - Animation blending (separate crate)
 - Expression language direction (Cranelift for CPU)
+- Bevy integration (low priority, standalone first)
+- External references (IDs + context, maybe embed small assets)
 
-### ❓ Open (23+)
+### ❓ Open (20+)
 - **High impact**: Half-edge vs index mesh, Evaluation strategy, Audio state management, Time models
 - **Expression language**: AST scope, codegen details, built-in functions
-- **Cross-cutting**: External refs, Bevy integration
+- **Cross-cutting**: Texture vs field unification
 - **Domain-specific**: Many audio questions, texture materialization, instancing
