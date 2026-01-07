@@ -113,7 +113,9 @@ let cheap = noise.render(512, 512)
 
 ## Kernel Fusion
 
-Multiple lazy ops should fuse into single evaluation:
+### Field Fusion (all ops)
+
+Multiple lazy Field ops fuse into single evaluation:
 
 ```rust
 // Conceptually three ops
@@ -130,7 +132,64 @@ fn fused_sample(uv: Vec2) -> Color {
 }
 ```
 
-**API implication:** Lazy ops return `Field`, preserving fusion opportunity. Only `render()` or neighbor ops trigger execution.
+### Image Fusion (point-wise ops)
+
+Even materialized Images can defer point-wise ops:
+
+```rust
+image              // materialized (has pixels)
+  .blur(5)         // neighbor op → must allocate
+  .brightness(0.1) // point-wise → defer
+  .contrast(1.2)   // point-wise → defer
+  .sharpen(2)      // neighbor op → fuse brightness+contrast into read
+```
+
+**Implementation:**
+
+```rust
+struct Image {
+    /// Actual pixel data
+    data: GpuTexture,
+
+    /// Pending point-wise ops (fused on next neighbor op or output)
+    pending_ops: Vec<PointWiseOp>,
+}
+
+impl Image {
+    fn brightness(&self, amount: f32) -> Image {
+        // Don't allocate - just queue the op
+        Image {
+            data: self.data.clone(),
+            pending_ops: chain(&self.pending_ops, Brightness(amount)),
+        }
+    }
+
+    fn blur(&self, radius: f32) -> Image {
+        // Must read pixels - fuse pending ops into the read
+        let fused = compile_fused_shader(&self.pending_ops, BlurShader(radius));
+        let new_data = execute(fused, &self.data);
+        Image { data: new_data, pending_ops: vec![] }
+    }
+}
+```
+
+**Memory benefit:**
+
+| Without fusion | With fusion |
+|----------------|-------------|
+| `blur → brightness → contrast → sharpen` | Same pipeline |
+| 4 allocations | 2 allocations |
+| 4 shader passes | 2 shader passes |
+
+### Three Levels of Deferral
+
+| Type | Has pixels? | Ops deferred? |
+|------|-------------|---------------|
+| Field | No | All ops |
+| Image (pending) | Yes | Point-wise ops |
+| Image (materialized) | Yes | None (just executed neighbor op) |
+
+**API implication:** Both Field and Image support fusion. Field defers everything until `render()`. Image defers point-wise until next neighbor op or final output.
 
 ## Resolution: Explicit and Simple
 

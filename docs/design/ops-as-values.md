@@ -238,12 +238,153 @@ impl Mesh {
 }
 ```
 
+## Runtime Type Safety
+
+When pipelines are loaded at runtime, we lose compile-time type checking.
+
+### The Problem
+
+```rust
+// Compile-time: types checked statically
+let result: Image = noise.render(1024, 1024).blur(0.01);  // ✓ compiler verifies
+
+// Runtime: types unknown at compile time
+let pipeline = load_pipeline("effect.json")?;
+let result = pipeline.execute(input)?;  // what type is result?
+```
+
+### Solution: Value Enum + Schema Validation
+
+**Value enum for dynamic typing:**
+
+```rust
+enum Value {
+    Field(Box<dyn Field>),
+    Image(Image),
+    Mesh(Mesh),
+    Float(f32),
+    Vec2(Vec2),
+    Vec3(Vec3),
+    Color(Color),
+    // ...
+}
+
+impl Value {
+    fn into_image(self) -> Result<Image> {
+        match self {
+            Value::Image(img) => Ok(img),
+            other => Err(TypeError { expected: "Image", got: other.type_name() }),
+        }
+    }
+}
+```
+
+**Ops use Value for dynamic execution:**
+
+```rust
+trait DynOp: Serialize + Deserialize {
+    fn input_type(&self) -> ValueType;
+    fn output_type(&self) -> ValueType;
+    fn apply(&self, input: Value) -> Result<Value>;
+}
+
+#[derive(Serialize, Deserialize)]
+struct Blur {
+    radius_uv: f32,
+}
+
+impl DynOp for Blur {
+    fn input_type(&self) -> ValueType { ValueType::Image }
+    fn output_type(&self) -> ValueType { ValueType::Image }
+
+    fn apply(&self, input: Value) -> Result<Value> {
+        let image = input.into_image()?;
+        Ok(Value::Image(self.blur_impl(&image)))
+    }
+}
+```
+
+**Schema validation at load time:**
+
+```rust
+fn validate_pipeline(ops: &[Box<dyn DynOp>]) -> Result<(ValueType, ValueType)> {
+    if ops.is_empty() {
+        return Err(EmptyPipeline);
+    }
+
+    let mut current = ops[0].input_type();
+    for op in ops {
+        if op.input_type() != current {
+            return Err(TypeMismatch {
+                op: op.type_name(),
+                expected: op.input_type(),
+                got: current,
+            });
+        }
+        current = op.output_type();
+    }
+
+    Ok((ops[0].input_type(), current))
+}
+
+// Errors caught at load time, not execution time
+let pipeline = load_pipeline("effect.json")?;
+let (in_type, out_type) = validate_pipeline(&pipeline.ops)?;
+```
+
+### Two APIs
+
+```rust
+// Static API: compile-time types, zero overhead
+// For code written in Rust
+let result: Image = Perlin::new()
+    .render(1024, 1024)
+    .blur(0.01);
+
+// Dynamic API: runtime types, Value enum
+// For loaded/deserialized pipelines
+let pipeline = load_pipeline("effect.json")?;
+let input = Value::Field(Box::new(Perlin::new()));
+let result: Value = pipeline.execute(input)?;
+let image: Image = result.into_image()?;
+```
+
+### Type-Safe Wrappers (Optional)
+
+If you know expected types at load time:
+
+```rust
+// Load with expected signature
+let pipeline: TypedPipeline<Field, Image> =
+    load_typed("effect.json")?;  // validates at load
+
+// Execute is type-safe
+let result: Image = pipeline.execute(noise);  // no Value enum needed
+```
+
+Implementation wraps dynamic internals:
+
+```rust
+struct TypedPipeline<In, Out> {
+    inner: DynPipeline,
+    _marker: PhantomData<(In, Out)>,
+}
+
+impl<In: IntoValue, Out: FromValue> TypedPipeline<In, Out> {
+    fn execute(&self, input: In) -> Result<Out> {
+        let value = self.inner.execute(input.into_value())?;
+        Out::from_value(value)
+    }
+}
+```
+
 ## Open Questions
 
 1. **Expression language scope**: How powerful? Just math, or control flow too?
-2. **Plugin ops**: How do plugins register serializable op types?
-3. **Graph evaluation caching**: If input changes, re-evaluate only affected nodes?
+2. ~~**Plugin ops**: How do plugins register serializable op types?~~ → Resolved, see [plugin-architecture](./plugin-architecture.md)
+3. ~~**Graph evaluation caching**: If input changes, re-evaluate only affected nodes?~~ → Resolved, hash-based caching
 4. **Lazy vs eager**: Does method API evaluate immediately, or build implicit graph?
+5. **Value enum exhaustiveness**: How many types in Value? Extensible or fixed?
 
 ## Summary
 
