@@ -202,12 +202,36 @@ If composition always works → no expression language needed, just a rich op li
 | Approach | Performance | Flexibility | Serializable |
 |----------|-------------|-------------|--------------|
 | Native Rust closure | Best | Full | No |
+| Cranelift JIT | Near-native | High | Yes |
 | Generated Rust (build.rs) | Best | Limited | Yes (source) |
 | WGSL/GLSL (GPU) | Best for parallel | Limited | Yes |
-| JIT compiled expr | Good | High | Yes |
+| LuaJIT | Good | Full | Yes |
 | Interpreted expr | Slow | High | Yes |
-| Lua | Slow | Full | Yes |
 | Op composition (dyn dispatch) | Good | Medium | Yes |
+
+## Key Insight: Static vs Dynamic
+
+Dynamic expressions only needed when constructed at runtime:
+
+```rust
+// STATIC (compile-time): just use Rust closures
+mesh.map_vertices(|v| v * 2.0)  // Zero overhead, monomorphized
+
+// DYNAMIC (runtime): need interpreter or JIT
+let expr = load_expr_from_file("transform.expr")?;
+mesh.map_vertices_dyn(&expr)
+```
+
+**Layered approach:**
+
+| Source | Backend | When to use |
+|--------|---------|-------------|
+| Rust source | Native closure | Compile-time known |
+| Serialized graph, perf-critical | Cranelift JIT | Runtime, hot path |
+| Scripting, flexibility | LuaJIT | Runtime, cold path |
+| GPU parallel | WGSL | Textures |
+
+This means most users never need dynamic expressions - they write Rust. Only graph deserialization / live coding needs the dynamic path.
 
 **Per-pixel textures:** MUST be GPU or generated code. Lua not viable (millions of pixels).
 
