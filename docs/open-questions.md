@@ -41,7 +41,7 @@ Backend strategy resolved. Language design still open.
 
 | Question | Status | Notes |
 |----------|--------|-------|
-| Ops as values | 🔶 Leaning | Yes, ops are serializable structs. See [ops-as-values](./design/ops-as-values.md) |
+| Ops as values | ✅ Resolved | Yes, ops are serializable structs. Derive macro for DynOp impl. See [ops-as-values](./design/ops-as-values.md) |
 | Plugin op registration | ✅ Resolved | Core defines trait + serialization contract. Plugin *loading* is host's responsibility. Optional adapters (resin-wasm-plugins, etc.) for common cases. See [plugin-architecture](./design/plugin-architecture.md) |
 | Graph evaluation caching | ✅ Resolved | Hash-based caching at node boundaries (salsa-style). Inputs unchanged → return cached output |
 | External references | 🔶 Leaning | IDs + resolution context (ComfyUI pattern). Maybe support embedding small assets for reproducibility? |
@@ -101,7 +101,7 @@ Backend strategy resolved. Language design still open.
 
 ## Summary by Status
 
-### ✅ Resolved (13)
+### ✅ Resolved (14)
 - GPU vs CPU abstraction (burn/CubeCL)
 - Precision f32/f64 (generic `T: Float`)
 - Winding rule (both, default non-zero)
@@ -114,12 +114,12 @@ Backend strategy resolved. Language design still open.
 - Graph caching (hash-based at node boundaries)
 - 3D textures (same nodes, Vec3/Vec4 input)
 - Tiling (explicit operators)
+- Ops as values (derive macro for DynOp impl)
 
-### 🔶 Leaning (15)
+### 🔶 Leaning (14)
 - Type system for slots (simpler than maki)
 - Parameter system (yes, first-class)
 - Modularity (very modular)
-- Ops as values (yes)
 - Text (outlines yes, layout no)
 - Unified 2D/3D rig (yes)
 - Animation blending (separate crate)
