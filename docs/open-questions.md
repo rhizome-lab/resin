@@ -72,7 +72,7 @@ Backend strategy resolved. Language design still open.
 |----------|--------|-------|
 | GPU vs CPU | ✅ Resolved | Abstract over both via burn/CubeCL. See [prior-art](./prior-art.md#burn--cubecl) |
 | Tiling | ✅ Resolved | Explicit operators. Tiling isn't fundamental to most generators. `MakeSeamless`, `Tile`, etc. |
-| Resolution/materialization | ❓ Open | When to materialize vs keep lazy? Blur/normal-from-height need neighbors |
+| Resolution/materialization | ❓ Open | Lazy until neighbor ops. Resolution propagation TBD (forward context vs backward from output). See [texture-materialization](./design/texture-materialization.md) |
 | 3D textures | ✅ Resolved | Same nodes, Vec3 input. Vec4 for looping animation (time as 4th dim). Memory/preview are host concerns. |
 | Texture vs field | ❓ Open | In shaders they're the same (sample at coord). Needs exploration. Textures need materialization, fields are lazy. |
 
