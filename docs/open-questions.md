@@ -41,8 +41,8 @@ Backend strategy resolved. Language design still open.
 | Question | Status | Notes |
 |----------|--------|-------|
 | Ops as values | 🔶 Leaning | Yes, ops are serializable structs. See [ops-as-values](./design/ops-as-values.md) |
-| Plugin op registration | ❓ Open | How do plugins register new serializable op types? |
-| Graph evaluation caching | ❓ Open | If input changes, re-evaluate only affected nodes? |
+| Plugin op registration | ✅ Resolved | Core defines trait + serialization contract. Plugin *loading* is host's responsibility. Optional adapters (resin-wasm-plugins, etc.) for common cases. See [plugin-architecture](./design/plugin-architecture.md) |
+| Graph evaluation caching | ✅ Resolved | Hash-based caching at node boundaries (salsa-style). Inputs unchanged → return cached output |
 | External references | ❓ Open | How to serialize refs to textures/meshes? IDs? Inline graphs? |
 
 ## Meshes
@@ -100,7 +100,7 @@ Backend strategy resolved. Language design still open.
 
 ## Summary by Status
 
-### ✅ Resolved (9)
+### ✅ Resolved (11)
 - GPU vs CPU abstraction (burn/CubeCL)
 - Precision f32/f64 (generic `T: Float`)
 - Winding rule (both, default non-zero)
@@ -109,6 +109,8 @@ Backend strategy resolved. Language design still open.
 - Deformer stacking (graph internal, stack API)
 - Expression backend (Cranelift/WGSL/Interpreted)
 - General internal, constrained APIs pattern
+- Plugin architecture (core = contract, host = loading)
+- Graph caching (hash-based at node boundaries)
 
 ### 🔶 Leaning (9)
 - Type system for slots (simpler than maki)
@@ -120,8 +122,8 @@ Backend strategy resolved. Language design still open.
 - Animation blending (separate crate)
 - Expression language direction (Cranelift for CPU)
 
-### ❓ Open (25+)
+### ❓ Open (23+)
 - **High impact**: Half-edge vs index mesh, Evaluation strategy, Audio state management
 - **Expression language**: AST scope, codegen details, built-in functions
-- **Cross-cutting**: Plugin registration, Graph caching, External refs, Bevy integration
+- **Cross-cutting**: External refs, Bevy integration
 - **Domain-specific**: Many audio questions, texture materialization, instancing
