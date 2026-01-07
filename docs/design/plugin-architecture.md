@@ -43,41 +43,90 @@ pub trait TextureOp: Send + Sync { ... }
 
 ### 2. Serialization Contract
 
-Ops must be serializable to/from a common format (JSON, MessagePack, etc.):
+Ops must be serializable to/from a common format (JSON, MessagePack, etc.).
+
+**The problem**: `Box<dyn MeshOp>` loses concrete type info. Need to recover type name for serialization.
+
+**Solution**: Trait includes type name + uses `erased_serde`:
 
 ```rust
-pub trait SerializableOp {
+pub trait MeshOp: erased_serde::Serialize + Send + Sync {
+    fn apply(&self, mesh: &Mesh) -> Mesh;
+
     /// Unique type identifier, e.g. "resin::mesh::Subdivide"
     fn type_name(&self) -> &'static str;
+}
 
-    /// Serialize parameters to value
-    fn to_value(&self) -> Value;
+// Concrete ops use derive + const
+#[derive(Serialize, Deserialize)]
+pub struct Subdivide {
+    pub levels: u32,
+}
 
-    /// Type-specific deserialization handled by registry
+impl MeshOp for Subdivide {
+    fn apply(&self, mesh: &Mesh) -> Mesh { ... }
+    fn type_name(&self) -> &'static str { "resin::mesh::Subdivide" }
+}
+```
+
+**Serializing a graph node**:
+
+```rust
+fn serialize_node(op: &dyn MeshOp) -> Result<Value> {
+    Ok(json!({
+        "type": op.type_name(),
+        "params": erased_serde::serialize(op, serde_json::value::Serializer)?
+    }))
+}
+```
+
+**Deserializing a graph node**:
+
+```rust
+fn deserialize_node(registry: &OpRegistry, value: &Value) -> Result<Box<dyn MeshOp>> {
+    let type_name = value["type"].as_str()?;
+    let params = &value["params"];
+    registry.deserialize(type_name, params.clone())
 }
 ```
 
 ### 3. Registry Interface
 
 ```rust
+/// Type alias for deserialize functions
+type DeserializeFn<Op> = Box<dyn Fn(Value) -> Result<Box<Op>> + Send + Sync>;
+
 pub struct OpRegistry<Op: ?Sized> {
-    deserializers: HashMap<String, Box<dyn Fn(Value) -> Result<Box<Op>>>>,
+    deserializers: HashMap<String, DeserializeFn<Op>>,
 }
 
-impl<Op: ?Sized> OpRegistry<Op> {
-    pub fn register<T>(&mut self, type_name: &str)
+impl<Op: ?Sized + 'static> OpRegistry<Op> {
+    pub fn new() -> Self {
+        Self { deserializers: HashMap::new() }
+    }
+
+    /// Register a concrete op type
+    pub fn register<T>(&mut self)
     where
         T: Op + DeserializeOwned + 'static,
     {
         self.deserializers.insert(
-            type_name.to_string(),
+            T::TYPE_NAME.to_string(),  // or use a trait method
             Box::new(|v| Ok(Box::new(serde_json::from_value::<T>(v)?))),
         );
     }
 
+    /// Deserialize an op by type name
     pub fn deserialize(&self, type_name: &str, value: Value) -> Result<Box<Op>> {
-        let deserialize = self.deserializers.get(type_name)?;
+        let deserialize = self.deserializers
+            .get(type_name)
+            .ok_or_else(|| Error::UnknownOp(type_name.to_string()))?;
         deserialize(value)
+    }
+
+    /// Check if a type is registered
+    pub fn contains(&self, type_name: &str) -> bool {
+        self.deserializers.contains_key(type_name)
     }
 }
 ```
