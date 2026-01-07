@@ -20,7 +20,7 @@ Single source of truth for design decisions. Updated as we resolve questions.
 | Parameter system | 🔶 Leaning | Yes, first-class across all domains |
 | Modularity | 🔶 Leaning | Very modular, bevy philosophy |
 | Bevy integration | 🔶 Leaning | Low priority. Separate adapter crate if needed. Must not affect core design - resin is standalone first |
-| Evaluation strategy | ❓ Open | Lazy vs eager? Pull vs push? |
+| Evaluation strategy | 🔶 Leaning | Evaluator trait. Lazy default, others as needed. See [evaluation-strategy](./design/evaluation-strategy.md) |
 | Time models | ❓ Open | Stateless vs stateful vs streaming. Recurrence = stateful. See [time-models](./design/time-models.md), [recurrent-graphs](./design/recurrent-graphs.md) |
 
 ## Expression Language
@@ -115,7 +115,7 @@ Backend strategy resolved. Language design still open.
 - 3D textures (same nodes, Vec3/Vec4 input)
 - Tiling (explicit operators)
 
-### 🔶 Leaning (13)
+### 🔶 Leaning (14)
 - Type system for slots (simpler than maki)
 - Parameter system (yes, first-class)
 - Modularity (very modular)
@@ -128,9 +128,10 @@ Backend strategy resolved. Language design still open.
 - External references (IDs + context, maybe embed small assets)
 - Audio state management (recurrent graphs, feedback edges)
 - Mesh representation (half-edge internal, indexed export)
+- Evaluation strategy (Evaluator trait, lazy default)
 
-### ❓ Open (18+)
-- **High impact**: Evaluation strategy, Time models
+### ❓ Open (17+)
+- **High impact**: Time models
 - **Expression language**: AST scope, codegen details, built-in functions
 - **Cross-cutting**: Texture vs field unification
 - **Domain-specific**: Many audio questions, texture materialization, instancing
