@@ -21,7 +21,7 @@ Single source of truth for design decisions. Updated as we resolve questions.
 | Modularity | 🔶 Leaning | Very modular, bevy philosophy |
 | Bevy integration | 🔶 Leaning | Low priority. Separate adapter crate if needed. Must not affect core design - resin is standalone first |
 | Evaluation strategy | ❓ Open | Lazy vs eager? Pull vs push? |
-| Time models | ❓ Open | Stateless vs stateful vs streaming. See [time-models](./design/time-models.md) |
+| Time models | ❓ Open | Stateless vs stateful vs streaming. Recurrence = stateful. See [time-models](./design/time-models.md), [recurrent-graphs](./design/recurrent-graphs.md) |
 
 ## Expression Language
 
@@ -64,7 +64,7 @@ Backend strategy resolved. Language design still open.
 | Modulation depth | ❓ Open | Every param modulatable (VCV)? Or explicit mod inputs (Pd)? |
 | Polyphony model | ❓ Open | Per-node (VCV poly cables)? Per-graph (Pd clone)? Explicit voice management? |
 | Control vs audio rate | ❓ Open | Automatic promotion? Explicit types like SuperCollider .kr/.ar? |
-| State management | ❓ Open | Filters have state. How does this fit pure graph model? |
+| State management | ❓ Open | Recurrent graphs: feedback edges carry state. See [recurrent-graphs](./design/recurrent-graphs.md). Details TBD. |
 
 ## Textures
 
