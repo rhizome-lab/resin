@@ -274,6 +274,29 @@ TODO: Shadertoy patterns, what needs custom code?
 ### Audio expressions
 TODO: Look at Pure Data, SuperCollider, FAUST
 
+**TidalCycles / Strudel**
+
+[TidalCycles](https://tidalcycles.org/) (Haskell) / [Strudel](https://strudel.cc/) (JS port)
+
+Pattern-based live coding for music:
+
+```javascript
+// Strudel example
+s("bd sd [~ bd] sd").speed("1 2 1.5")
+```
+
+- **Mini-notation**: `"bd sd [~ bd] sd"` = kick, snare, [rest, kick], snare
+- **Pattern transformations**: `fast()`, `slow()`, `rev()`, `jux()`
+- **Composable**: patterns are values, combine with operators
+- **Time-aware**: patterns are functions of time
+
+Key insight: domain-specific notation >> general expressions for this use case. The mini-notation is essentially a serializable DSL.
+
+**Relevance to resin:**
+- Could audio domain have similar pattern notation?
+- Patterns are serializable (they're strings/ASTs)
+- Composable transformations = our ops model
+
 ### Vector expressions
 TODO: SVG filters? Path effects?
 

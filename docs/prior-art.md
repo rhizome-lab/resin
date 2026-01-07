@@ -70,6 +70,23 @@ Key insight: audio is naturally dataflow - sources → processors → output.
 
 Key insight: a small set of primitives (osc, filter, env, lfo) covers vast sonic territory.
 
+### TidalCycles / Strudel
+
+[TidalCycles](https://tidalcycles.org/) (Haskell) · [Strudel](https://strudel.cc/) (JS)
+
+Pattern-based live coding for music:
+
+```javascript
+s("bd sd [~ bd] sd").speed("1 2 1.5")
+```
+
+- **Mini-notation**: domain-specific string syntax for rhythms
+- **Pattern transformations**: `fast()`, `slow()`, `rev()`, `jux()`
+- **Patterns as values**: composable, higher-order
+- **Time is fundamental**: patterns are functions of time
+
+Key insight: domain-specific notation >> general expressions. Mini-notation is concise, serializable, and captures domain concepts directly.
+
 ## Animation & Motion
 
 ### Motion Canvas
