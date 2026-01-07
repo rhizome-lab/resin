@@ -72,7 +72,7 @@ Backend strategy resolved. Language design still open.
 |----------|--------|-------|
 | GPU vs CPU | ✅ Resolved | Abstract over both via burn/CubeCL. See [prior-art](./prior-art.md#burn--cubecl) |
 | Tiling | ✅ Resolved | Explicit operators. Tiling isn't fundamental to most generators. `MakeSeamless`, `Tile`, etc. |
-| Resolution/materialization | ❓ Open | Lazy until neighbor ops. Resolution propagation TBD (forward context vs backward from output). See [texture-materialization](./design/texture-materialization.md) |
+| Resolution/materialization | 🔶 Leaning | Separate Field (lazy) / Image (materialized). Resolution explicit at render(). No propagation. See [texture-materialization](./design/texture-materialization.md) |
 | 3D textures | ✅ Resolved | Same nodes, Vec3 input. Vec4 for looping animation (time as 4th dim). Memory/preview are host concerns. |
 | Texture vs field | ❓ Open | In shaders they're the same (sample at coord). Needs exploration. Textures need materialization, fields are lazy. |
 
@@ -115,7 +115,7 @@ Backend strategy resolved. Language design still open.
 - 3D textures (same nodes, Vec3/Vec4 input)
 - Tiling (explicit operators)
 
-### 🔶 Leaning (14)
+### 🔶 Leaning (15)
 - Type system for slots (simpler than maki)
 - Parameter system (yes, first-class)
 - Modularity (very modular)
@@ -129,9 +129,10 @@ Backend strategy resolved. Language design still open.
 - Audio state management (recurrent graphs, feedback edges)
 - Mesh representation (half-edge internal, indexed export)
 - Evaluation strategy (Evaluator trait, lazy default)
+- Texture materialization (Field/Image split, explicit resolution)
 
-### ❓ Open (17+)
+### ❓ Open (16+)
 - **High impact**: Time models
 - **Expression language**: AST scope, codegen details, built-in functions
 - **Cross-cutting**: Texture vs field unification
-- **Domain-specific**: Many audio questions, texture materialization, instancing
+- **Domain-specific**: Many audio questions, instancing

@@ -43,38 +43,73 @@ struct Image {
 | Normal from height | Yes | No |
 | Edge detection | Yes | No |
 
-## Design: Lazy Until Forced
+## Design: Explicit Field/Image Split
+
+Two distinct types, not an enum:
 
 ```rust
-enum Texture {
-    /// Lazy: composable, resolution-independent
-    Field(Box<dyn Field>),
+/// Lazy, resolution-independent
+trait Field {
+    fn sample(&self, uv: Vec2) -> Color;
+}
 
-    /// Materialized: has pixels
-    Image(Image),
+/// Materialized, has pixels at specific resolution
+struct Image {
+    data: Vec<Color>,  // or GpuTexture
+    width: u32,
+    height: u32,
 }
 ```
 
-**Lazy ops accumulate:**
+**Field ops (lazy, composable):**
 ```rust
-let tex = Perlin::new()           // Field
-    .map(|v| Color::gray(v))       // Field (fused)
-    .brightness(0.1)               // Field (fused)
-    .contrast(1.2);                // Field (fused)
+impl<F: Field> FieldOps for F {
+    /// Transform colors (fuses with previous ops)
+    fn map<G: Fn(Color) -> Color>(&self, f: G) -> impl Field;
 
-// All above is ONE field - no pixels yet
+    /// Transform UVs
+    fn uv_transform(&self, matrix: Mat3) -> impl Field;
+
+    /// Materialize at explicit resolution
+    fn render(&self, width: u32, height: u32) -> Image;
+}
 ```
 
-**Neighbor ops force materialization:**
+**Image ops (materialized, have resolution):**
 ```rust
-let blurred = tex.blur(5, 1024, 1024);  // Must specify resolution
-// Now we have pixels
+impl Image {
+    /// Neighbor ops (work on pixels)
+    fn blur(&self, radius_uv: f32) -> Image;
+    fn sharpen(&self, amount: f32) -> Image;
+    fn normals_from_height(&self) -> Image;
+
+    /// Resize
+    fn upscale(&self, width: u32, height: u32) -> Image;
+    fn downscale(&self, width: u32, height: u32) -> Image;
+
+    /// Back to lazy (samples this image)
+    fn as_field(&self) -> impl Field;
+}
 ```
 
-**Final output:**
+**Example workflow:**
 ```rust
-let image = tex.render(2048, 2048);  // Materialize at output resolution
+let noise = Perlin::new()           // Field
+    .map(|v| Color::gray(v))         // Field (fused)
+    .brightness(0.1)                 // Field (fused)
+    .contrast(1.2);                  // Field (still lazy)
+
+// Explicit materialization
+let image = noise.render(1024, 1024);  // Now we have pixels
+let blurred = image.blur(0.01);         // Image op
+
+// Or: lower res for performance
+let cheap = noise.render(512, 512)
+    .blur(0.01)
+    .upscale(1024, 1024);
 ```
+
+**Key principle:** Resolution is always explicit at `render()`. No hidden propagation.
 
 ## Kernel Fusion
 
@@ -97,71 +132,75 @@ fn fused_sample(uv: Vec2) -> Color {
 
 **API implication:** Lazy ops return `Field`, preserving fusion opportunity. Only `render()` or neighbor ops trigger execution.
 
-## Resolution: The Hard Part
+## Resolution: Explicit and Simple
 
-### Who Specifies Resolution?
-
-**For final output:** User specifies at render time.
-```rust
-tex.render(1024, 1024)  // User chooses
-```
-
-**For neighbor ops:** Needs resolution, but when?
-
-```
-noise → brightness → blur → contrast → render(1024)
-         lazy        NEEDS    lazy
-                     PIXELS
-```
-
-Options:
-
-**A. Explicit at each neighbor op**
-```rust
-tex.blur(5, Resolution::Explicit(1024, 1024))
-```
-Verbose. User must know resolution early.
-
-**B. Resolution flows backward from output**
-```rust
-// Blur doesn't know resolution yet
-let graph = noise.brightness(0.1).blur(5).contrast(1.2);
-
-// Resolution determined at render time, flows back to blur
-graph.render(1024, 1024);
-```
-Requires two-phase evaluation: resolve resolutions, then execute.
-
-**C. Resolution is graph-level setting**
-```rust
-let graph = TextureGraph::new()
-    .resolution(1024, 1024)  // All materializations use this
-    .add(noise)
-    .add(blur(5))
-    .add(contrast(1.2));
-```
-Simple but inflexible.
-
-### Resolution Units Problem
-
-If blur radius is in pixels:
-- `blur(5)` at 512px ≠ `blur(5)` at 1024px (visually different)
-- Field is NOT truly resolution-independent
-
-Options:
-- **Pixel units:** Accept resolution-dependence. User adjusts for target resolution.
-- **UV units:** `blur(0.01)` = 1% of image width. Resolution-independent semantically.
-- **Both:** `blur_px(5)` vs `blur_uv(0.01)`
+### Resolution is always explicit at `render()`
 
 ```rust
-impl Texture {
-    /// Blur radius in pixels (resolution-dependent)
-    fn blur_px(&self, radius_px: f32, resolution: (u32, u32)) -> Texture;
+// Field has no resolution
+let field = Perlin::new().brightness(0.1);
 
-    /// Blur radius in UV space (resolution-independent)
-    fn blur_uv(&self, radius_uv: f32) -> Texture;
+// User chooses resolution when materializing
+let image = field.render(1024, 1024);
+```
+
+### Neighbor ops work on Images (already have resolution)
+
+```rust
+// blur() is an Image method, not Field method
+// Resolution comes from the image itself
+let blurred = image.blur(0.01);  // image is 1024x1024, blur works at that res
+```
+
+### Want different resolution? Explicit render/resize
+
+```rust
+// Full res blur
+let result = noise.render(1024, 1024).blur(0.01);
+
+// Cheap blur (half res, upscale after)
+let result = noise.render(512, 512).blur(0.01).upscale(1024, 1024);
+
+// No magic, no hidden resolution propagation
+```
+
+### Resolution Units
+
+Image ops use UV-space units for resolution independence:
+
+```rust
+// blur(0.01) = blur by 1% of image width
+// At 1024px: 10.24 pixel radius
+// At 512px: 5.12 pixel radius
+// Visually similar relative to image size
+
+image.blur(0.01)  // UV units (default)
+image.blur_px(10) // Pixel units (when you need exact control)
+```
+
+## Default Resolution (Convenience)
+
+When you don't want to specify resolution everywhere:
+
+```rust
+impl<F: Field> FieldOps for F {
+    /// Explicit resolution (preferred)
+    fn render(&self, width: u32, height: u32) -> Image;
+
+    /// Use context's resolution (convenience)
+    fn render_default(&self, ctx: &EvalContext) -> Image {
+        self.render(ctx.default_width, ctx.default_height)
+    }
+}
+
+struct EvalContext {
+    default_width: u32,
+    default_height: u32,
+    // ...
 }
 ```
+
+Context provides a default. No magic propagation - just a fallback value.
 
 ## GPU Execution Model
 
@@ -171,68 +210,26 @@ On GPU:
 - **Neighbor op** = shader that samples texture
 
 ```
-Field (shader) → Materialize (render to texture) → Neighbor op (shader samples texture)
+Field (shader) → render() → GPU texture → blur (shader samples texture)
 ```
 
 Fusion on GPU = compose shader functions before compilation.
 
-## Two-Phase Evaluation Concern
-
-**The problem:** If resolution flows backward, we need:
-1. Phase 1: Traverse graph, determine resolutions
-2. Phase 2: Execute with known resolutions
-
-This feels like special-casing resolution.
-
-**Alternative: Resolution as explicit input**
-
-Resolution is a parameter like any other:
-
-```rust
-struct RenderContext {
-    resolution: (u32, u32),
-    // ...
-}
-
-// Neighbor ops read resolution from context
-impl Blur {
-    fn eval(&self, input: Texture, ctx: &RenderContext) -> Texture {
-        let (w, h) = ctx.resolution;
-        // materialize input at (w, h), then blur
-    }
-}
-```
-
-Context is set at eval time, flows forward. No two-phase.
-
-But: what if different branches need different resolutions? (e.g., blur at full res, thumbnail at 1/4 res)
-
 ## Open Questions
 
-1. **Resolution propagation:** Forward (context) or backward (from output)? Or both?
+1. **Partial materialization:** Can we materialize only the region needed? (tiled evaluation)
 
-2. **UV vs pixel units:** Default to UV-space for resolution independence? Pixel ops for specific needs?
+2. **Mipmap integration:** When to generate mipmaps? Affects blur quality at different scales.
 
-3. **Multi-resolution graphs:** Same graph, different resolutions for different outputs?
-
-4. **Partial materialization:** Can we materialize only the region needed? (tiled evaluation)
-
-5. **Mipmap integration:** When to generate mipmaps? Affects blur quality.
-
-6. **Viewport preview:** Live preview at viewport resolution. How does this interact with final render resolution?
+3. **Image → Field → Image roundtrip:** Any precision/quality concerns?
 
 ## Summary
 
-| Aspect | Direction |
-|--------|-----------|
-| Default | Lazy (Field) until forced |
-| Neighbor ops | Force materialization |
-| Fusion | Lazy ops fuse into single evaluation |
-| Resolution source | TBD - either context (forward) or output (backward) |
-| Units | Probably UV-space default for resolution independence |
-
-## Not Resolved
-
-- Exact resolution propagation mechanism
-- Two-phase vs context-based
-- How viewport preview resolution relates to render resolution
+| Aspect | Decision |
+|--------|----------|
+| Types | Separate `Field` (lazy) and `Image` (materialized) |
+| Resolution | Explicit at `render()`, no propagation |
+| Neighbor ops | Image methods only (already have resolution) |
+| Fusion | Field ops fuse into single evaluation |
+| Units | UV-space default, pixel units available |
+| Default resolution | Context provides fallback for convenience |
