@@ -50,7 +50,7 @@ Backend strategy resolved. Language design still open.
 
 | Question | Status | Notes |
 |----------|--------|-------|
-| Half-edge vs index-based | ❓ Open | Half-edge better for topology, index-based GPU-friendly. Both? Convert at boundaries? |
+| Half-edge vs index-based | 🔶 Leaning | Half-edge internal, indexed on export. Accept memory cost for topology ops. See [mesh-representation](./design/mesh-representation.md) |
 | Instancing | ❓ Open | How to represent "100 copies with different transforms"? |
 | SDF integration | ❓ Open | Separate representation or unify with mesh ops? |
 | Fields for selection | ❓ Open | Blender's `position.z > 0` as selection. How much do we want? |
@@ -115,7 +115,7 @@ Backend strategy resolved. Language design still open.
 - 3D textures (same nodes, Vec3/Vec4 input)
 - Tiling (explicit operators)
 
-### 🔶 Leaning (12)
+### 🔶 Leaning (13)
 - Type system for slots (simpler than maki)
 - Parameter system (yes, first-class)
 - Modularity (very modular)
@@ -127,9 +127,10 @@ Backend strategy resolved. Language design still open.
 - Bevy integration (low priority, standalone first)
 - External references (IDs + context, maybe embed small assets)
 - Audio state management (recurrent graphs, feedback edges)
+- Mesh representation (half-edge internal, indexed export)
 
-### ❓ Open (19+)
-- **High impact**: Half-edge vs index mesh, Evaluation strategy, Time models
+### ❓ Open (18+)
+- **High impact**: Evaluation strategy, Time models
 - **Expression language**: AST scope, codegen details, built-in functions
 - **Cross-cutting**: Texture vs field unification
 - **Domain-specific**: Many audio questions, texture materialization, instancing
