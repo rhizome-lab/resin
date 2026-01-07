@@ -29,6 +29,25 @@ When adding a new feature, first ask: can an existing concept handle this?
 
 If proposing a new dependency, ask: can existing code do this?
 
+## General Internal, Constrained APIs
+
+Store the general representation internally. Expose constrained APIs for common cases.
+
+| Domain | General (internal) | Constrained API |
+|--------|-------------------|-----------------|
+| Vector | VectorNetwork | Path (degree ≤ 2) |
+| Mesh | HalfEdgeMesh | IndexedMesh (no adjacency) |
+| Audio | AudioGraph | Chain (linear) |
+| Deformers | DeformerGraph | DeformerStack (linear) |
+| Textures | TextureGraph | TextureExpr (fluent) |
+
+Benefits:
+- No loss of generality - full power available when needed
+- Simpler common case - constrained APIs are easier to use
+- Progressive disclosure - start simple, go general when needed
+
+See [design/general-internal-constrained-api](./design/general-internal-constrained-api.md) for details.
+
 ## Bevy Compatibility
 
 Resin is designed to work with the bevy ecosystem without requiring it:

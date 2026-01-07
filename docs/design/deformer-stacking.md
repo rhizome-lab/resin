@@ -167,8 +167,21 @@ This keeps the stack linear while allowing weighted combination of two deformati
 
 ## Decision
 
+Following the [General Internal, Constrained APIs](./general-internal-constrained-api.md) principle:
+
+- **Internal**: DeformerGraph (DAG, full flexibility)
+- **Constrained API**: DeformerStack (linear, simple)
+
+```rust
+// General
+struct DeformerGraph { nodes, edges }
+
+// Constrained
+struct DeformerStack(DeformerGraph);  // enforces linear topology
+```
+
+Most users use the stack API. Power users access the graph when needed.
+
 | Approach | Complexity | Flexibility | Recommended? |
 |----------|------------|-------------|--------------|
-| List | Low | Medium | **Yes (start here)** |
-| Graph | High | High | Maybe later |
-| Hybrid | Medium | Medium | Overengineered |
+| Graph internal + Stack API | Medium | High | **Yes** |

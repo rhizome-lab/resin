@@ -49,6 +49,12 @@ Do not:
 - Convenience = zero-config. Hiding information = pretending everything is okay.
 - Log when skipping something - user should know why.
 
+**General internal, constrained APIs.** Store the general representation, expose simpler APIs for common cases:
+- VectorNetwork internally, Path API for linear curves
+- HalfEdgeMesh internally, IndexedMesh for GPU
+- AudioGraph internally, Chain for linear pipelines
+- See `docs/design/general-internal-constrained-api.md`
+
 **Generative mindset.** Everything in resin should be describable procedurally:
 - Prefer node graphs / expression trees over baked data
 - Parameters > presets
