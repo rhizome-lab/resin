@@ -231,19 +231,43 @@ Figma is the only major tool using networks natively.
 
 ## Recommendation
 
-**Start with paths, consider network layer later.**
+**Network internally, both APIs as equals.**
 
-Reasoning:
-1. Paths cover 90%+ of use cases
-2. Better interoperability (SVG, fonts, etc.)
-3. Simpler implementation
-4. Can add network support as optional layer
-5. Network → Path conversion is straightforward for export
+Key insight: paths are just networks with a constraint (degree ≤ 2). No need to choose - use network as the internal representation, offer both API surfaces.
 
-If we add networks later:
-- Keep as separate type, not replacement
-- Provide conversion both directions
-- Networks for editing/construction, paths for render/export
+```rust
+// Internal: always a network
+struct VectorNetwork {
+    vertices: Vec<Vertex>,
+    edges: Vec<Edge>,
+}
+
+// Path is a constrained view/wrapper
+struct Path(VectorNetwork);  // newtype enforcing degree ≤ 2
+
+impl Path {
+    fn line_to(&mut self, p: Vec2) -> &mut Self { ... }
+    fn point_at(&self, t: f32) -> Vec2 { ... }  // global parameterization
+}
+
+impl VectorNetwork {
+    fn as_path(&self) -> Option<Path> { ... }  // None if branching
+    fn add_edge(&mut self, a: VertexId, b: VertexId) { ... }
+}
+```
+
+**Different APIs for different mental models:**
+
+| Path API (constrained) | Network API (general) |
+|------------------------|----------------------|
+| `point_at(t)` global | `point_at(edge, t)` per-edge |
+| `iter_segments()` ordered | `iter_edges()` unordered |
+| `reverse()` flip direction | edges directed or not |
+| `append(other)` concatenate | `merge(other)` union graphs |
+
+**Interoperability is just conversion at boundaries:**
+- Import SVG → parse as paths → store as network
+- Export → decompose to paths → write SVG
 
 ## Open Questions
 
