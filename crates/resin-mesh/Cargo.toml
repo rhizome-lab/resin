@@ -7,3 +7,4 @@ description = "3D mesh generation for resin"
 
 [dependencies]
 glam.workspace = true
+resin-core = { path = "../resin-core" }

@@ -1,6 +1,7 @@
 //! Core mesh types.
 
 use glam::{Vec2, Vec3};
+use resin_core::{HasIndices, HasNormals, HasPositions, HasUVs};
 
 /// A 3D mesh with indexed triangle topology.
 ///
@@ -185,6 +186,48 @@ impl MeshBuilder {
     /// Builds the final mesh.
     pub fn build(self) -> Mesh {
         self.mesh
+    }
+}
+
+// Trait implementations for Mesh
+
+impl HasPositions for Mesh {
+    fn vertex_count(&self) -> usize {
+        self.positions.len()
+    }
+
+    fn positions(&self) -> &[Vec3] {
+        &self.positions
+    }
+
+    fn positions_mut(&mut self) -> &mut [Vec3] {
+        &mut self.positions
+    }
+}
+
+impl HasNormals for Mesh {
+    fn normals(&self) -> &[Vec3] {
+        &self.normals
+    }
+
+    fn normals_mut(&mut self) -> &mut [Vec3] {
+        &mut self.normals
+    }
+}
+
+impl HasUVs for Mesh {
+    fn uvs(&self) -> &[Vec2] {
+        &self.uvs
+    }
+
+    fn uvs_mut(&mut self) -> &mut [Vec2] {
+        &mut self.uvs
+    }
+}
+
+impl HasIndices for Mesh {
+    fn indices(&self) -> &[u32] {
+        &self.indices
     }
 }
 

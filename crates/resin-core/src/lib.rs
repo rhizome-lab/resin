@@ -6,13 +6,18 @@
 //! - [`DynNode`] - Trait for dynamic node execution
 //! - [`Value`] - Runtime value type for graph data
 //! - [`EvalContext`] - Evaluation context (time, resolution, etc.)
+//! - Attribute traits ([`HasPositions`], [`HasNormals`], etc.)
 
+mod attributes;
 mod context;
 mod error;
 mod graph;
 mod node;
 mod value;
 
+pub use attributes::{
+    FullGeometry, Geometry, HasColors, HasIndices, HasNormals, HasPositions, HasUVs,
+};
 pub use context::EvalContext;
 pub use error::{GraphError, TypeError};
 pub use glam;
