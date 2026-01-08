@@ -78,7 +78,7 @@ See [expression-language](./design/expression-language.md) for full design.
 | Tiling | ✅ Resolved | Explicit operators. Tiling isn't fundamental to most generators. `MakeSeamless`, `Tile`, etc. |
 | Resolution/materialization | 🔶 Leaning | Separate Field (lazy) / Image (materialized). Resolution explicit at render(). No propagation. See [texture-materialization](./design/texture-materialization.md) |
 | 3D textures | ✅ Resolved | Same nodes, Vec3 input. Vec4 for looping animation (time as 4th dim). Memory/preview are host concerns. |
-| Texture vs field | ✅ Resolved | Unified via generic `Field<I, O>` trait. Same concept, different input types (Vec2 for texture, Vec3 for volume, f32 for audio). Materialization (Field→Image) is separate concern. |
+| Texture vs field | 🔶 Leaning | Unified via generic `Field<I, O>` trait. Same concept, different input types. Open: time-dependent fields - time as extra dimension (Vec3 for 2D+time) vs time in EvalContext? Context is more general. |
 
 ## Vector 2D
 
@@ -105,7 +105,7 @@ See [expression-language](./design/expression-language.md) for full design.
 
 ## Summary by Status
 
-### ✅ Resolved (20)
+### ✅ Resolved (19)
 - GPU vs CPU abstraction (burn/CubeCL)
 - Precision f32/f64 (generic `T: Float`)
 - Winding rule (both, default non-zero)
@@ -125,11 +125,11 @@ See [expression-language](./design/expression-language.md) for full design.
 - 3D textures (same nodes, Vec3/Vec4 input)
 - Tiling (explicit operators)
 - Ops as values (derive macro for DynOp impl)
-- Texture vs field (unified Field<I,O> trait, materialization separate)
 
-### 🔶 Leaning (16)
+### 🔶 Leaning (17)
 - Type system for slots (simpler than maki)
 - Parameter system (yes, first-class)
+- Texture vs field (Field<I,O> trait, time via context vs extra dimension)
 - Modularity (very modular)
 - Text (outlines yes, layout no)
 - Unified 2D/3D rig (yes)
