@@ -1,0 +1,16 @@
+[package]
+name = "resin-gpu"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "GPU compute backend for resin fields"
+
+[dependencies]
+glam = { workspace = true }
+wgpu = "23"
+bytemuck = { version = "1.14", features = ["derive"] }
+pollster = "0.4"
+thiserror = { workspace = true }
+
+[dev-dependencies]
+image = "0.25"

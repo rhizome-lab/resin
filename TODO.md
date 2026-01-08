@@ -2,11 +2,11 @@
 
 ## Next Up
 
-- [ ] GPU compute backend for fields
-
 ## Backlog
 
 ## Done
+
+- [x] GPU compute backend for fields (wgpu compute shaders, noise generation)
 
 - [x] NURBS curves (rational B-splines with weights, circle/ellipse/arc primitives)
 - [x] Bevy integration examples (mesh generation, skeletal animation with IK)
