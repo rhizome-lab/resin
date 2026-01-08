@@ -15,8 +15,8 @@ Single source of truth for design decisions. Updated as we resolve questions.
 | Question | Status | Notes |
 |----------|--------|-------|
 | Type system for slots | 🔶 Leaning | Simpler than maki (opaque types). Generics maybe unnecessary |
-| Unified graph container | ❓ Open | Typed slots may enable mixed-domain graphs |
-| Portable workflows | ❓ Open | Should graphs be serializable/shareable artifacts? |
+| Unified graph container | ✅ Resolved | Yes. Single `Graph` type, typed slots (`Output<T>`/`Input<T>`), compile-time safety for Rust, runtime TypeId validation for loaded graphs. Value enum at execution. |
+| Portable workflows | ✅ Resolved | Yes. JSON (human-readable) + optional binary. Versioned files, ops declare compatibility. External refs via IDs, optional asset embedding for full portability. |
 | Parameter system | 🔶 Leaning | Yes, first-class across all domains |
 | Modularity | 🔶 Leaning | Very modular, bevy philosophy |
 | Bevy integration | 🔶 Leaning | Low priority. Separate adapter crate if needed. Must not affect core design - resin is standalone first |
@@ -56,19 +56,19 @@ See [expression-language](./design/expression-language.md) for full design.
 |----------|--------|-------|
 | Half-edge vs index-based | 🔶 Leaning | Half-edge internal, indexed on export. Accept memory cost for topology ops. See [mesh-representation](./design/mesh-representation.md) |
 | Instancing | ✅ Resolved | Plugin crate (`resin-instances`), not core. Provides `Instances` type + scatter ops + merge to `Mesh`. |
-| SDF integration | ❓ Open | Separate representation or unify with mesh ops? |
-| Fields for selection | ❓ Open | Blender's `position.z > 0` as selection. How much do we want? |
+| SDF integration | ✅ Resolved | SDF is `Field<Vec3, f32>`. SDF ops are field combinators. Meshing via explicit operators (MarchingCubes, etc.). Optional `Sdf` marker trait for type-level guarantees. |
+| Fields for selection | ✅ Resolved | Yes. `Field<VertexData, bool>` for inline/lazy selection, `SelectionSet` for materialized/named/manual picks. Same Field vs materialized pattern. |
 
 ## Audio
 
 | Question | Status | Notes |
 |----------|--------|-------|
-| Sample rate | ❓ Open | Fixed at graph creation or runtime-configurable? |
-| Block size | ❓ Open | Fixed or variable? Trade-off: efficiency vs latency |
-| Modulation depth | ❓ Open | Every param modulatable (VCV)? Or explicit mod inputs (Pd)? |
-| Polyphony model | ❓ Open | Per-node (VCV poly cables)? Per-graph (Pd clone)? Explicit voice management? |
-| Control vs audio rate | ❓ Open | Automatic promotion? Explicit types like SuperCollider .kr/.ar? |
-| State management | 🔶 Leaning | Recurrent graphs: feedback edges carry state, nodes stay pure. Open: delay granularity, stability, mixed rates. See [recurrent-graphs](./design/recurrent-graphs.md) |
+| Sample rate | ✅ Resolved | Runtime from EvalContext. Nodes query `ctx.sample_rate`. Lazy buffer init (one-time cost per rate). Same graph works at any host rate. |
+| Block size | ✅ Resolved | Host-controlled, variable. Nodes handle any size. Block size from EvalContext. Feedback edges update per-block. |
+| Modulation depth | ✅ Resolved | Hybrid. Node author decides which params are modulatable via `#[modulatable]`. Explicit mod inputs, not implicit on everything. Graph resolves per-block (not per-sample), zero cost when unconnected. |
+| Polyphony model | ✅ Resolved | Per-graph cloning (Pd pattern). Plugin crate (`resin-poly`), not core. Voice allocator clones graph instances, mixes output. Matches instancing pattern. |
+| Control vs audio rate | ✅ Resolved | No special types. Control rate = lower numeric rate. Explicit conversion nodes if needed (from mixed rates decision). |
+| State management | ✅ Resolved | Recurrent graphs: feedback edges carry state, nodes stay pure. Delay granularity per-edge, mixed rates via explicit conversion. See [recurrent-graphs](./design/recurrent-graphs.md) |
 
 ## Textures
 
@@ -89,23 +89,23 @@ See [expression-language](./design/expression-language.md) for full design.
 | Winding rule | ✅ Resolved | Both, default non-zero. See [winding-rules](./design/winding-rules.md) |
 | Vector networks | ✅ Resolved | Network internally, both APIs as equals. See [vector-networks](./design/vector-networks.md) |
 | Text | 🔶 Leaning | Include outline extraction, exclude layout (harfbuzz territory) |
-| Path ↔ rigging | ❓ Open | How does path animation/morphing relate to rigging system? |
+| Path ↔ rigging | ✅ Resolved | Rigging (bones+skinning) unified 2D/3D. Morphing is separate `Morph<G>` trait. Paths can drive rig params (spline IK, curve deformers). |
 
 ## Rigging
 
 | Question | Status | Notes |
 |----------|--------|-------|
-| Unified 2D/3D rig | 🔶 Leaning | Yes, some abstractions shareable (bones, constraints, skinning) |
+| Unified 2D/3D rig | ✅ Resolved | Yes. Generic `Rig<G: HasPositions>` trait. Same bones/skinning concepts, just different dimensionality. Live2D validates 2D case. |
 | Deformer stacking | ✅ Resolved | Graph internal, Stack API. See [deformer-stacking](./design/deformer-stacking.md) |
 | Animation blending | 🔶 Leaning | Separate crate, bevy-style modularity |
-| Procedural rigging | ❓ Open | Auto-rig from mesh topology? |
-| Real-time vs offline | ❓ Open | Games need <16ms. Different constraints? |
+| Procedural rigging | ✅ Resolved | Plugin crate (`resin-autorig`). Core provides rig primitives, auto-generation is domain-specific. |
+| Real-time vs offline | ✅ Resolved | Same API, user manages budget. Solver params (iterations, tolerance) for quality/speed tradeoff. Bone count is authoring choice. |
 
 ---
 
 ## Summary by Status
 
-### ✅ Resolved (22)
+### ✅ Resolved (36)
 - GPU vs CPU abstraction (burn/CubeCL)
 - Precision f32/f64 (generic `T: Float`)
 - Winding rule (both, default non-zero)
@@ -128,17 +128,29 @@ See [expression-language](./design/expression-language.md) for full design.
 - Texture vs field (Field<I,O> trait, time handling → Time models)
 - Time models (EvalContext, explicit baking, numeric rates, feedback = state)
 - Mesh instancing (plugin crate, not core)
+- Unified graph container (typed slots, Value enum execution)
+- Portable workflows (JSON + binary, versioned, asset embedding)
+- SDF integration (Field<Vec3, f32>, meshing via explicit ops)
+- Fields for selection (Field for lazy, SelectionSet for materialized)
+- Audio sample rate (runtime from EvalContext, lazy buffer init)
+- Audio block size (host-controlled, variable)
+- Audio modulation (hybrid, node author decides, graph resolves per-block)
+- Audio polyphony (per-graph cloning, plugin crate)
+- Audio control vs audio rate (no special types, explicit conversion)
+- Audio state management (recurrent graphs, feedback edges)
+- Path ↔ rigging (unified 2D/3D rig, separate Morph trait)
+- Unified 2D/3D rig (generic Rig<G: HasPositions>)
+- Procedural rigging (plugin crate)
+- Real-time vs offline (same API, solver params for tradeoff)
 
-### 🔶 Leaning (16)
+### 🔶 Leaning (14)
 - Type system for slots (simpler than maki)
 - Parameter system (yes, first-class)
 - Modularity (very modular)
 - Text (outlines yes, layout no)
-- Unified 2D/3D rig (yes)
 - Animation blending (separate crate)
 - Bevy integration (low priority, standalone first)
 - External references (IDs + context, maybe embed small assets)
-- Audio state management (recurrent graphs, feedback edges)
 - Mesh representation (half-edge internal, indexed export)
 - Evaluation strategy (Evaluator trait, lazy default)
 - Texture materialization (Field/Image split, explicit resolution)
@@ -147,5 +159,5 @@ See [expression-language](./design/expression-language.md) for full design.
 - Plugin function API (decompose or backend extension traits)
 - Constant folding (resin-expr-opt crate, AST transform)
 
-### ❓ Open (5+)
-- **Domain-specific**: Audio (polyphony), mesh instancing, procedural rigging, real-time constraints
+### ❓ Open (0)
+All questions resolved or leaning!
