@@ -13,6 +13,7 @@ mod context;
 mod error;
 mod graph;
 mod node;
+pub mod noise;
 mod value;
 
 pub use attributes::{
@@ -23,4 +24,9 @@ pub use error::{GraphError, TypeError};
 pub use glam;
 pub use graph::{Edge, Graph, NodeId};
 pub use node::{BoxedNode, DynNode, PortDescriptor};
+pub use noise::{
+    fbm2, fbm3, fbm_perlin2, fbm_perlin3, fbm_simplex2, fbm_simplex3,
+    perlin2, perlin2v, perlin3, perlin3v,
+    simplex2, simplex2v, simplex3, simplex3v,
+};
 pub use value::{Value, ValueType};
