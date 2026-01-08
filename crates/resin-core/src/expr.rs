@@ -17,20 +17,18 @@
 //! -a               // Negation
 //!
 //! // Functions (registered via ExprFn trait)
-//! sin(x), cos(x), sqrt(x), abs(x)
-//! min(a, b), max(a, b)
-//! clamp(x, lo, hi), lerp(a, b, t)
-//! noise(x, y)      // if registered
+//! sin(x), cos(x), sqrt(x), etc. (from resin-expr-std)
 //! ```
 //!
 //! # Example
 //!
 //! ```ignore
-//! use resin_core::expr::{Expr, FunctionRegistry, std_registry};
+//! use resin_core::expr::{Expr, FunctionRegistry};
+//! use resin_expr_std::std_registry;
 //! use resin_core::EvalContext;
 //! use glam::Vec2;
 //!
-//! let registry = std_registry();  // sin, cos, etc.
+//! let registry = std_registry();  // from resin-expr-std
 //! let expr = Expr::parse("sin(x * 3.14) + 0.5").unwrap();
 //! let ctx = EvalContext::new();
 //! let value = expr.eval(Vec2::new(0.5, 0.0), &ctx, &registry);
@@ -50,6 +48,8 @@ use std::sync::Arc;
 ///
 /// All functions (including sin, cos, etc.) implement this trait.
 /// There are no hardcoded functions - everything is registered.
+///
+/// Standard functions are provided by the `resin-expr-std` crate.
 pub trait ExprFn: Send + Sync {
     /// Function name (e.g., "sin", "perlin").
     fn name(&self) -> &str;
@@ -88,104 +88,6 @@ impl FunctionRegistry {
     pub fn get(&self, name: &str) -> Option<&Arc<dyn ExprFn>> {
         self.funcs.get(name)
     }
-}
-
-// ============================================================================
-// Standard library functions
-// ============================================================================
-
-macro_rules! define_fn {
-    ($name:ident, $str_name:literal, $args:literal, |$($arg:ident),*| $body:expr) => {
-        pub struct $name;
-
-        impl ExprFn for $name {
-            fn name(&self) -> &str { $str_name }
-            fn arg_count(&self) -> usize { $args }
-            fn interpret(&self, args: &[f32]) -> f32 {
-                let [$($arg),*] = args else { return 0.0 };
-                $body
-            }
-        }
-    };
-}
-
-define_fn!(FnSin, "sin", 1, |a| a.sin());
-define_fn!(FnCos, "cos", 1, |a| a.cos());
-define_fn!(FnTan, "tan", 1, |a| a.tan());
-define_fn!(FnSqrt, "sqrt", 1, |a| a.sqrt());
-define_fn!(FnAbs, "abs", 1, |a| a.abs());
-define_fn!(FnFloor, "floor", 1, |a| a.floor());
-define_fn!(FnCeil, "ceil", 1, |a| a.ceil());
-define_fn!(FnFract, "fract", 1, |a| a.fract());
-define_fn!(FnMin, "min", 2, |a, b| a.min(*b));
-define_fn!(FnMax, "max", 2, |a, b| a.max(*b));
-define_fn!(FnClamp, "clamp", 3, |x, lo, hi| x.clamp(*lo, *hi));
-define_fn!(FnLerp, "lerp", 3, |a, b, t| a + (b - a) * t);
-
-// Also register "mix" as alias for lerp
-pub struct FnMix;
-impl ExprFn for FnMix {
-    fn name(&self) -> &str {
-        "mix"
-    }
-    fn arg_count(&self) -> usize {
-        3
-    }
-    fn interpret(&self, args: &[f32]) -> f32 {
-        let [a, b, t] = args else { return 0.0 };
-        a + (b - a) * t
-    }
-}
-
-// Noise function
-pub struct FnNoise;
-impl ExprFn for FnNoise {
-    fn name(&self) -> &str {
-        "noise"
-    }
-    fn arg_count(&self) -> usize {
-        2
-    }
-    fn interpret(&self, args: &[f32]) -> f32 {
-        let [x, y] = args else { return 0.0 };
-        crate::noise::perlin2(*x, *y)
-    }
-}
-
-// Alias for noise
-pub struct FnPerlin;
-impl ExprFn for FnPerlin {
-    fn name(&self) -> &str {
-        "perlin"
-    }
-    fn arg_count(&self) -> usize {
-        2
-    }
-    fn interpret(&self, args: &[f32]) -> f32 {
-        let [x, y] = args else { return 0.0 };
-        crate::noise::perlin2(*x, *y)
-    }
-}
-
-/// Creates a registry with standard math functions.
-pub fn std_registry() -> FunctionRegistry {
-    let mut r = FunctionRegistry::new();
-    r.register(FnSin);
-    r.register(FnCos);
-    r.register(FnTan);
-    r.register(FnSqrt);
-    r.register(FnAbs);
-    r.register(FnFloor);
-    r.register(FnCeil);
-    r.register(FnFract);
-    r.register(FnMin);
-    r.register(FnMax);
-    r.register(FnClamp);
-    r.register(FnLerp);
-    r.register(FnMix);
-    r.register(FnNoise);
-    r.register(FnPerlin);
-    r
 }
 
 // ============================================================================
@@ -665,22 +567,14 @@ pub struct ExprField {
 }
 
 impl ExprField {
-    /// Creates a new ExprField with the standard function registry.
-    pub fn new(expr: Expr) -> Self {
-        Self {
-            expr,
-            registry: std_registry(),
-        }
-    }
-
-    /// Creates a new ExprField with a custom registry.
-    pub fn with_registry(expr: Expr, registry: FunctionRegistry) -> Self {
+    /// Creates a new ExprField with the given registry.
+    pub fn new(expr: Expr, registry: FunctionRegistry) -> Self {
         Self { expr, registry }
     }
 
-    /// Parses and creates an ExprField with standard functions.
-    pub fn parse(input: &str) -> Result<Self, ParseError> {
-        Ok(Self::new(Expr::parse(input)?))
+    /// Parses an expression and creates an ExprField with the given registry.
+    pub fn parse(input: &str, registry: FunctionRegistry) -> Result<Self, ParseError> {
+        Ok(Self::new(Expr::parse(input)?, registry))
     }
 }
 
@@ -699,7 +593,7 @@ impl crate::field::Field<glam::Vec3, f32> for ExprField {
 }
 
 // ============================================================================
-// Tests
+// Tests (core parser only, no std functions)
 // ============================================================================
 
 #[cfg(test)]
@@ -707,7 +601,7 @@ mod tests {
     use super::*;
 
     fn eval(expr: &str, x: f32, y: f32) -> f32 {
-        let registry = std_registry();
+        let registry = FunctionRegistry::new(); // empty registry
         let expr = Expr::parse(expr).unwrap();
         let ctx = EvalContext::new();
         expr.eval(Vec2::new(x, y), &ctx, &registry).unwrap()
@@ -760,46 +654,8 @@ mod tests {
     }
 
     #[test]
-    fn test_function_sin() {
-        assert!(eval("sin(0)", 0.0, 0.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn test_function_sqrt() {
-        assert_eq!(eval("sqrt(16)", 0.0, 0.0), 4.0);
-    }
-
-    #[test]
-    fn test_function_min_max() {
-        assert_eq!(eval("min(3, 7)", 0.0, 0.0), 3.0);
-        assert_eq!(eval("max(3, 7)", 0.0, 0.0), 7.0);
-    }
-
-    #[test]
-    fn test_function_clamp() {
-        assert_eq!(eval("clamp(5, 0, 3)", 0.0, 0.0), 3.0);
-    }
-
-    #[test]
-    fn test_function_lerp() {
-        assert_eq!(eval("lerp(0, 10, 0.5)", 0.0, 0.0), 5.0);
-    }
-
-    #[test]
-    fn test_function_mix() {
-        assert_eq!(eval("mix(0, 10, 0.5)", 0.0, 0.0), 5.0);
-    }
-
-    #[test]
-    fn test_complex_expression() {
-        let v = eval("sin(x * 3.14) + y / 2", 0.5, 4.0);
-        // sin(0.5 * 3.14) + 4.0 / 2 = sin(1.57) + 2 ≈ 1 + 2 = 3
-        assert!((v - 3.0).abs() < 0.1);
-    }
-
-    #[test]
     fn test_time_variable() {
-        let registry = std_registry();
+        let registry = FunctionRegistry::new();
         let expr = Expr::parse("time").unwrap();
         let ctx = EvalContext::new().with_time(5.0);
         assert_eq!(expr.eval(Vec2::ZERO, &ctx, &registry).unwrap(), 5.0);
@@ -811,20 +667,8 @@ mod tests {
     }
 
     #[test]
-    fn test_noise_function() {
-        let v = eval("noise(x, y)", 0.5, 0.5);
-        assert!((0.0..=1.0).contains(&v));
-    }
-
-    #[test]
-    fn test_perlin_alias() {
-        let v = eval("perlin(x, y)", 0.5, 0.5);
-        assert!((0.0..=1.0).contains(&v));
-    }
-
-    #[test]
     fn test_unknown_function() {
-        let registry = std_registry();
+        let registry = FunctionRegistry::new();
         let expr = Expr::parse("unknown(1)").unwrap();
         let ctx = EvalContext::new();
         let result = expr.eval(Vec2::ZERO, &ctx, &registry);
@@ -832,17 +676,7 @@ mod tests {
     }
 
     #[test]
-    fn test_wrong_arg_count() {
-        let registry = std_registry();
-        let expr = Expr::parse("sin(1, 2)").unwrap();
-        let ctx = EvalContext::new();
-        let result = expr.eval(Vec2::ZERO, &ctx, &registry);
-        assert!(matches!(result, Err(EvalError::WrongArgCount { .. })));
-    }
-
-    #[test]
     fn test_custom_function() {
-        // Register a custom function
         struct Double;
         impl ExprFn for Double {
             fn name(&self) -> &str {
@@ -856,7 +690,7 @@ mod tests {
             }
         }
 
-        let mut registry = std_registry();
+        let mut registry = FunctionRegistry::new();
         registry.register(Double);
 
         let expr = Expr::parse("double(5)").unwrap();
@@ -865,10 +699,35 @@ mod tests {
     }
 
     #[test]
+    fn test_wrong_arg_count() {
+        struct OneArg;
+        impl ExprFn for OneArg {
+            fn name(&self) -> &str {
+                "one_arg"
+            }
+            fn arg_count(&self) -> usize {
+                1
+            }
+            fn interpret(&self, args: &[f32]) -> f32 {
+                args[0]
+            }
+        }
+
+        let mut registry = FunctionRegistry::new();
+        registry.register(OneArg);
+
+        let expr = Expr::parse("one_arg(1, 2)").unwrap();
+        let ctx = EvalContext::new();
+        let result = expr.eval(Vec2::ZERO, &ctx, &registry);
+        assert!(matches!(result, Err(EvalError::WrongArgCount { .. })));
+    }
+
+    #[test]
     fn test_expr_field() {
         use crate::field::Field;
 
-        let field = ExprField::parse("x + y").unwrap();
+        let registry = FunctionRegistry::new();
+        let field = ExprField::parse("x + y", registry).unwrap();
         let ctx = EvalContext::new();
         let v: f32 = field.sample(Vec2::new(3.0, 4.0), &ctx);
         assert_eq!(v, 7.0);
