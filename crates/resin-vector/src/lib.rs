@@ -5,6 +5,7 @@
 mod network;
 mod path;
 mod stroke;
+pub mod svg;
 
 pub use network::{
     Edge, EdgeHandle, EdgeId, EdgeType, HandleStyle, Node, NodeId, Region, VectorNetwork,
