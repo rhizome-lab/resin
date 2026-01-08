@@ -1162,6 +1162,364 @@ impl Field<Vec2, f32> for DistanceBox {
 }
 
 // ============================================================================
+// SDF operations
+// ============================================================================
+
+/// Union of two SDFs (min).
+pub struct SdfUnion<A, B> {
+    pub a: A,
+    pub b: B,
+}
+
+impl<A, B> SdfUnion<A, B> {
+    pub fn new(a: A, b: B) -> Self {
+        Self { a, b }
+    }
+}
+
+impl<I: Clone, A, B> Field<I, f32> for SdfUnion<A, B>
+where
+    A: Field<I, f32>,
+    B: Field<I, f32>,
+{
+    fn sample(&self, input: I, ctx: &EvalContext) -> f32 {
+        let a = self.a.sample(input.clone(), ctx);
+        let b = self.b.sample(input, ctx);
+        a.min(b)
+    }
+}
+
+/// Intersection of two SDFs (max).
+pub struct SdfIntersection<A, B> {
+    pub a: A,
+    pub b: B,
+}
+
+impl<A, B> SdfIntersection<A, B> {
+    pub fn new(a: A, b: B) -> Self {
+        Self { a, b }
+    }
+}
+
+impl<I: Clone, A, B> Field<I, f32> for SdfIntersection<A, B>
+where
+    A: Field<I, f32>,
+    B: Field<I, f32>,
+{
+    fn sample(&self, input: I, ctx: &EvalContext) -> f32 {
+        let a = self.a.sample(input.clone(), ctx);
+        let b = self.b.sample(input, ctx);
+        a.max(b)
+    }
+}
+
+/// Subtraction of SDF B from A.
+pub struct SdfSubtraction<A, B> {
+    pub a: A,
+    pub b: B,
+}
+
+impl<A, B> SdfSubtraction<A, B> {
+    pub fn new(a: A, b: B) -> Self {
+        Self { a, b }
+    }
+}
+
+impl<I: Clone, A, B> Field<I, f32> for SdfSubtraction<A, B>
+where
+    A: Field<I, f32>,
+    B: Field<I, f32>,
+{
+    fn sample(&self, input: I, ctx: &EvalContext) -> f32 {
+        let a = self.a.sample(input.clone(), ctx);
+        let b = self.b.sample(input, ctx);
+        a.max(-b)
+    }
+}
+
+/// Smooth union of two SDFs using polynomial smooth min.
+pub struct SdfSmoothUnion<A, B> {
+    pub a: A,
+    pub b: B,
+    pub k: f32,
+}
+
+impl<A, B> SdfSmoothUnion<A, B> {
+    pub fn new(a: A, b: B, k: f32) -> Self {
+        Self { a, b, k }
+    }
+}
+
+impl<I: Clone, A, B> Field<I, f32> for SdfSmoothUnion<A, B>
+where
+    A: Field<I, f32>,
+    B: Field<I, f32>,
+{
+    fn sample(&self, input: I, ctx: &EvalContext) -> f32 {
+        let a = self.a.sample(input.clone(), ctx);
+        let b = self.b.sample(input, ctx);
+        smooth_min(a, b, self.k)
+    }
+}
+
+/// Smooth intersection of two SDFs.
+pub struct SdfSmoothIntersection<A, B> {
+    pub a: A,
+    pub b: B,
+    pub k: f32,
+}
+
+impl<A, B> SdfSmoothIntersection<A, B> {
+    pub fn new(a: A, b: B, k: f32) -> Self {
+        Self { a, b, k }
+    }
+}
+
+impl<I: Clone, A, B> Field<I, f32> for SdfSmoothIntersection<A, B>
+where
+    A: Field<I, f32>,
+    B: Field<I, f32>,
+{
+    fn sample(&self, input: I, ctx: &EvalContext) -> f32 {
+        let a = self.a.sample(input.clone(), ctx);
+        let b = self.b.sample(input, ctx);
+        smooth_max(a, b, self.k)
+    }
+}
+
+/// Smooth subtraction of SDF B from A.
+pub struct SdfSmoothSubtraction<A, B> {
+    pub a: A,
+    pub b: B,
+    pub k: f32,
+}
+
+impl<A, B> SdfSmoothSubtraction<A, B> {
+    pub fn new(a: A, b: B, k: f32) -> Self {
+        Self { a, b, k }
+    }
+}
+
+impl<I: Clone, A, B> Field<I, f32> for SdfSmoothSubtraction<A, B>
+where
+    A: Field<I, f32>,
+    B: Field<I, f32>,
+{
+    fn sample(&self, input: I, ctx: &EvalContext) -> f32 {
+        let a = self.a.sample(input.clone(), ctx);
+        let b = self.b.sample(input, ctx);
+        smooth_max(a, -b, self.k)
+    }
+}
+
+/// Polynomial smooth minimum.
+fn smooth_min(a: f32, b: f32, k: f32) -> f32 {
+    if k <= 0.0 {
+        return a.min(b);
+    }
+    let h = (k - (a - b).abs()).max(0.0) / k;
+    a.min(b) - h * h * k * 0.25
+}
+
+/// Polynomial smooth maximum.
+fn smooth_max(a: f32, b: f32, k: f32) -> f32 {
+    -smooth_min(-a, -b, k)
+}
+
+/// Rounds/expands an SDF by a radius.
+pub struct SdfRound<F> {
+    pub field: F,
+    pub radius: f32,
+}
+
+impl<F> SdfRound<F> {
+    pub fn new(field: F, radius: f32) -> Self {
+        Self { field, radius }
+    }
+}
+
+impl<I, F: Field<I, f32>> Field<I, f32> for SdfRound<F> {
+    fn sample(&self, input: I, ctx: &EvalContext) -> f32 {
+        self.field.sample(input, ctx) - self.radius
+    }
+}
+
+/// Annular (ring/shell) version of an SDF.
+pub struct SdfAnnular<F> {
+    pub field: F,
+    pub thickness: f32,
+}
+
+impl<F> SdfAnnular<F> {
+    pub fn new(field: F, thickness: f32) -> Self {
+        Self { field, thickness }
+    }
+}
+
+impl<I, F: Field<I, f32>> Field<I, f32> for SdfAnnular<F> {
+    fn sample(&self, input: I, ctx: &EvalContext) -> f32 {
+        self.field.sample(input, ctx).abs() - self.thickness
+    }
+}
+
+// ============================================================================
+// Domain modifiers
+// ============================================================================
+
+/// Twists space around the Y axis (for 3D fields).
+pub struct Twist<F> {
+    pub field: F,
+    pub amount: f32,
+}
+
+impl<F> Twist<F> {
+    pub fn new(field: F, amount: f32) -> Self {
+        Self { field, amount }
+    }
+}
+
+impl<O, F: Field<Vec3, O>> Field<Vec3, O> for Twist<F> {
+    fn sample(&self, input: Vec3, ctx: &EvalContext) -> O {
+        let angle = input.y * self.amount;
+        let cos = angle.cos();
+        let sin = angle.sin();
+        let twisted = Vec3::new(
+            input.x * cos - input.z * sin,
+            input.y,
+            input.x * sin + input.z * cos,
+        );
+        self.field.sample(twisted, ctx)
+    }
+}
+
+/// Bends space around the Y axis (for 3D fields).
+pub struct Bend<F> {
+    pub field: F,
+    pub amount: f32,
+}
+
+impl<F> Bend<F> {
+    pub fn new(field: F, amount: f32) -> Self {
+        Self { field, amount }
+    }
+}
+
+impl<O, F: Field<Vec3, O>> Field<Vec3, O> for Bend<F> {
+    fn sample(&self, input: Vec3, ctx: &EvalContext) -> O {
+        let angle = input.x * self.amount;
+        let cos = angle.cos();
+        let sin = angle.sin();
+        let bent = Vec3::new(
+            cos * input.x - sin * input.y,
+            sin * input.x + cos * input.y,
+            input.z,
+        );
+        self.field.sample(bent, ctx)
+    }
+}
+
+/// Repeats space infinitely.
+pub struct Repeat<F> {
+    pub field: F,
+    pub period: Vec2,
+}
+
+impl<F> Repeat<F> {
+    pub fn new(field: F, period: Vec2) -> Self {
+        Self { field, period }
+    }
+}
+
+impl<O, F: Field<Vec2, O>> Field<Vec2, O> for Repeat<F> {
+    fn sample(&self, input: Vec2, ctx: &EvalContext) -> O {
+        let repeated = Vec2::new(
+            ((input.x % self.period.x) + self.period.x) % self.period.x - self.period.x * 0.5,
+            ((input.y % self.period.y) + self.period.y) % self.period.y - self.period.y * 0.5,
+        );
+        self.field.sample(repeated, ctx)
+    }
+}
+
+/// Repeats space infinitely (3D).
+pub struct Repeat3D<F> {
+    pub field: F,
+    pub period: Vec3,
+}
+
+impl<F> Repeat3D<F> {
+    pub fn new(field: F, period: Vec3) -> Self {
+        Self { field, period }
+    }
+}
+
+impl<O, F: Field<Vec3, O>> Field<Vec3, O> for Repeat3D<F> {
+    fn sample(&self, input: Vec3, ctx: &EvalContext) -> O {
+        let repeated = Vec3::new(
+            ((input.x % self.period.x) + self.period.x) % self.period.x - self.period.x * 0.5,
+            ((input.y % self.period.y) + self.period.y) % self.period.y - self.period.y * 0.5,
+            ((input.z % self.period.z) + self.period.z) % self.period.z - self.period.z * 0.5,
+        );
+        self.field.sample(repeated, ctx)
+    }
+}
+
+/// Rotates 2D input coordinates.
+pub struct Rotate2D<F> {
+    pub field: F,
+    pub angle: f32,
+}
+
+impl<F> Rotate2D<F> {
+    pub fn new(field: F, angle: f32) -> Self {
+        Self { field, angle }
+    }
+}
+
+impl<O, F: Field<Vec2, O>> Field<Vec2, O> for Rotate2D<F> {
+    fn sample(&self, input: Vec2, ctx: &EvalContext) -> O {
+        let cos = self.angle.cos();
+        let sin = self.angle.sin();
+        let rotated = Vec2::new(input.x * cos - input.y * sin, input.x * sin + input.y * cos);
+        self.field.sample(rotated, ctx)
+    }
+}
+
+/// Mirrors space across an axis.
+pub struct Mirror<F> {
+    pub field: F,
+    pub axis: Vec2,
+}
+
+impl<F> Mirror<F> {
+    pub fn new(field: F, axis: Vec2) -> Self {
+        Self {
+            field,
+            axis: axis.normalize(),
+        }
+    }
+
+    pub fn x(field: F) -> Self {
+        Self::new(field, Vec2::X)
+    }
+
+    pub fn y(field: F) -> Self {
+        Self::new(field, Vec2::Y)
+    }
+}
+
+impl<O, F: Field<Vec2, O>> Field<Vec2, O> for Mirror<F> {
+    fn sample(&self, input: Vec2, ctx: &EvalContext) -> O {
+        let d = input.dot(self.axis);
+        let mirrored = if d < 0.0 {
+            input - 2.0 * d * self.axis
+        } else {
+            input
+        };
+        self.field.sample(mirrored, ctx)
+    }
+}
+
+// ============================================================================
 // Function adapter
 // ============================================================================
 
@@ -1506,5 +1864,125 @@ mod tests {
         // Warping should shift the pattern
         let _v = warped.sample(Vec2::new(0.5, 0.5), &ctx);
         // Just verify it compiles and runs
+    }
+
+    // SDF operation tests
+
+    #[test]
+    fn test_sdf_union() {
+        let a = DistanceCircle::new(Vec2::new(-0.5, 0.0), 0.3);
+        let b = DistanceCircle::new(Vec2::new(0.5, 0.0), 0.3);
+        let union = SdfUnion::new(a, b);
+        let ctx = EvalContext::new();
+
+        // Inside first circle
+        assert!(union.sample(Vec2::new(-0.5, 0.0), &ctx) < 0.0);
+        // Inside second circle
+        assert!(union.sample(Vec2::new(0.5, 0.0), &ctx) < 0.0);
+        // Between circles (outside both)
+        assert!(union.sample(Vec2::new(0.0, 0.0), &ctx) > 0.0);
+    }
+
+    #[test]
+    fn test_sdf_intersection() {
+        let a = DistanceCircle::new(Vec2::new(-0.2, 0.0), 0.5);
+        let b = DistanceCircle::new(Vec2::new(0.2, 0.0), 0.5);
+        let intersection = SdfIntersection::new(a, b);
+        let ctx = EvalContext::new();
+
+        // Center is inside both circles
+        assert!(intersection.sample(Vec2::ZERO, &ctx) < 0.0);
+        // Far left is inside only first circle
+        assert!(intersection.sample(Vec2::new(-0.5, 0.0), &ctx) > 0.0);
+    }
+
+    #[test]
+    fn test_sdf_subtraction() {
+        let a = DistanceCircle::new(Vec2::ZERO, 1.0);
+        let b = DistanceCircle::new(Vec2::new(0.5, 0.0), 0.3);
+        let sub = SdfSubtraction::new(a, b);
+        let ctx = EvalContext::new();
+
+        // Center of subtracted circle should be outside
+        assert!(sub.sample(Vec2::new(0.5, 0.0), &ctx) > 0.0);
+        // Far from subtracted circle should still be inside
+        assert!(sub.sample(Vec2::new(-0.5, 0.0), &ctx) < 0.0);
+    }
+
+    #[test]
+    fn test_sdf_smooth_union() {
+        let a = DistanceCircle::new(Vec2::new(-0.3, 0.0), 0.3);
+        let b = DistanceCircle::new(Vec2::new(0.3, 0.0), 0.3);
+        let smooth = SdfSmoothUnion::new(a, b, 0.2);
+        let hard = SdfUnion::new(
+            DistanceCircle::new(Vec2::new(-0.3, 0.0), 0.3),
+            DistanceCircle::new(Vec2::new(0.3, 0.0), 0.3),
+        );
+        let ctx = EvalContext::new();
+
+        // Smooth union should be smaller (more negative) than hard union in blend region
+        let smooth_val = smooth.sample(Vec2::ZERO, &ctx);
+        let hard_val = hard.sample(Vec2::ZERO, &ctx);
+        assert!(smooth_val < hard_val);
+    }
+
+    #[test]
+    fn test_sdf_round() {
+        let box_sdf = DistanceBox::new(Vec2::ZERO, Vec2::new(0.5, 0.5));
+        let rounded = SdfRound::new(box_sdf, 0.1);
+        let ctx = EvalContext::new();
+
+        // Rounded expands the shape
+        let original = DistanceBox::new(Vec2::ZERO, Vec2::new(0.5, 0.5));
+        assert!(
+            rounded.sample(Vec2::new(0.55, 0.0), &ctx)
+                < original.sample(Vec2::new(0.55, 0.0), &ctx)
+        );
+    }
+
+    #[test]
+    fn test_sdf_annular() {
+        let circle = DistanceCircle::new(Vec2::ZERO, 1.0);
+        let ring = SdfAnnular::new(circle, 0.1);
+        let ctx = EvalContext::new();
+
+        // Center should be outside the ring
+        assert!(ring.sample(Vec2::ZERO, &ctx) > 0.0);
+        // On the original circle boundary should be inside the ring
+        assert!(ring.sample(Vec2::new(1.0, 0.0), &ctx) < 0.0);
+    }
+
+    #[test]
+    fn test_repeat() {
+        let circle = DistanceCircle::new(Vec2::ZERO, 0.3);
+        let repeated = Repeat::new(circle, Vec2::new(2.0, 2.0));
+        let ctx = EvalContext::new();
+
+        // Cell centers are at (1, 1), (3, 1), (1, 3), etc. (period/2 offset)
+        assert!(repeated.sample(Vec2::new(1.0, 1.0), &ctx) < 0.0);
+        assert!(repeated.sample(Vec2::new(3.0, 1.0), &ctx) < 0.0);
+        assert!(repeated.sample(Vec2::new(1.0, 3.0), &ctx) < 0.0);
+    }
+
+    #[test]
+    fn test_rotate_2d() {
+        let stripes = Stripes::vertical();
+        let rotated = Rotate2D::new(stripes, std::f32::consts::FRAC_PI_2);
+        let ctx = EvalContext::new();
+
+        // After 90° rotation, vertical stripes become horizontal
+        let _v = rotated.sample(Vec2::new(0.5, 0.5), &ctx);
+    }
+
+    #[test]
+    fn test_mirror() {
+        let circle = DistanceCircle::new(Vec2::new(1.0, 0.0), 0.3);
+        let mirrored = Mirror::x(circle);
+        let ctx = EvalContext::new();
+
+        // Original position
+        assert!(mirrored.sample(Vec2::new(1.0, 0.0), &ctx) < 0.0);
+        // Mirrored position (negative x maps to positive)
+        assert!(mirrored.sample(Vec2::new(-1.0, 0.0), &ctx) < 0.0);
     }
 }
