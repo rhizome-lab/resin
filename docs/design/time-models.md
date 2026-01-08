@@ -492,11 +492,39 @@ Cons: More validation logic
 
 7. **Mixed rates**: Numeric sample rates (not enum), explicit conversion nodes, graph validates mismatches. No hidden up/downsampling.
 
-## Open Questions
+## Decisions (continued)
 
-1. **Hybrid nodes**: Nodes that are "mostly stateless" with optional smoothing/filtering. Explicit state input, or implicit via context?
+8. **Hybrid nodes**: Not a special case. "Mostly stateless with optional smoothing" = stateless node + feedback edge.
 
-2. **Determinism**: Floating point reproducibility across platforms. Threading order. Probably punt to "best effort" with optional strict mode.
+   ```rust
+   // Smooth is stateless - takes current and previous as inputs
+   struct Smooth { factor: f32 }
+   impl Smooth {
+       fn apply(&self, current: f32, prev: f32) -> f32 {
+           lerp(prev, current, self.factor)
+       }
+   }
+
+   // Graph topology provides state via feedback:
+   // [Input] → [Smooth] → [Output]
+   //              ↑   │
+   //              └───┘  ← feedback edge
+   ```
+
+   No new concept - feedback edges already handle this.
+
+9. **Determinism**: Best effort by default, optional strict mode.
+
+   ```rust
+   struct EvalOptions {
+       deterministic: bool,  // sacrifice perf for reproducibility
+   }
+   ```
+
+   - **Default (false)**: Fast, parallel, platform-optimized. Same inputs *usually* give same outputs.
+   - **Strict (true)**: Single-threaded, no fast-math, explicit seeds. Reproducible across runs/platforms.
+
+   Full determinism is expensive. Most use cases don't need it. Strict mode for those that do (automated testing, regression checks).
 
 ## Implementation Notes
 

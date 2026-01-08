@@ -21,7 +21,7 @@ Single source of truth for design decisions. Updated as we resolve questions.
 | Modularity | 🔶 Leaning | Very modular, bevy philosophy |
 | Bevy integration | 🔶 Leaning | Low priority. Separate adapter crate if needed. Must not affect core design - resin is standalone first |
 | Evaluation strategy | 🔶 Leaning | Evaluator trait. Lazy default, others as needed. See [evaluation-strategy](./design/evaluation-strategy.md) |
-| Time models | 🔶 Leaning | EvalContext for time, explicit baking API, numeric sample rates + explicit conversion nodes, block = audio iteration unit. See [time-models](./design/time-models.md) |
+| Time models | ✅ Resolved | EvalContext for time, explicit baking, numeric rates + explicit conversion, block = audio iteration, hybrid nodes = feedback edges, determinism = best effort + strict mode. See [time-models](./design/time-models.md) |
 
 ## Expression Language
 
@@ -105,7 +105,7 @@ See [expression-language](./design/expression-language.md) for full design.
 
 ## Summary by Status
 
-### ✅ Resolved (20)
+### ✅ Resolved (21)
 - GPU vs CPU abstraction (burn/CubeCL)
 - Precision f32/f64 (generic `T: Float`)
 - Winding rule (both, default non-zero)
@@ -126,11 +126,11 @@ See [expression-language](./design/expression-language.md) for full design.
 - Tiling (explicit operators)
 - Ops as values (derive macro for DynOp impl)
 - Texture vs field (Field<I,O> trait, time handling → Time models)
+- Time models (EvalContext, explicit baking, numeric rates, feedback = state)
 
-### 🔶 Leaning (17)
+### 🔶 Leaning (16)
 - Type system for slots (simpler than maki)
 - Parameter system (yes, first-class)
-- Time models (EvalContext for time, seeking = user choice, state = feedback edges)
 - Modularity (very modular)
 - Text (outlines yes, layout no)
 - Unified 2D/3D rig (yes)
@@ -146,6 +146,5 @@ See [expression-language](./design/expression-language.md) for full design.
 - Plugin function API (decompose or backend extension traits)
 - Constant folding (resin-expr-opt crate, AST transform)
 
-### ❓ Open (7+)
-- **Time models remaining**: Hybrid nodes, determinism
-- **Domain-specific**: Audio (polyphony), mesh instancing
+### ❓ Open (5+)
+- **Domain-specific**: Audio (polyphony), mesh instancing, procedural rigging, real-time constraints

@@ -12,6 +12,7 @@
 - [ ] Basic oscillators
 - [ ] 2D path primitives
 - [ ] Skeleton/bone types
+- [ ] Review all design decisions for consistency, extract patterns/philosophy to docs/philosophy.md
 
 ## Future
 
