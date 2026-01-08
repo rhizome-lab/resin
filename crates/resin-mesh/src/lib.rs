@@ -6,6 +6,7 @@ mod bevel;
 mod boolean;
 mod decimate;
 mod halfedge;
+mod loft;
 mod loops;
 mod mesh;
 mod morph;
@@ -21,6 +22,7 @@ pub use decimate::{DecimateConfig, decimate};
 pub use halfedge::{
     Face, FaceId, HalfEdge, HalfEdgeId, HalfEdgeMesh, Vertex as HEVertex, VertexId,
 };
+pub use loft::{LoftConfig, circle_profile, loft, loft_along_path, rect_profile, star_profile};
 pub use loops::{
     edges_to_faces, edges_to_vertices, grow_edge_selection, loop_cut, select_boundary_edges,
     select_edge_loop, select_edge_ring, select_face_edges, select_vertex_edges,
