@@ -19,3 +19,44 @@ thiserror = "2"
 syn = { version = "2", features = ["full"] }
 quote = "1"
 proc-macro2 = "1"
+
+# Bevy (for examples) - no audio features to avoid ALSA dependency
+bevy = { version = "0.15", default-features = false, features = [
+    "bevy_core_pipeline",
+    "bevy_pbr",
+    "bevy_render",
+    "bevy_winit",
+    "bevy_sprite",
+    "x11",
+    "tonemapping_luts",
+] }
+
+# Resin crates
+resin-core = { path = "crates/resin-core" }
+resin-mesh = { path = "crates/resin-mesh" }
+resin-audio = { path = "crates/resin-audio" }
+resin-vector = { path = "crates/resin-vector" }
+resin-rig = { path = "crates/resin-rig" }
+
+[package]
+name = "resin-examples"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+bevy = { workspace = true }
+resin-core = { workspace = true }
+resin-mesh = { workspace = true }
+resin-audio = { workspace = true }
+resin-vector = { workspace = true }
+resin-rig = { workspace = true }
+glam = { workspace = true }
+
+[[example]]
+name = "bevy_mesh_demo"
+path = "examples/bevy_mesh_demo.rs"
+
+[[example]]
+name = "bevy_animation_demo"
+path = "examples/bevy_animation_demo.rs"

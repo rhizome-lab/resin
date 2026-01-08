@@ -2,15 +2,14 @@
 
 ## Next Up
 
-- [ ] Bevy integration examples
+- [ ] NURBS / B-spline curves
 
 ## Backlog
-
-- [ ] NURBS / B-spline curves
 - [ ] GPU compute backend for fields
 
 ## Done
 
+- [x] Bevy integration examples (mesh generation, skeletal animation with IK)
 - [x] Path offset/stroke operations (offset, stroke-to-path, dash patterns, point/tangent at length)
 - [x] Edge loop/ring selection and loop cut
 - [x] Bevel operations (edge/vertex bevel with configurable amount)
