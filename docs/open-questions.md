@@ -25,17 +25,17 @@ Single source of truth for design decisions. Updated as we resolve questions.
 
 ## Expression Language
 
-Backend strategy resolved. Language design still open.
+See [expression-language](./design/expression-language.md) for full design.
 
 | Question | Status | Notes |
 |----------|--------|-------|
 | Backend selection | ✅ Resolved | Cranelift JIT (CPU hot paths), WGSL (GPU), Interpreted (fallback). See [closure-usage-survey](./design/closure-usage-survey.md) |
-| Expression AST scope | ❓ Open | Just math? Conditionals? Variables? Loops? |
-| Per-domain or unified | ❓ Open | Same Expr everywhere, or MeshExpr/AudioExpr/etc? |
-| Expr → WGSL codegen | ❓ Open | How to translate Expr AST to WGSL shader code? |
-| Expr → Cranelift codegen | ❓ Open | IR generation details, libm calls, etc. |
-| Built-in functions | ❓ Open | sin/cos/pow obvious. noise()? smoothstep()? domain-specific? |
-| How common are custom expressions? | ❓ Open | If rare, named ops suffice. If common, need rich language |
+| Expression AST scope | ✅ Resolved | Math + conditionals + let bindings. No loops (use graph recurrence). |
+| Per-domain or unified | ✅ Resolved | Unified Expr, domains bind different variables (position, uv, time, etc.) |
+| Built-in functions | ✅ Resolved | WGSL built-ins as reference set. Plugin functions decompose or provide backend impls. |
+| Expr → WGSL codegen | 🔶 Leaning | String generation from AST. Decomposition-first for plugins. |
+| Expr → Cranelift codegen | 🔶 Leaning | IR generation, external calls for complex functions. |
+| Plugin function API | 🔶 Leaning | decompose() to primitives, or provide interpret/wgsl/cranelift impls |
 
 ## Ops & Serialization
 
