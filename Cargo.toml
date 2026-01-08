@@ -37,6 +37,7 @@ resin-mesh = { path = "crates/resin-mesh" }
 resin-audio = { path = "crates/resin-audio" }
 resin-vector = { path = "crates/resin-vector" }
 resin-rig = { path = "crates/resin-rig" }
+resin-gltf = { path = "crates/resin-gltf" }
 
 [package]
 name = "resin-examples"

@@ -2,13 +2,15 @@
 
 ## Next Up
 
-- [ ] glTF export for meshes
+- [ ] Animation blending and layering
 
 ## Backlog
 
-- [ ] Animation blending and layering
+(empty)
 
 ## Done
+
+- [x] glTF export for meshes (GLB binary, embedded base64, PBR materials)
 
 - [x] NURBS surfaces (tensor product surfaces, sphere/cylinder/torus/cone primitives, tessellation)
 - [x] SVG export for 2D vector graphics (paths, shapes, styles, viewBox)
