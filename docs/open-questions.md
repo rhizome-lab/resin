@@ -55,7 +55,7 @@ See [expression-language](./design/expression-language.md) for full design.
 | Question | Status | Notes |
 |----------|--------|-------|
 | Half-edge vs index-based | 🔶 Leaning | Half-edge internal, indexed on export. Accept memory cost for topology ops. See [mesh-representation](./design/mesh-representation.md) |
-| Instancing | ❓ Open | How to represent "100 copies with different transforms"? |
+| Instancing | ✅ Resolved | Plugin crate (`resin-instances`), not core. Provides `Instances` type + scatter ops + merge to `Mesh`. |
 | SDF integration | ❓ Open | Separate representation or unify with mesh ops? |
 | Fields for selection | ❓ Open | Blender's `position.z > 0` as selection. How much do we want? |
 
@@ -105,7 +105,7 @@ See [expression-language](./design/expression-language.md) for full design.
 
 ## Summary by Status
 
-### ✅ Resolved (21)
+### ✅ Resolved (22)
 - GPU vs CPU abstraction (burn/CubeCL)
 - Precision f32/f64 (generic `T: Float`)
 - Winding rule (both, default non-zero)
@@ -127,6 +127,7 @@ See [expression-language](./design/expression-language.md) for full design.
 - Ops as values (derive macro for DynOp impl)
 - Texture vs field (Field<I,O> trait, time handling → Time models)
 - Time models (EvalContext, explicit baking, numeric rates, feedback = state)
+- Mesh instancing (plugin crate, not core)
 
 ### 🔶 Leaning (16)
 - Type system for slots (simpler than maki)
