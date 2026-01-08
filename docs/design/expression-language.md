@@ -668,6 +668,41 @@ struct DisplaceByTexture {
 
 Expressions are pure. No assignment, no side effects.
 
+## Crate Structure
+
+```
+resin-expr/           # Core: AST, types, builders, interpreter
+resin-expr-macros/    # Proc macro: expr!()
+resin-expr-parse/     # Runtime parser
+resin-expr-wgsl/      # WGSL codegen
+resin-expr-cranelift/ # Cranelift JIT codegen
+```
+
+**Why this split:**
+
+| Crate | Reason for separation |
+|-------|----------------------|
+| `resin-expr-macros` | Required - proc macros must be own crate |
+| `resin-expr-parse` | Optional - not needed for hardcoded expressions |
+| `resin-expr-wgsl` | Optional - heavy dep (naga), not needed for CPU-only |
+| `resin-expr-cranelift` | Optional - very heavy dep (~50 crates) |
+
+**Core crate includes interpreter:** The interpreter is small (~200 LOC) and serves as the universal fallback. Keeping it in core means any crate that depends on `resin-expr` can always evaluate expressions.
+
+**Dependency flow:**
+
+```
+resin-expr-macros ──┐
+                    │
+resin-expr-parse ───┼──▶ resin-expr (core)
+                    │
+resin-expr-wgsl ────┤
+                    │
+resin-expr-cranelift┘
+```
+
+All optional crates depend on core. Core has no heavy deps.
+
 ## Open Questions
 
 1. **Matrix types** - Include Mat2/Mat3/Mat4 in expressions? Useful for transforms.
@@ -687,6 +722,7 @@ Expressions are pure. No assignment, no side effects.
 | AST scope | Math + conditionals + let bindings |
 | Loops | No (use graph recurrence) |
 | Built-in functions | WGSL built-ins as reference set |
-| Plugin functions | Decompose to primitives, or provide backend impls |
+| Plugin functions | Decompose to primitives, or backend extension traits |
 | Type system | Inference from operations |
-| Ergonomics | Operator overloading + named constructors |
+| Construction | Builders, proc macro, runtime parser |
+| Crate structure | Core + macros + parse + wgsl + cranelift |
