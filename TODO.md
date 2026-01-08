@@ -2,9 +2,9 @@
 
 ## Next Up
 
-- [ ] Quad mesh / half-edge representation (for Catmull-Clark)
-- [ ] More mesh ops (extrude, bevel)
+- [ ] Quad mesh / half-edge representation (for Catmull-Clark, bevel)
 - [ ] Texture mapping (UV projection)
+- [ ] Spline / curve types (Bezier, Catmull-Rom)
 
 ## Backlog
 
@@ -14,6 +14,7 @@
 
 ## Done
 
+- [x] Mesh ops (extrude, inset, solidify, weld, flip)
 - [x] Particle system (emitters, forces, turbulence)
 - [x] Path constraints (bones follow curves)
 - [x] Morph targets / blend shapes

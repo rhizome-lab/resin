@@ -4,6 +4,7 @@
 
 mod mesh;
 mod morph;
+mod ops;
 mod primitives;
 mod subdivision;
 
@@ -11,6 +12,11 @@ pub use mesh::{Mesh, MeshBuilder};
 pub use morph::{
     MorphTarget, MorphTargetSet, MorphWeights, apply_morph_targets,
     apply_morph_targets_with_normals, blend_positions,
+};
+pub use ops::{
+    ExtrudeConfig, InsetConfig, NormalMode, extrude, extrude_with_config, flip_normals, inset,
+    inset_with_config, make_double_sided, recalculate_normals, solidify, split_faces,
+    weld_vertices,
 };
 pub use primitives::{box_mesh, sphere, uv_sphere};
 pub use subdivision::{subdivide_linear, subdivide_loop, subdivide_loop_n};
