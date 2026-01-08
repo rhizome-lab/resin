@@ -78,7 +78,7 @@ See [expression-language](./design/expression-language.md) for full design.
 | Tiling | ✅ Resolved | Explicit operators. Tiling isn't fundamental to most generators. `MakeSeamless`, `Tile`, etc. |
 | Resolution/materialization | 🔶 Leaning | Separate Field (lazy) / Image (materialized). Resolution explicit at render(). No propagation. See [texture-materialization](./design/texture-materialization.md) |
 | 3D textures | ✅ Resolved | Same nodes, Vec3 input. Vec4 for looping animation (time as 4th dim). Memory/preview are host concerns. |
-| Texture vs field | ❓ Open | In shaders they're the same (sample at coord). Needs exploration. Textures need materialization, fields are lazy. |
+| Texture vs field | ✅ Resolved | Unified via generic `Field<I, O>` trait. Same concept, different input types (Vec2 for texture, Vec3 for volume, f32 for audio). Materialization (Field→Image) is separate concern. |
 
 ## Vector 2D
 
@@ -105,7 +105,7 @@ See [expression-language](./design/expression-language.md) for full design.
 
 ## Summary by Status
 
-### ✅ Resolved (19)
+### ✅ Resolved (20)
 - GPU vs CPU abstraction (burn/CubeCL)
 - Precision f32/f64 (generic `T: Float`)
 - Winding rule (both, default non-zero)
@@ -125,6 +125,7 @@ See [expression-language](./design/expression-language.md) for full design.
 - 3D textures (same nodes, Vec3/Vec4 input)
 - Tiling (explicit operators)
 - Ops as values (derive macro for DynOp impl)
+- Texture vs field (unified Field<I,O> trait, materialization separate)
 
 ### 🔶 Leaning (16)
 - Type system for slots (simpler than maki)
@@ -144,7 +145,6 @@ See [expression-language](./design/expression-language.md) for full design.
 - Plugin function API (decompose or backend extension traits)
 - Constant folding (resin-expr-opt crate, AST transform)
 
-### ❓ Open (12+)
+### ❓ Open (11+)
 - **High impact**: Time models (delay granularity, mixed rates)
-- **Cross-cutting**: Texture vs field unification
 - **Domain-specific**: Audio (sample rate, polyphony, control vs audio rate), mesh instancing
