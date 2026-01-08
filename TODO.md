@@ -2,10 +2,9 @@
 
 ## Next Up
 
-- [ ] Marching cubes (mesh from SDF)
+- [ ] Text to paths (font rendering)
 
 ## Backlog
-- [ ] Text to paths (font rendering)
 - [ ] Instancing/scattering system
 - [ ] Wavetable oscillators
 - [ ] FM synthesis
@@ -14,6 +13,7 @@
 
 ## Done
 
+- [x] Marching cubes (MarchingCubesConfig, sphere/box/torus SDFs, iso-value support)
 - [x] glTF import (import_gltf, import_gltf_from_bytes, GltfScene with merge)
 - [x] Mesh from curves (extrude_profile, revolve_profile, sweep_profile with caps and scaling)
 - [x] Curve lofting (loft, loft_along_path, interpolation, profile helpers)

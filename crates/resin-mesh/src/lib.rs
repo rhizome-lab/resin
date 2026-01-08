@@ -9,6 +9,7 @@ mod decimate;
 mod halfedge;
 mod loft;
 mod loops;
+mod marching_cubes;
 mod mesh;
 mod morph;
 mod obj;
@@ -32,6 +33,7 @@ pub use loops::{
     edges_to_faces, edges_to_vertices, grow_edge_selection, loop_cut, select_boundary_edges,
     select_edge_loop, select_edge_ring, select_face_edges, select_vertex_edges,
 };
+pub use marching_cubes::{MarchingCubesConfig, marching_cubes};
 pub use mesh::{Mesh, MeshBuilder};
 pub use morph::{
     MorphTarget, MorphTargetSet, MorphWeights, apply_morph_targets,
