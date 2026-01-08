@@ -2,16 +2,16 @@
 
 ## Next Up
 
-- [ ] Path offset/stroke operations
+- [ ] Bevy integration examples
 
 ## Backlog
 
-- [ ] Bevy integration examples
 - [ ] NURBS / B-spline curves
 - [ ] GPU compute backend for fields
 
 ## Done
 
+- [x] Path offset/stroke operations (offset, stroke-to-path, dash patterns, point/tangent at length)
 - [x] Edge loop/ring selection and loop cut
 - [x] Bevel operations (edge/vertex bevel with configurable amount)
 - [x] Mesh boolean operations (BSP-based union, subtract, intersect)
