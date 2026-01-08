@@ -2,7 +2,7 @@
 
 ## Next Up
 
-- [ ] Edge loop selection/operations
+- [ ] Path offset/stroke operations
 
 ## Backlog
 
@@ -12,6 +12,7 @@
 
 ## Done
 
+- [x] Edge loop/ring selection and loop cut
 - [x] Bevel operations (edge/vertex bevel with configurable amount)
 - [x] Mesh boolean operations (BSP-based union, subtract, intersect)
 - [x] Vector network (node-based vector editing, region detection)

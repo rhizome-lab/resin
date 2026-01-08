@@ -5,6 +5,7 @@
 mod bevel;
 mod boolean;
 mod halfedge;
+mod loops;
 mod mesh;
 mod morph;
 mod ops;
@@ -16,6 +17,10 @@ pub use bevel::{BevelConfig, bevel_edges, bevel_mesh_edges, bevel_mesh_vertices,
 pub use boolean::{boolean_intersect, boolean_subtract, boolean_union};
 pub use halfedge::{
     Face, FaceId, HalfEdge, HalfEdgeId, HalfEdgeMesh, Vertex as HEVertex, VertexId,
+};
+pub use loops::{
+    edges_to_faces, edges_to_vertices, grow_edge_selection, loop_cut, select_boundary_edges,
+    select_edge_loop, select_edge_ring, select_face_edges, select_vertex_edges,
 };
 pub use mesh::{Mesh, MeshBuilder};
 pub use morph::{
