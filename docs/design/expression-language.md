@@ -776,7 +776,7 @@ All optional crates depend on core. Core has no heavy deps.
 
 ## Open Questions
 
-1. **Matrix operations** - Mat2/3/4 included as Value types. Open: should `*` operator work on matrices (like WGSL), or use explicit `mat_mul(m, v)`? Explicit functions are simpler for AST but less ergonomic.
+1. **Matrix operations** - Mat2/3/4 included as Value types (square only, no Mat3x4 - convert at boundaries). Open: should `*` operator work on matrices (like WGSL), or use explicit `mat_mul(m, v)`? Explicit functions are simpler for AST but less ergonomic.
 
 2. **Array/buffer access** - `buffer[i]` syntax for accessing arrays/buffers. Important for algorithms that need neighbor access (convolutions, sorting). Complicates GPU compilation (bounds checking, memory layout).
 
