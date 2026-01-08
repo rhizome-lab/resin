@@ -2,14 +2,14 @@
 
 ## Next Up
 
-- [ ] FM synthesis
+- [ ] L-systems
 
 ## Backlog
-- [ ] L-systems
 - [ ] MIDI support
 
 ## Done
 
+- [x] FM synthesis (FmOperator, FmOsc, FmSynth, FmAlgorithm, fm_presets)
 - [x] Wavetable oscillators (Wavetable, WavetableBank, WavetableOsc, additive_wavetable, supersaw_wavetable)
 - [x] Instancing/scattering (scatter_random, scatter_grid, scatter_sphere, scatter_poisson_2d, Instance)
 - [x] Text to paths (Font, text_to_path, text_to_paths_outlined, TextConfig, measure_text)

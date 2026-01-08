@@ -417,6 +417,337 @@ pub fn supersaw_wavetable(voices: usize, detune: f32, size: usize) -> Wavetable 
     table
 }
 
+// ===========================================================================
+// FM Synthesis
+// ===========================================================================
+
+/// An FM operator (oscillator with ratio and modulation capabilities).
+#[derive(Debug, Clone)]
+pub struct FmOperator {
+    /// Phase accumulator.
+    pub phase: f32,
+    /// Frequency ratio relative to the fundamental.
+    pub ratio: f32,
+    /// Output level (0.0 to 1.0).
+    pub level: f32,
+    /// Feedback amount (for self-modulation).
+    pub feedback: f32,
+    /// Previous output for feedback.
+    prev_output: f32,
+}
+
+impl Default for FmOperator {
+    fn default() -> Self {
+        Self {
+            phase: 0.0,
+            ratio: 1.0,
+            level: 1.0,
+            feedback: 0.0,
+            prev_output: 0.0,
+        }
+    }
+}
+
+impl FmOperator {
+    /// Creates a new FM operator with the given ratio.
+    pub fn new(ratio: f32) -> Self {
+        Self {
+            ratio,
+            ..Default::default()
+        }
+    }
+
+    /// Sets the output level.
+    pub fn with_level(mut self, level: f32) -> Self {
+        self.level = level;
+        self
+    }
+
+    /// Sets the feedback amount.
+    pub fn with_feedback(mut self, feedback: f32) -> Self {
+        self.feedback = feedback;
+        self
+    }
+
+    /// Generates a sample with phase modulation input.
+    ///
+    /// # Arguments
+    /// * `base_freq` - Base frequency in Hz.
+    /// * `sample_rate` - Sample rate in Hz.
+    /// * `phase_mod` - Phase modulation input (in radians).
+    #[inline]
+    pub fn tick(&mut self, base_freq: f32, sample_rate: f32, phase_mod: f32) -> f32 {
+        let freq = base_freq * self.ratio;
+        let phase_inc = freq / sample_rate;
+
+        // Add feedback from previous output
+        let feedback_mod = self.prev_output * self.feedback * TAU;
+
+        // Calculate output
+        let output = ((self.phase * TAU) + phase_mod + feedback_mod).sin();
+        self.prev_output = output;
+
+        // Advance phase
+        self.phase = (self.phase + phase_inc).fract();
+
+        output * self.level
+    }
+
+    /// Resets the operator phase.
+    pub fn reset(&mut self) {
+        self.phase = 0.0;
+        self.prev_output = 0.0;
+    }
+}
+
+/// FM synthesis algorithm defining operator connections.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FmAlgorithm {
+    /// 4 -> 3 -> 2 -> 1 (serial stack)
+    Serial,
+    /// (2+3+4) -> 1 (parallel into carrier)
+    Parallel,
+    /// 3 -> 2 -> 1, 4 separate output
+    TwoCarrier,
+    /// 4 -> 3, 2 -> 1, both output
+    DualSerial,
+    /// Custom algorithm (implement via FmSynth::tick_custom)
+    Custom,
+}
+
+/// A 4-operator FM synthesizer.
+#[derive(Debug, Clone)]
+pub struct FmSynth {
+    /// The four operators.
+    pub ops: [FmOperator; 4],
+    /// Modulation index (global multiplier for modulation depth).
+    pub mod_index: f32,
+    /// Algorithm for operator routing.
+    pub algorithm: FmAlgorithm,
+}
+
+impl Default for FmSynth {
+    fn default() -> Self {
+        Self {
+            ops: [
+                FmOperator::new(1.0), // Carrier
+                FmOperator::new(1.0), // Modulator
+                FmOperator::new(1.0),
+                FmOperator::new(1.0),
+            ],
+            mod_index: 1.0,
+            algorithm: FmAlgorithm::Serial,
+        }
+    }
+}
+
+impl FmSynth {
+    /// Creates a new FM synth with default settings.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Creates an FM synth with the given algorithm.
+    pub fn with_algorithm(mut self, algorithm: FmAlgorithm) -> Self {
+        self.algorithm = algorithm;
+        self
+    }
+
+    /// Sets the modulation index.
+    pub fn with_mod_index(mut self, index: f32) -> Self {
+        self.mod_index = index;
+        self
+    }
+
+    /// Sets operator ratios.
+    pub fn with_ratios(mut self, ratios: [f32; 4]) -> Self {
+        for (op, ratio) in self.ops.iter_mut().zip(ratios.iter()) {
+            op.ratio = *ratio;
+        }
+        self
+    }
+
+    /// Sets operator levels.
+    pub fn with_levels(mut self, levels: [f32; 4]) -> Self {
+        for (op, level) in self.ops.iter_mut().zip(levels.iter()) {
+            op.level = *level;
+        }
+        self
+    }
+
+    /// Generates a sample.
+    #[inline]
+    pub fn tick(&mut self, freq: f32, sample_rate: f32) -> f32 {
+        let mod_scale = self.mod_index * TAU;
+
+        match self.algorithm {
+            FmAlgorithm::Serial => {
+                // 4 -> 3 -> 2 -> 1
+                let op4 = self.ops[3].tick(freq, sample_rate, 0.0);
+                let op3 = self.ops[2].tick(freq, sample_rate, op4 * mod_scale);
+                let op2 = self.ops[1].tick(freq, sample_rate, op3 * mod_scale);
+                self.ops[0].tick(freq, sample_rate, op2 * mod_scale)
+            }
+            FmAlgorithm::Parallel => {
+                // (2+3+4) -> 1
+                let op2 = self.ops[1].tick(freq, sample_rate, 0.0);
+                let op3 = self.ops[2].tick(freq, sample_rate, 0.0);
+                let op4 = self.ops[3].tick(freq, sample_rate, 0.0);
+                let mod_sum = (op2 + op3 + op4) * mod_scale;
+                self.ops[0].tick(freq, sample_rate, mod_sum)
+            }
+            FmAlgorithm::TwoCarrier => {
+                // 3 -> 2 -> 1 (output), 4 (output)
+                let op3 = self.ops[2].tick(freq, sample_rate, 0.0);
+                let op2 = self.ops[1].tick(freq, sample_rate, op3 * mod_scale);
+                let op1 = self.ops[0].tick(freq, sample_rate, op2 * mod_scale);
+                let op4 = self.ops[3].tick(freq, sample_rate, 0.0);
+                (op1 + op4) * 0.5
+            }
+            FmAlgorithm::DualSerial => {
+                // 4 -> 3 (output), 2 -> 1 (output)
+                let op4 = self.ops[3].tick(freq, sample_rate, 0.0);
+                let op3 = self.ops[2].tick(freq, sample_rate, op4 * mod_scale);
+                let op2 = self.ops[1].tick(freq, sample_rate, 0.0);
+                let op1 = self.ops[0].tick(freq, sample_rate, op2 * mod_scale);
+                (op1 + op3) * 0.5
+            }
+            FmAlgorithm::Custom => 0.0, // Use tick_custom instead
+        }
+    }
+
+    /// Generates a buffer of samples.
+    pub fn generate(&mut self, freq: f32, sample_rate: f32, buffer: &mut [f32]) {
+        for sample in buffer {
+            *sample = self.tick(freq, sample_rate);
+        }
+    }
+
+    /// Resets all operators.
+    pub fn reset(&mut self) {
+        for op in &mut self.ops {
+            op.reset();
+        }
+    }
+}
+
+/// Simple 2-operator FM for basic use cases.
+#[derive(Debug, Clone)]
+pub struct FmOsc {
+    /// Carrier phase.
+    pub carrier_phase: f32,
+    /// Modulator phase.
+    pub mod_phase: f32,
+    /// Modulator frequency ratio.
+    pub mod_ratio: f32,
+    /// Modulation index.
+    pub mod_index: f32,
+}
+
+impl Default for FmOsc {
+    fn default() -> Self {
+        Self {
+            carrier_phase: 0.0,
+            mod_phase: 0.0,
+            mod_ratio: 1.0,
+            mod_index: 1.0,
+        }
+    }
+}
+
+impl FmOsc {
+    /// Creates a new 2-operator FM oscillator.
+    pub fn new(mod_ratio: f32, mod_index: f32) -> Self {
+        Self {
+            mod_ratio,
+            mod_index,
+            ..Default::default()
+        }
+    }
+
+    /// Generates a sample.
+    #[inline]
+    pub fn tick(&mut self, freq: f32, sample_rate: f32) -> f32 {
+        let carrier_inc = freq / sample_rate;
+        let mod_inc = freq * self.mod_ratio / sample_rate;
+
+        // Calculate modulator output
+        let modulator = (self.mod_phase * TAU).sin();
+
+        // Calculate carrier with phase modulation
+        let carrier = ((self.carrier_phase * TAU) + modulator * self.mod_index * TAU).sin();
+
+        // Advance phases
+        self.carrier_phase = (self.carrier_phase + carrier_inc).fract();
+        self.mod_phase = (self.mod_phase + mod_inc).fract();
+
+        carrier
+    }
+
+    /// Generates a buffer of samples.
+    pub fn generate(&mut self, freq: f32, sample_rate: f32, buffer: &mut [f32]) {
+        for sample in buffer {
+            *sample = self.tick(freq, sample_rate);
+        }
+    }
+
+    /// Resets the oscillator.
+    pub fn reset(&mut self) {
+        self.carrier_phase = 0.0;
+        self.mod_phase = 0.0;
+    }
+}
+
+/// Creates classic FM timbres.
+pub mod fm_presets {
+    use super::{FmAlgorithm, FmSynth};
+
+    /// Electric piano-like timbre.
+    pub fn electric_piano() -> FmSynth {
+        FmSynth::new()
+            .with_algorithm(FmAlgorithm::Serial)
+            .with_ratios([1.0, 1.0, 3.0, 1.0])
+            .with_levels([1.0, 0.7, 0.3, 0.0])
+            .with_mod_index(1.5)
+    }
+
+    /// Bell-like timbre.
+    pub fn bell() -> FmSynth {
+        FmSynth::new()
+            .with_algorithm(FmAlgorithm::Serial)
+            .with_ratios([1.0, 3.5, 1.0, 7.0])
+            .with_levels([1.0, 0.8, 0.0, 0.5])
+            .with_mod_index(3.0)
+    }
+
+    /// Brass-like timbre.
+    pub fn brass() -> FmSynth {
+        FmSynth::new()
+            .with_algorithm(FmAlgorithm::Serial)
+            .with_ratios([1.0, 1.0, 1.0, 1.0])
+            .with_levels([1.0, 0.9, 0.7, 0.0])
+            .with_mod_index(2.0)
+    }
+
+    /// Bass-like timbre.
+    pub fn bass() -> FmSynth {
+        FmSynth::new()
+            .with_algorithm(FmAlgorithm::Serial)
+            .with_ratios([1.0, 2.0, 1.0, 1.0])
+            .with_levels([1.0, 0.5, 0.0, 0.0])
+            .with_mod_index(1.0)
+    }
+
+    /// Organ-like timbre.
+    pub fn organ() -> FmSynth {
+        FmSynth::new()
+            .with_algorithm(FmAlgorithm::Parallel)
+            .with_ratios([1.0, 2.0, 3.0, 4.0])
+            .with_levels([1.0, 0.5, 0.3, 0.2])
+            .with_mod_index(0.5)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -618,5 +949,119 @@ mod tests {
             .map(|s| s.abs())
             .fold(0.0, |a, b| a.max(b));
         assert!((max - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_fm_operator() {
+        let mut op = FmOperator::new(1.0);
+        let sample_rate = 44100.0;
+        let freq = 440.0;
+
+        // Generate samples and check range
+        for _ in 0..1000 {
+            let s = op.tick(freq, sample_rate, 0.0);
+            assert!((-1.0..=1.0).contains(&s));
+        }
+    }
+
+    #[test]
+    fn test_fm_operator_ratio() {
+        let mut op = FmOperator::new(2.0);
+
+        // With ratio=2, phase should advance twice as fast
+        let s1 = op.tick(440.0, 44100.0, 0.0);
+        assert!((-1.0..=1.0).contains(&s1));
+    }
+
+    #[test]
+    fn test_fm_osc() {
+        let mut fm = FmOsc::new(2.0, 1.0);
+
+        // Generate 100 samples
+        let mut buffer = vec![0.0; 100];
+        fm.generate(440.0, 44100.0, &mut buffer);
+
+        // All samples should be in valid range
+        for s in &buffer {
+            assert!((-1.0..=1.0).contains(s), "sample = {}", s);
+        }
+    }
+
+    #[test]
+    fn test_fm_osc_modulation() {
+        // With high mod_index, output should have more harmonics
+        let mut fm_low = FmOsc::new(1.0, 0.1);
+        let mut fm_high = FmOsc::new(1.0, 5.0);
+
+        let mut buf_low = vec![0.0; 1000];
+        let mut buf_high = vec![0.0; 1000];
+
+        fm_low.generate(440.0, 44100.0, &mut buf_low);
+        fm_high.generate(440.0, 44100.0, &mut buf_high);
+
+        // Higher mod index should produce more varied samples
+        // (rougher waveform with more zero crossings)
+        let crossings_low = buf_low.windows(2).filter(|w| w[0] * w[1] < 0.0).count();
+        let crossings_high = buf_high.windows(2).filter(|w| w[0] * w[1] < 0.0).count();
+
+        assert!(crossings_high > crossings_low);
+    }
+
+    #[test]
+    fn test_fm_synth_serial() {
+        let mut synth = FmSynth::new()
+            .with_algorithm(FmAlgorithm::Serial)
+            .with_mod_index(1.0);
+
+        let mut buffer = vec![0.0; 100];
+        synth.generate(440.0, 44100.0, &mut buffer);
+
+        for s in &buffer {
+            assert!((-2.0..=2.0).contains(s), "sample = {}", s);
+        }
+    }
+
+    #[test]
+    fn test_fm_synth_parallel() {
+        let mut synth = FmSynth::new()
+            .with_algorithm(FmAlgorithm::Parallel)
+            .with_mod_index(0.5);
+
+        let mut buffer = vec![0.0; 100];
+        synth.generate(440.0, 44100.0, &mut buffer);
+
+        for s in &buffer {
+            assert!((-2.0..=2.0).contains(s), "sample = {}", s);
+        }
+    }
+
+    #[test]
+    fn test_fm_presets() {
+        use fm_presets::*;
+
+        // Just verify presets create valid synths
+        let _ep = electric_piano();
+        let _bell = bell();
+        let _brass = brass();
+        let _bass = bass();
+        let _organ = organ();
+    }
+
+    #[test]
+    fn test_fm_synth_reset() {
+        let mut synth = FmSynth::new();
+
+        // Generate some samples
+        for _ in 0..100 {
+            synth.tick(440.0, 44100.0);
+        }
+
+        // Reset
+        synth.reset();
+
+        // All phases should be 0
+        for op in &synth.ops {
+            assert_eq!(op.phase, 0.0);
+        }
     }
 }

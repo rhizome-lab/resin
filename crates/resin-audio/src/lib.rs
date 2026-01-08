@@ -20,7 +20,7 @@ pub use graph::{
     PassThrough, RingMod, Silence, SoftClip, Waveform,
 };
 pub use osc::{
-    Wavetable, WavetableBank, WavetableOsc, additive_wavetable, freq_to_phase, pulse,
-    sample_to_phase, saw, saw_blep, saw_rev, sine, square, square_blep, supersaw_wavetable,
-    triangle,
+    FmAlgorithm, FmOperator, FmOsc, FmSynth, Wavetable, WavetableBank, WavetableOsc,
+    additive_wavetable, fm_presets, freq_to_phase, pulse, sample_to_phase, saw, saw_blep, saw_rev,
+    sine, square, square_blep, supersaw_wavetable, triangle,
 };
