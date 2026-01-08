@@ -376,18 +376,42 @@ Runtime values use an enum, not `dyn Trait`:
 ```rust
 #[derive(Clone, Copy, Debug)]
 pub enum Value {
+    // Always available
     F32(f32),
     F64(f64),
     I32(i32),
     Bool(bool),
+
+    // feature = "vectors"
+    #[cfg(feature = "vectors")]
     Vec2([f32; 2]),
+    #[cfg(feature = "vectors")]
     Vec3([f32; 3]),
+    #[cfg(feature = "vectors")]
     Vec4([f32; 4]),
+    #[cfg(feature = "vectors")]
     BVec2([bool; 2]),
+    #[cfg(feature = "vectors")]
     BVec3([bool; 3]),
+    #[cfg(feature = "vectors")]
     BVec4([bool; 4]),
-    // Mat types if we add them
+
+    // feature = "matrices" (implies vectors)
+    #[cfg(feature = "matrices")]
+    Mat2([[f32; 2]; 2]),
+    #[cfg(feature = "matrices")]
+    Mat3([[f32; 3]; 3]),
+    #[cfg(feature = "matrices")]
+    Mat4([[f32; 4]; 4]),
 }
+```
+
+Feature gates in `Cargo.toml`:
+```toml
+[features]
+default = ["vectors"]
+vectors = []
+matrices = ["vectors"]  # matrices implies vectors
 ```
 
 **Why enum over `dyn Trait`:**
@@ -752,7 +776,7 @@ All optional crates depend on core. Core has no heavy deps.
 
 ## Open Questions
 
-1. **Matrix types** - Do we need `Mat4` as a primitive type, or just functions like `mat_mul(m, v)`? WGSL has matrix primitives with operator overloading (`mat4 * vec4`), but we could keep AST simpler with explicit functions. Trade-off: ergonomics vs simplicity.
+1. **Matrix operations** - Mat2/3/4 included as Value types. Open: should `*` operator work on matrices (like WGSL), or use explicit `mat_mul(m, v)`? Explicit functions are simpler for AST but less ergonomic.
 
 2. **Array/buffer access** - `buffer[i]` syntax for accessing arrays/buffers. Important for algorithms that need neighbor access (convolutions, sorting). Complicates GPU compilation (bounds checking, memory layout).
 
