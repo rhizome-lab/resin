@@ -3,8 +3,8 @@
 ## Next Up
 
 - [ ] Quad mesh / half-edge representation (for Catmull-Clark, bevel)
-- [ ] Audio graph / signal chain
 - [ ] Vector network (node-based vector editing)
+- [ ] Audio effects (reverb, chorus, phaser)
 
 ## Backlog
 
@@ -14,6 +14,7 @@
 
 ## Done
 
+- [x] Audio graph / signal chain (Chain, Mixer, nodes)
 - [x] Color types and gradients (RGB, HSL, HSV, blend modes)
 - [x] Spline curves (Bezier, Catmull-Rom, B-spline)
 - [x] UV projection (planar, cylindrical, spherical, box)
