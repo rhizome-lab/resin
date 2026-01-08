@@ -2,7 +2,6 @@
 
 ## Next Up
 
-- [ ] Vector network (node-based vector editing)
 - [ ] Mesh boolean operations (union, subtract, intersect)
 
 ## Backlog
@@ -13,6 +12,7 @@
 
 ## Done
 
+- [x] Vector network (node-based vector editing, region detection)
 - [x] Half-edge mesh representation (Catmull-Clark subdivision)
 - [x] Easing functions (quad, cubic, elastic, bounce, etc.)
 - [x] Audio effects (reverb, chorus, phaser, flanger, distortion)
