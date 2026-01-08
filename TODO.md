@@ -2,15 +2,26 @@
 
 ## Next Up
 
-- [x] Path constraints (bones follow curves) — sample curve, orient bone tangent
-- [x] Morph targets / blend shapes — vertex deltas + weight blending
-- [x] Animation clips and tracks — keyframes, interpolation, property tracks
-- [x] IK solvers (CCD, FABRIK) — iterative chain solving
-- [x] Subdivision surfaces — Loop subdivision (Catmull-Clark needs quad mesh)
+- [ ] Quad mesh / half-edge representation (for Catmull-Clark)
+- [ ] More mesh ops (extrude, bevel)
+- [ ] Particle system
 
 ## Backlog
 
 - [ ] Bevy integration examples
+- [ ] NURBS / B-spline curves
+- [ ] GPU compute backend for fields
+
+## Done
+
+- [x] Path constraints (bones follow curves)
+- [x] Morph targets / blend shapes
+- [x] Animation clips and tracks
+- [x] IK solvers (CCD, FABRIK)
+- [x] Subdivision surfaces (Loop)
+- [x] SDF operations (smooth union, intersection, subtraction)
+- [x] Domain modifiers (twist, bend, repeat, mirror)
+- [x] Envelope generators (ADSR, AR, LFO)
 - [x] Expression language parser (expr::Expr)
 - [x] Basic texture nodes (Checkerboard, Voronoi, Stripes, Brick, Dots, SDFs)
 - [x] Audio effects/filters (LowPass, HighPass, Biquad, Delay, FeedbackDelay)
