@@ -2,7 +2,7 @@
 
 ## Next Up
 
-- [ ] Bevel operations (edges, vertices)
+- [ ] Edge loop selection/operations
 
 ## Backlog
 
@@ -12,6 +12,7 @@
 
 ## Done
 
+- [x] Bevel operations (edge/vertex bevel with configurable amount)
 - [x] Mesh boolean operations (BSP-based union, subtract, intersect)
 - [x] Vector network (node-based vector editing, region detection)
 - [x] Half-edge mesh representation (Catmull-Clark subdivision)

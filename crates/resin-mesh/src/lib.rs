@@ -2,6 +2,7 @@
 //!
 //! Provides mesh primitives and operations for procedural 3D geometry.
 
+mod bevel;
 mod boolean;
 mod halfedge;
 mod mesh;
@@ -11,6 +12,7 @@ mod primitives;
 mod subdivision;
 mod uv;
 
+pub use bevel::{BevelConfig, bevel_edges, bevel_mesh_edges, bevel_mesh_vertices, bevel_vertices};
 pub use boolean::{boolean_intersect, boolean_subtract, boolean_union};
 pub use halfedge::{
     Face, FaceId, HalfEdge, HalfEdgeId, HalfEdgeMesh, Vertex as HEVertex, VertexId,
