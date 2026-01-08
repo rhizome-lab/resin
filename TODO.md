@@ -2,13 +2,13 @@
 
 ## Next Up
 
-- [ ] L-systems
+- [ ] MIDI support
 
 ## Backlog
-- [ ] MIDI support
 
 ## Done
 
+- [x] L-systems (LSystem, Rule, TurtleConfig, interpret_turtle_2d/3d, presets)
 - [x] FM synthesis (FmOperator, FmOsc, FmSynth, FmAlgorithm, fm_presets)
 - [x] Wavetable oscillators (Wavetable, WavetableBank, WavetableOsc, additive_wavetable, supersaw_wavetable)
 - [x] Instancing/scattering (scatter_random, scatter_grid, scatter_sphere, scatter_poisson_2d, Instance)
