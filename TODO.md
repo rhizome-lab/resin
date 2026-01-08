@@ -2,10 +2,9 @@
 
 ## Next Up
 
-- [ ] Text to paths (font rendering)
+- [ ] Instancing/scattering system
 
 ## Backlog
-- [ ] Instancing/scattering system
 - [ ] Wavetable oscillators
 - [ ] FM synthesis
 - [ ] L-systems
@@ -13,6 +12,7 @@
 
 ## Done
 
+- [x] Text to paths (Font, text_to_path, text_to_paths_outlined, TextConfig, measure_text)
 - [x] Marching cubes (MarchingCubesConfig, sphere/box/torus SDFs, iso-value support)
 - [x] glTF import (import_gltf, import_gltf_from_bytes, GltfScene with merge)
 - [x] Mesh from curves (extrude_profile, revolve_profile, sweep_profile with caps and scaling)

@@ -7,6 +7,7 @@ mod network;
 mod path;
 mod stroke;
 pub mod svg;
+mod text;
 
 pub use boolean::{path_intersect, path_subtract, path_union, path_xor};
 pub use network::{
@@ -31,4 +32,8 @@ pub use path::{
 pub use stroke::{
     CapStyle, DashPattern, JoinStyle, StrokeConfig, dash_path, offset_path, path_length,
     point_at_length, stroke_to_path, tangent_at_length,
+};
+pub use text::{
+    Font, FontError, FontResult, TextConfig, TextMetrics, measure_text, text_to_path,
+    text_to_path_outlined, text_to_paths, text_to_paths_outlined,
 };

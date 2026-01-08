@@ -8,3 +8,4 @@ description = "2D vector graphics for resin"
 [dependencies]
 glam.workspace = true
 resin-core = { path = "../resin-core" }
+ab_glyph = "0.2"
