@@ -2,10 +2,9 @@
 
 ## Next Up
 
-- [ ] OBJ import/export
+- [ ] Image/texture loading as fields
 
 ## Backlog
-- [ ] Image/texture loading as fields
 - [ ] Mesh decimation (edge collapse)
 - [ ] Boolean operations on 2D paths
 - [ ] Curve lofting (surface from profiles)
@@ -21,6 +20,7 @@
 
 ## Done
 
+- [x] OBJ import/export (import_obj, export_obj, normals, UVs, quad triangulation)
 - [x] Laplacian mesh smoothing (smooth, smooth_taubin, preserve boundary, SmoothConfig)
 - [x] Animation blending and layering (layers, crossfade, 1D/2D blend trees, additive blending)
 - [x] glTF export for meshes (GLB binary, embedded base64, PBR materials)

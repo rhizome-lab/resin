@@ -8,6 +8,7 @@ mod halfedge;
 mod loops;
 mod mesh;
 mod morph;
+mod obj;
 mod ops;
 mod primitives;
 mod subdivision;
@@ -27,6 +28,7 @@ pub use morph::{
     MorphTarget, MorphTargetSet, MorphWeights, apply_morph_targets,
     apply_morph_targets_with_normals, blend_positions,
 };
+pub use obj::{ObjError, export_obj, export_obj_with_name, import_obj, import_obj_from_reader};
 pub use ops::{
     ExtrudeConfig, InsetConfig, NormalMode, SmoothConfig, extrude, extrude_with_config,
     flip_normals, inset, inset_with_config, make_double_sided, recalculate_normals, smooth,
