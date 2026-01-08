@@ -84,11 +84,8 @@ pub enum Expr {
     // === Let binding ===
     Let(VarId, Box<Expr>, Box<Expr>),  // let var = value in body
 
-    // === Built-in functions ===
-    Builtin(BuiltinFn, Vec<Expr>),
-
-    // === Plugin functions (resolved by name at eval time) ===
-    Plugin(String, Vec<Expr>),
+    // === Function calls (resolved by name at eval time) ===
+    Call(String, Vec<Expr>),
 
     // === Vector ops ===
     Swizzle(Box<Expr>, Swizzle),  // v.xy, v.zyx, etc.
@@ -103,173 +100,96 @@ pub struct Swizzle(pub Vec<Component>);
 pub enum Component { X, Y, Z, W }
 ```
 
-### Built-in Functions
+## Functions
 
-Primitives that all backends must implement. Based on WGSL built-ins for concrete spec:
+All functions (including `sin`, `cos`, etc.) are registered via `ExprFn` trait. No hardcoded function enum - everything is a plugin.
 
-```rust
-#[derive(Clone, Copy, Serialize, Deserialize)]
-pub enum BuiltinFn {
-    // Trigonometric
-    Sin, Cos, Tan,
-    Asin, Acos, Atan, Atan2,
-    Sinh, Cosh, Tanh,
-
-    // Exponential
-    Exp, Exp2, Log, Log2,
-    Pow, Sqrt, InverseSqrt,
-
-    // Common
-    Abs, Sign,
-    Floor, Ceil, Round, Trunc, Fract,
-    Min, Max, Clamp,
-    Mix,      // lerp(a, b, t)
-    Step,     // step(edge, x)
-    Smoothstep,
-
-    // Geometric (vector)
-    Length, Distance,
-    Dot, Cross,
-    Normalize,
-    Reflect, Refract,
-    FaceForward,
-
-    // Component-wise
-    Saturate,  // clamp(x, 0, 1)
-
-    // Derivative (GPU only, returns 0 on CPU)
-    Dfdx, Dfdy, Fwidth,
-}
-```
-
-**Why WGSL as reference:**
-- Concrete spec with defined behavior
-- Cranelift/CPU can match WGSL semantics
-- No ambiguity about edge cases
-
-## Function Tiers
-
-### Tier 1: Primitives (BuiltinFn)
-
-All backends implement these directly. Finite, stable set.
-
-### Tier 2: Standard Library
-
-Functions that decompose to primitives. No backend-specific code needed:
+### ExprFn Trait
 
 ```rust
-/// Standard library functions (decompose to primitives)
-pub enum StdFn {
-    Remap,      // remap(x, in_lo, in_hi, out_lo, out_hi)
-    InverseLerp, // inverse_lerp(a, b, v) = (v - a) / (b - a)
-    SmoothMin,  // smooth_min(a, b, k)
-    // ... etc
-}
-
-impl StdFn {
-    /// Express this function using only primitives
-    pub fn decompose(&self, args: &[Expr]) -> Expr {
-        match self {
-            StdFn::Remap => {
-                // remap(x, in_lo, in_hi, out_lo, out_hi) =
-                // mix(out_lo, out_hi, (x - in_lo) / (in_hi - in_lo))
-                let [x, in_lo, in_hi, out_lo, out_hi] = args else { panic!() };
-                let t = (x.clone() - in_lo.clone()) / (in_hi.clone() - in_lo.clone());
-                Expr::Builtin(BuiltinFn::Mix, vec![out_lo.clone(), out_hi.clone(), t])
-            }
-            // ...
-        }
-    }
-}
-```
-
-### Tier 3: Plugin Functions
-
-Functions provided by plugins.
-
-**Core trait** (all plugins implement):
-
-```rust
-/// Core plugin function - interpret + optional decompose
-pub trait PluginFn: Send + Sync {
-    /// Unique function name (e.g., "resin_noise::perlin")
+/// Expression function - all functions implement this
+pub trait ExprFn: Send + Sync {
+    /// Unique function name (e.g., "sin", "resin_noise::perlin")
     fn name(&self) -> &str;
 
     /// Function signature for type checking
     fn signature(&self) -> FnSignature;
 
-    /// Express as simpler expressions (works with all backends automatically)
+    /// Express as simpler expressions (enables automatic backend support)
+    /// If this returns Some, backends can compile without knowing about this function.
     fn decompose(&self, args: &[Expr]) -> Option<Expr> { None }
 
-    /// CPU interpretation (required - fallback for all backends)
+    /// CPU interpretation (required - universal fallback)
     fn interpret(&self, args: &[Value]) -> Result<Value>;
 }
 ```
 
-**Backend extension traits** (optional, defined by backend crates):
+### Backend Extension Traits
+
+Backend crates define extension traits for native compilation. Functions that don't implement an extension trait fall back to `decompose()` or `interpret()`.
 
 ```rust
 // In resin-expr-wgsl crate
-pub trait WgslPluginFn: PluginFn {
+pub trait WgslExprFn: ExprFn {
     /// Generate WGSL code for this function call
     fn compile_wgsl(&self, args: &[&str]) -> String;
 }
 
 // In resin-expr-cranelift crate
-pub trait CraneliftPluginFn: PluginFn {
+pub trait CraneliftExprFn: ExprFn {
     /// Generate Cranelift IR for this function call
-    fn compile_cranelift(&self, builder: &mut FunctionBuilder, args: &[Value]) -> Value;
+    fn compile_cranelift(&self, builder: &mut FunctionBuilder, args: &[cranelift::Value]) -> cranelift::Value;
+}
+
+// In resin-expr-lua crate (potential future backend)
+pub trait LuaExprFn: ExprFn {
+    /// Generate Lua code for this function call
+    fn compile_lua(&self, args: &[&str]) -> String;
 }
 ```
 
-**Registry structure:**
+### Function Registry
 
 ```rust
 pub struct FunctionRegistry {
-    /// Core functions (interpret + decompose)
-    core: HashMap<String, Arc<dyn PluginFn>>,
+    funcs: HashMap<String, Arc<dyn ExprFn>>,
 }
 
 impl FunctionRegistry {
-    pub fn register<F: PluginFn + 'static>(&mut self, func: F) {
-        self.core.insert(func.name().to_string(), Arc::new(func));
+    pub fn new() -> Self {
+        Self { funcs: HashMap::new() }
     }
 
-    pub fn get(&self, name: &str) -> Option<&Arc<dyn PluginFn>> {
-        self.core.get(name)
+    pub fn register<F: ExprFn + 'static>(&mut self, func: F) {
+        self.funcs.insert(func.name().to_string(), Arc::new(func));
     }
-}
 
-// Backend crates extend with their own registries
-// In resin-expr-wgsl:
-pub struct WgslFunctionRegistry {
-    funcs: HashMap<String, Arc<dyn WgslPluginFn>>,
+    pub fn get(&self, name: &str) -> Option<&Arc<dyn ExprFn>> {
+        self.funcs.get(name)
+    }
 }
 ```
 
-**Backend compilation flow:**
+Backend crates wrap the registry with their extension trait downcasting:
 
 ```rust
-// WGSL compiler
+// In resin-expr-wgsl:
 impl WgslCompiler {
-    fn compile_plugin(&self, name: &str, args: &[Expr]) -> Result<String> {
-        let func = self.core_registry.get(name)
-            .ok_or(UnknownFunction(name))?;
+    fn compile_call(&self, name: &str, args: &[Expr]) -> Result<String> {
+        let func = self.registry.get(name).ok_or(UnknownFunction(name))?;
 
         // 1. Try decomposition (works for all backends)
         if let Some(decomposed) = func.decompose(args) {
             return self.compile(&decomposed);
         }
 
-        // 2. Try WGSL-specific implementation
-        if let Some(wgsl_fn) = self.wgsl_registry.get(name) {
-            let arg_strs: Vec<_> = args.iter()
-                .map(|a| self.compile(a))
-                .collect::<Result<_>>()?;
+        // 2. Try WGSL-specific implementation via downcast
+        if let Some(wgsl_fn) = func.as_any().downcast_ref::<dyn WgslExprFn>() {
+            let arg_strs = args.iter().map(|a| self.compile(a)).collect::<Result<Vec<_>>>()?;
             return Ok(wgsl_fn.compile_wgsl(&arg_strs));
         }
 
-        // 3. No WGSL impl - error (or fall back to interpret + readback?)
+        // 3. No native impl - could interpret + inline result, or error
         Err(NoBackendImpl { func: name, backend: "wgsl" })
     }
 }
@@ -280,16 +200,79 @@ impl WgslCompiler {
 | Concern | Solution |
 |---------|----------|
 | Core doesn't know about backends | Backend traits in separate crates |
-| Plugins don't need all backends | decompose() works everywhere |
+| Functions don't need all backends | `decompose()` works everywhere |
 | Complex functions (noise) | Implement backend extension traits |
-| String -> function lookup | Registry per scope |
+| String -> function lookup | Single registry, backends downcast |
 
-**Example: Simple function (decomposition only)**
+### Standard Library (`resin-expr-std`)
+
+Standard math functions live in a separate crate. This keeps core minimal and allows users to customize or replace the stdlib.
 
 ```rust
-struct InverseLerp;
+// In resin-expr-std crate
 
-impl PluginFn for InverseLerp {
+/// Sine function
+pub struct Sin;
+
+impl ExprFn for Sin {
+    fn name(&self) -> &str { "sin" }
+
+    fn signature(&self) -> FnSignature {
+        FnSignature::new(&[Type::F32], Type::F32)
+    }
+
+    fn interpret(&self, args: &[Value]) -> Result<Value> {
+        Ok(Value::F32(args[0].as_f32()?.sin()))
+    }
+}
+
+// WGSL backend: sin is a native WGSL function
+impl WgslExprFn for Sin {
+    fn compile_wgsl(&self, args: &[&str]) -> String {
+        format!("sin({})", args[0])
+    }
+}
+
+// Cranelift backend: call libm
+impl CraneliftExprFn for Sin {
+    fn compile_cranelift(&self, builder: &mut FunctionBuilder, args: &[cranelift::Value]) -> cranelift::Value {
+        builder.call_libm("sinf", args)
+    }
+}
+
+// Lua backend: native Lua function
+impl LuaExprFn for Sin {
+    fn compile_lua(&self, args: &[&str]) -> String {
+        format!("math.sin({})", args[0])
+    }
+}
+
+/// Register all standard functions
+pub fn register_std(registry: &mut FunctionRegistry) {
+    registry.register(Sin);
+    registry.register(Cos);
+    registry.register(Tan);
+    registry.register(Sqrt);
+    registry.register(Abs);
+    registry.register(Floor);
+    registry.register(Ceil);
+    registry.register(Min);
+    registry.register(Max);
+    registry.register(Clamp);
+    registry.register(Mix);  // lerp
+    // ... etc
+}
+```
+
+**Example: Decomposition-only function**
+
+Functions that can express themselves using other functions don't need backend traits:
+
+```rust
+/// inverse_lerp(a, b, v) = (v - a) / (b - a)
+pub struct InverseLerp;
+
+impl ExprFn for InverseLerp {
     fn name(&self) -> &str { "inverse_lerp" }
 
     fn signature(&self) -> FnSignature {
@@ -297,60 +280,59 @@ impl PluginFn for InverseLerp {
     }
 
     fn decompose(&self, args: &[Expr]) -> Option<Expr> {
-        // inverse_lerp(a, b, v) = (v - a) / (b - a)
         let [a, b, v] = args else { return None };
         Some((v.clone() - a.clone()) / (b.clone() - a.clone()))
     }
 
     fn interpret(&self, args: &[Value]) -> Result<Value> {
-        // Fallback if decomposition somehow fails
-        let [a, b, v] = args else { return Err(ArgCount) };
+        let [a, b, v] = &args[..] else { return Err(ArgCount) };
         Ok(Value::F32((v.as_f32()? - a.as_f32()?) / (b.as_f32()? - a.as_f32()?)))
     }
 }
-// No WgslPluginFn or CraneliftPluginFn needed - decomposition works everywhere
+// Works on ALL backends automatically via decomposition!
 ```
 
-**Example: Complex function (backend-specific impls)**
+**Example: Complex function (noise)**
+
+Functions that can't decompose need backend-specific implementations:
 
 ```rust
-struct PerlinNoise {
-    octaves: u32,
-    lacunarity: f32,
-    persistence: f32,
-}
+// In resin-noise crate
+pub struct Perlin2D;
 
-// Core trait - required
-impl PluginFn for PerlinNoise {
-    fn name(&self) -> &str { "perlin_noise" }
+impl ExprFn for Perlin2D {
+    fn name(&self) -> &str { "perlin" }
 
     fn signature(&self) -> FnSignature {
-        FnSignature::new(&[Type::Vec3], Type::F32)
+        FnSignature::new(&[Type::F32, Type::F32], Type::F32)
     }
 
     fn decompose(&self, _: &[Expr]) -> Option<Expr> {
-        None  // Can't express Perlin as primitives
+        None  // Can't express as simpler math
     }
 
     fn interpret(&self, args: &[Value]) -> Result<Value> {
-        let pos = args[0].as_vec3()?;
-        Ok(Value::F32(self.sample_cpu(pos)))
+        let x = args[0].as_f32()?;
+        let y = args[1].as_f32()?;
+        Ok(Value::F32(resin_core::noise::perlin2(x, y)))
     }
 }
 
-// WGSL extension - optional, in resin-expr-wgsl
-impl WgslPluginFn for PerlinNoise {
+// WGSL: emit shader helper function
+impl WgslExprFn for Perlin2D {
     fn compile_wgsl(&self, args: &[&str]) -> String {
-        format!("perlin_fbm_{}({}, {}, {})",
-            self.octaves, args[0], self.lacunarity, self.persistence)
+        format!("perlin2d({}, {})", args[0], args[1])
+    }
+
+    fn wgsl_helpers(&self) -> Option<&str> {
+        Some(include_str!("perlin2d.wgsl"))
     }
 }
 
-// Cranelift extension - optional, in resin-expr-cranelift
-impl CraneliftPluginFn for PerlinNoise {
-    fn compile_cranelift(&self, builder: &mut FunctionBuilder, args: &[Value]) -> Value {
-        // Call external C function or inline IR
-        builder.call_extern("resin_perlin_fbm", args)
+// Cranelift: call into native code
+impl CraneliftExprFn for Perlin2D {
+    fn compile_cranelift(&self, builder: &mut FunctionBuilder, args: &[cranelift::Value]) -> cranelift::Value {
+        builder.call_extern("resin_perlin2d", args)
     }
 }
 ```
@@ -770,47 +752,54 @@ Expressions are pure. No assignment, no side effects.
 ## Crate Structure
 
 ```
-resin-expr/           # Core: AST, types, builders, interpreter
+resin-expr/           # Core: AST, types, registry, interpreter loop
+resin-expr-std/       # Standard functions (sin, cos, etc.)
 resin-expr-macros/    # Proc macro: expr!()
 resin-expr-parse/     # Runtime parser
-resin-expr-wgsl/      # WGSL codegen
-resin-expr-cranelift/ # Cranelift JIT codegen
+resin-expr-wgsl/      # WGSL codegen + WGSL impls for std functions
+resin-expr-cranelift/ # Cranelift JIT codegen + native impls
+resin-expr-lua/       # Lua codegen (potential)
 ```
 
 **Why this split:**
 
 | Crate | Reason for separation |
 |-------|----------------------|
+| `resin-expr-std` | Standard functions, optional (users can provide their own) |
 | `resin-expr-macros` | Required - proc macros must be own crate |
 | `resin-expr-parse` | Optional - not needed for hardcoded expressions |
-| `resin-expr-wgsl` | Optional - heavy dep (naga), not needed for CPU-only |
+| `resin-expr-wgsl` | Optional - not needed for CPU-only |
 | `resin-expr-cranelift` | Optional - very heavy dep (~50 crates) |
+| `resin-expr-lua` | Optional - for Lua scripting integration |
 
-**Core crate includes interpreter:**
+**Core crate includes interpreter loop:**
 
-The interpreter lives in core, not a separate crate. Reasons:
+The interpreter loop lives in core, not a separate crate. Reasons:
 
-1. **Universal fallback** - Any code using expressions can always evaluate them, even without JIT or GPU
-2. **Plugin development** - Plugin authors need `interpret()` for testing without setting up backends
-3. **Small footprint** - ~200 LOC, no heavy dependencies
-4. **Required by trait** - `PluginFn::interpret()` is mandatory, so interpreter must be available wherever plugins are defined
-5. **Validation** - Type checking and basic evaluation happen before backend compilation
+1. **Universal fallback** - Any code using expressions can always evaluate them
+2. **Function development** - Authors need `interpret()` for testing without backends
+3. **Small footprint** - ~100 LOC, just the AST walker
+4. **Required by trait** - `ExprFn::interpret()` is mandatory
 
-If interpreter were separate, every crate defining plugin functions would need to depend on it anyway.
+The interpreter loop just walks the AST and calls `registry.get(name)?.interpret(args)` for function calls.
 
 **Dependency flow:**
 
 ```
-resin-expr-macros ──┐
-                    │
-resin-expr-parse ───┼──▶ resin-expr (core)
-                    │
-resin-expr-wgsl ────┤
-                    │
-resin-expr-cranelift┘
+resin-expr-std ──────┐
+                     │
+resin-expr-macros ───┼──▶ resin-expr (core)
+                     │
+resin-expr-parse ────┤
+                     │
+resin-expr-wgsl ─────┼──▶ resin-expr-std (for WgslExprFn impls)
+                     │
+resin-expr-cranelift─┤
+                     │
+resin-expr-lua ──────┘
 ```
 
-All optional crates depend on core. Core has no heavy deps.
+Backend crates depend on both core (for traits) and std (for backend-specific impls of std functions).
 
 ## Decisions
 
@@ -834,8 +823,10 @@ All optional crates depend on core. Core has no heavy deps.
 |--------|----------|
 | AST scope | Math + conditionals + let bindings |
 | Loops | No (use graph recurrence) |
-| Built-in functions | WGSL built-ins as reference set |
-| Plugin functions | Decompose to primitives, or backend extension traits |
+| Functions | All functions are `ExprFn` plugins, no hardcoded set |
+| Standard library | `resin-expr-std` crate, optional |
+| Backends | WGSL, Cranelift, Lua (potential) via extension traits |
+| Fallback strategy | `decompose()` -> backend impl -> `interpret()` |
 | Type system | Inference from operations |
 | Construction | Builders, proc macro, runtime parser |
-| Crate structure | Core + macros + parse + wgsl + cranelift |
+| Crate structure | Core + std + macros + parse + backends |
