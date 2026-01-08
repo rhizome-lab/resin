@@ -455,7 +455,7 @@ pub fn infer_type(expr: &Expr, vars: &HashMap<VarId, Type>) -> Result<Type, Type
 Expressions evaluate in a context that binds variables:
 
 ```rust
-pub struct EvalContext {
+pub struct ExprContext {
     /// Variable bindings
     pub vars: HashMap<VarId, Value>,
 
@@ -470,17 +470,55 @@ pub mod var {
     pub const UV: VarId = VarId(2);
     pub const TIME: VarId = VarId(3);
     pub const COLOR: VarId = VarId(4);
+    pub const RESOLUTION: VarId = VarId(5);
+    pub const SAMPLE_RATE: VarId = VarId(6);
     // ... etc
 }
 ```
 
-Different domains bind different variables:
+### Ops Bind Variables
 
-| Domain | Available variables |
-|--------|---------------------|
-| Mesh vertex | position, normal, uv, color, index |
-| Texture field | uv, time |
-| Audio | time, sample_rate, phase |
+Expressions don't access `EvalContext` (graph context) directly. Instead, **ops bind variables when invoking expressions**:
+
+```rust
+impl TextureOp {
+    fn apply(&self, uv: Vec2, ctx: &EvalContext) -> Color {
+        // Op decides what variables to expose
+        let expr_ctx = ExprContext::new()
+            .bind(var::UV, uv)
+            .bind(var::TIME, ctx.time)
+            .bind(var::RESOLUTION, ctx.resolution);
+
+        self.expr.eval(&expr_ctx)
+    }
+}
+
+impl MeshVertexOp {
+    fn apply(&self, vertex: &Vertex, ctx: &EvalContext) -> Vec3 {
+        let expr_ctx = ExprContext::new()
+            .bind(var::POSITION, vertex.position)
+            .bind(var::NORMAL, vertex.normal)
+            .bind(var::UV, vertex.uv)
+            .bind(var::TIME, ctx.time);
+
+        self.expr.eval(&expr_ctx)
+    }
+}
+```
+
+**Why ops bind, not expressions access:**
+- No implicit coupling between expressions and graph context
+- Ops explicitly control what's available
+- Same expression type works in different contexts
+- Clear documentation of what variables exist where
+
+### Per-Domain Variables
+
+| Domain | Variables bound by ops |
+|--------|------------------------|
+| Mesh vertex | position, normal, uv, color, index, time |
+| Texture field | uv, time, resolution |
+| Audio | time, sample_rate, sample_index, phase |
 
 ## Expression Construction
 
