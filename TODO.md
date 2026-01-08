@@ -6,7 +6,7 @@
 - [x] Morph targets / blend shapes — vertex deltas + weight blending
 - [x] Animation clips and tracks — keyframes, interpolation, property tracks
 - [x] IK solvers (CCD, FABRIK) — iterative chain solving
-- [ ] Subdivision surfaces — Catmull-Clark, edge cases, creases
+- [x] Subdivision surfaces — Loop subdivision (Catmull-Clark needs quad mesh)
 
 ## Backlog
 

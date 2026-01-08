@@ -5,6 +5,7 @@
 mod mesh;
 mod morph;
 mod primitives;
+mod subdivision;
 
 pub use mesh::{Mesh, MeshBuilder};
 pub use morph::{
@@ -12,3 +13,4 @@ pub use morph::{
     apply_morph_targets_with_normals, blend_positions,
 };
 pub use primitives::{box_mesh, sphere, uv_sphere};
+pub use subdivision::{subdivide_linear, subdivide_loop, subdivide_loop_n};
