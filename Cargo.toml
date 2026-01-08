@@ -15,6 +15,9 @@ glam = "0.29"
 # Error handling
 thiserror = "2"
 
+# Image loading
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+
 # Proc macro support
 syn = { version = "2", features = ["full"] }
 quote = "1"

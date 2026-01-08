@@ -17,6 +17,7 @@ mod error;
 pub mod expr;
 pub mod field;
 mod graph;
+pub mod image_field;
 mod node;
 pub mod noise;
 pub mod particle;
@@ -101,6 +102,7 @@ pub use field::{
 };
 pub use glam;
 pub use graph::{Edge, Graph, NodeId};
+pub use image_field::{FilterMode, ImageField, ImageFieldError, WrapMode};
 pub use node::{BoxedNode, DynNode, PortDescriptor};
 pub use noise::{
     fbm_perlin2, fbm_perlin3, fbm_simplex2, fbm_simplex3, fbm2, fbm3, perlin2, perlin2v, perlin3,

@@ -2,10 +2,9 @@
 
 ## Next Up
 
-- [ ] Image/texture loading as fields
+- [ ] Mesh decimation (edge collapse)
 
 ## Backlog
-- [ ] Mesh decimation (edge collapse)
 - [ ] Boolean operations on 2D paths
 - [ ] Curve lofting (surface from profiles)
 - [ ] Mesh from curves (extrude, revolve, sweep)
@@ -20,6 +19,7 @@
 
 ## Done
 
+- [x] Image/texture loading as fields (ImageField, WrapMode, FilterMode, bilinear sampling)
 - [x] OBJ import/export (import_obj, export_obj, normals, UVs, quad triangulation)
 - [x] Laplacian mesh smoothing (smooth, smooth_taubin, preserve boundary, SmoothConfig)
 - [x] Animation blending and layering (layers, crossfade, 1D/2D blend trees, additive blending)
