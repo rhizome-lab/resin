@@ -774,17 +774,21 @@ resin-expr-cranelift┘
 
 All optional crates depend on core. Core has no heavy deps.
 
+## Decisions
+
+1. **Matrix operations** - `*` operator works on matrices (like WGSL). Type inference dispatches: scalar×scalar, vec×vec (component-wise), mat×vec, mat×mat. No AST change needed.
+
+2. **Constant folding** - Separate `resin-expr-opt` crate. AST → AST transformation, not part of core.
+
+3. **Square matrices only** - Mat2/3/4, no Mat3x4. Convert at domain boundaries.
+
 ## Open Questions
 
-1. **Matrix operations** - Mat2/3/4 included as Value types (square only, no Mat3x4 - convert at boundaries). Open: should `*` operator work on matrices (like WGSL), or use explicit `mat_mul(m, v)`? Explicit functions are simpler for AST but less ergonomic.
+1. **Array/buffer access** - Do expressions need `buffer[i]` syntax? Most use cases are per-element (no neighbor access). Convolutions etc. are materialized image ops, not expressions. Probably unnecessary, but worth revisiting if patterns emerge.
 
-2. **Array/buffer access** - `buffer[i]` syntax for accessing arrays/buffers. Important for algorithms that need neighbor access (convolutions, sorting). Complicates GPU compilation (bounds checking, memory layout).
+2. **Error recovery** - Parser should support partial parsing for IDE integration. Source spans optional, stored separately from AST. Low priority.
 
-3. **Constant folding** - Should live in separate `resin-expr-opt` crate as AST transformation. Not part of core.
-
-4. **Error recovery** - Parser should support partial parsing for IDE integration. Source spans optional, stored separately from AST.
-
-5. **Debugging** - Step-through interpreter for development. Low priority, leave open.
+3. **Debugging** - Step-through interpreter for development. Low priority.
 
 ## Summary
 
