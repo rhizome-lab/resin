@@ -2,7 +2,7 @@
 
 ## Next Up
 
-- [ ] Animation blending and layering
+(backlog is empty - suggest new features!)
 
 ## Backlog
 
@@ -10,6 +10,7 @@
 
 ## Done
 
+- [x] Animation blending and layering (layers, crossfade, 1D/2D blend trees, additive blending)
 - [x] glTF export for meshes (GLB binary, embedded base64, PBR materials)
 
 - [x] NURBS surfaces (tensor product surfaces, sphere/cylinder/torus/cone primitives, tessellation)
