@@ -4,6 +4,7 @@
 
 mod bevel;
 mod boolean;
+mod curve_mesh;
 mod decimate;
 mod halfedge;
 mod loft;
@@ -18,6 +19,10 @@ mod uv;
 
 pub use bevel::{BevelConfig, bevel_edges, bevel_mesh_edges, bevel_mesh_vertices, bevel_vertices};
 pub use boolean::{boolean_intersect, boolean_subtract, boolean_union};
+pub use curve_mesh::{
+    ExtrudeProfileConfig, RevolveConfig, SweepConfig, extrude_profile, extrude_profile_with_config,
+    revolve_profile, revolve_profile_with_config, sweep_profile, sweep_profile_with_config,
+};
 pub use decimate::{DecimateConfig, decimate};
 pub use halfedge::{
     Face, FaceId, HalfEdge, HalfEdgeId, HalfEdgeMesh, Vertex as HEVertex, VertexId,
