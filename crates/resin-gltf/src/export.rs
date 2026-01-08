@@ -229,6 +229,7 @@ impl GltfExporter {
                 byte_stride: None,
                 extensions: None,
                 extras: Default::default(),
+                name: None,
                 target: Some(json::validation::Checked::Valid(
                     json::buffer::Target::ArrayBuffer,
                 )),
@@ -244,6 +245,7 @@ impl GltfExporter {
                 ),
                 extensions: None,
                 extras: Default::default(),
+                name: None,
                 type_: json::validation::Checked::Valid(json::accessor::Type::Vec3),
                 min: Some(json::Value::from(vec![min_pos.x, min_pos.y, min_pos.z])),
                 max: Some(json::Value::from(vec![max_pos.x, max_pos.y, max_pos.z])),
@@ -272,6 +274,7 @@ impl GltfExporter {
                     byte_stride: None,
                     extensions: None,
                     extras: Default::default(),
+                    name: None,
                     target: Some(json::validation::Checked::Valid(
                         json::buffer::Target::ArrayBuffer,
                     )),
@@ -287,6 +290,7 @@ impl GltfExporter {
                     ),
                     extensions: None,
                     extras: Default::default(),
+                    name: None,
                     type_: json::validation::Checked::Valid(json::accessor::Type::Vec3),
                     min: None,
                     max: None,
@@ -318,6 +322,7 @@ impl GltfExporter {
                     byte_stride: None,
                     extensions: None,
                     extras: Default::default(),
+                    name: None,
                     target: Some(json::validation::Checked::Valid(
                         json::buffer::Target::ArrayBuffer,
                     )),
@@ -333,6 +338,7 @@ impl GltfExporter {
                     ),
                     extensions: None,
                     extras: Default::default(),
+                    name: None,
                     type_: json::validation::Checked::Valid(json::accessor::Type::Vec2),
                     min: None,
                     max: None,
@@ -363,6 +369,7 @@ impl GltfExporter {
                 byte_stride: None,
                 extensions: None,
                 extras: Default::default(),
+                name: None,
                 target: Some(json::validation::Checked::Valid(
                     json::buffer::Target::ElementArrayBuffer,
                 )),
@@ -378,6 +385,7 @@ impl GltfExporter {
                 ),
                 extensions: None,
                 extras: Default::default(),
+                name: None,
                 type_: json::validation::Checked::Valid(json::accessor::Type::Scalar),
                 min: None,
                 max: None,
@@ -418,6 +426,7 @@ impl GltfExporter {
                             json::material::AlphaMode::Opaque,
                         ),
                         double_sided: false,
+                        name: Some(mat.name.clone()),
                         pbr_metallic_roughness: json::material::PbrMetallicRoughness {
                             base_color_factor: json::material::PbrBaseColorFactor(mat.base_color),
                             base_color_texture: None,
@@ -446,6 +455,7 @@ impl GltfExporter {
             meshes.push(json::Mesh {
                 extensions: None,
                 extras: Default::default(),
+                name: Some(gltf_mesh.name.clone()),
                 primitives: vec![json::mesh::Primitive {
                     attributes,
                     extensions: None,
@@ -466,6 +476,7 @@ impl GltfExporter {
                 extras: Default::default(),
                 matrix: None,
                 mesh: Some(json::Index::new(mesh_idx as u32)),
+                name: Some(gltf_mesh.name.clone()),
                 rotation: None,
                 scale: None,
                 translation: None,
@@ -480,6 +491,7 @@ impl GltfExporter {
         let scene = json::Scene {
             extensions: None,
             extras: Default::default(),
+            name: None,
             nodes: node_indices,
         };
 
@@ -489,6 +501,7 @@ impl GltfExporter {
                 byte_length: json::validation::USize64(buffer_data.len() as u64),
                 extensions: None,
                 extras: Default::default(),
+                name: None,
                 uri: None,
             },
             ExportFormat::GltfEmbedded => {
@@ -500,6 +513,7 @@ impl GltfExporter {
                     byte_length: json::validation::USize64(buffer_data.len() as u64),
                     extensions: None,
                     extras: Default::default(),
+                    name: None,
                     uri: Some(format!(
                         "data:application/octet-stream;base64,{}",
                         base64_data

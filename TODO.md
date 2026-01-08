@@ -2,10 +2,9 @@
 
 ## Next Up
 
-- [ ] glTF import
+- [ ] Marching cubes (mesh from SDF)
 
 ## Backlog
-- [ ] Marching cubes (mesh from SDF)
 - [ ] Text to paths (font rendering)
 - [ ] Instancing/scattering system
 - [ ] Wavetable oscillators
@@ -15,6 +14,7 @@
 
 ## Done
 
+- [x] glTF import (import_gltf, import_gltf_from_bytes, GltfScene with merge)
 - [x] Mesh from curves (extrude_profile, revolve_profile, sweep_profile with caps and scaling)
 - [x] Curve lofting (loft, loft_along_path, interpolation, profile helpers)
 - [x] Boolean operations on 2D paths (union, intersect, subtract, xor via Sutherland-Hodgman)

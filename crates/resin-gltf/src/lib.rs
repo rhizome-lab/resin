@@ -1,8 +1,8 @@
-//! glTF 2.0 export for resin meshes.
+//! glTF 2.0 import and export for resin meshes.
 //!
-//! Provides export functionality to glTF format (`.gltf` with embedded data or `.glb` binary).
+//! Provides import and export functionality for glTF format (`.gltf` with embedded data or `.glb` binary).
 //!
-//! # Example
+//! # Export Example
 //!
 //! ```ignore
 //! use resin_mesh::{Mesh, uv_sphere};
@@ -12,7 +12,19 @@
 //! let exporter = GltfExporter::new().with_mesh("sphere", mesh);
 //! exporter.export_glb("sphere.glb").unwrap();
 //! ```
+//!
+//! # Import Example
+//!
+//! ```ignore
+//! use resin_gltf::import_gltf;
+//!
+//! let scene = import_gltf("model.glb").unwrap();
+//! let mesh = scene.first_mesh().unwrap();
+//! println!("Loaded {} vertices", mesh.positions.len());
+//! ```
 
 mod export;
+mod import;
 
-pub use export::{ExportFormat, GltfExporter, GltfMaterial, GltfMesh, GltfResult};
+pub use export::{ExportFormat, GltfError, GltfExporter, GltfMaterial, GltfMesh, GltfResult};
+pub use import::{GltfScene, import_gltf, import_gltf_from_bytes};
