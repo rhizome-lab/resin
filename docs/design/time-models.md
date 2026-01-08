@@ -453,7 +453,7 @@ fn validate(&self) -> Result<(), RateMismatch> { ... }
 Pros: Flexible (any rate, not just enum), explicit where needed
 Cons: More validation logic
 
-**Leaning:** Option C - rates as numeric values, explicit conversion nodes, graph validates. No magic `enum Rate`, no hidden conversions.
+**Decision:** Option C - rates as numeric values, explicit conversion nodes, graph validates. No magic `enum Rate`, no hidden conversions.
 
 ## Decisions
 
@@ -498,7 +498,9 @@ Cons: More validation logic
 
 2. **Determinism**: Floating point reproducibility across platforms. Threading order. Probably punt to "best effort" with optional strict mode.
 
-3. **Rate conversion quality**: What interpolation methods for upsampling? What decimation/anti-aliasing for downsampling? Probably configurable per conversion node.
+## Implementation Notes
+
+- **Rate conversion quality**: Upsample/Downsample nodes should offer configurable interpolation (linear, cubic, sinc). Default to linear for low latency, sinc for quality.
 
 ## Summary
 

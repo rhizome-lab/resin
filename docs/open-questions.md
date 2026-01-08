@@ -146,6 +146,6 @@ See [expression-language](./design/expression-language.md) for full design.
 - Plugin function API (decompose or backend extension traits)
 - Constant folding (resin-expr-opt crate, AST transform)
 
-### ❓ Open (8+)
-- **Time models remaining**: Hybrid nodes, determinism, rate conversion quality
+### ❓ Open (7+)
+- **Time models remaining**: Hybrid nodes, determinism
 - **Domain-specific**: Audio (polyphony), mesh instancing
