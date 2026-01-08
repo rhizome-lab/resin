@@ -112,20 +112,19 @@ pub fn derive_dyn_node(input: TokenStream) -> TokenStream {
             attr.parse_args::<syn::MetaNameValue>()
                 .ok()
                 .and_then(|meta| {
-                    if meta.path.is_ident("crate") {
-                        if let syn::Expr::Lit(syn::ExprLit {
+                    if meta.path.is_ident("crate")
+                        && let syn::Expr::Lit(syn::ExprLit {
                             lit: syn::Lit::Str(s),
                             ..
                         }) = meta.value
-                        {
-                            let path = s.value();
-                            return Some(if path == "crate" {
-                                quote!(crate)
-                            } else {
-                                let ident = syn::Ident::new(&path, proc_macro2::Span::call_site());
-                                quote!(#ident)
-                            });
-                        }
+                    {
+                        let path = s.value();
+                        return Some(if path == "crate" {
+                            quote!(crate)
+                        } else {
+                            let ident = syn::Ident::new(&path, proc_macro2::Span::call_site());
+                            quote!(#ident)
+                        });
                     }
                     None
                 })

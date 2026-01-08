@@ -742,8 +742,8 @@ mod tests {
         let v1 = field.sample(Vec2::new(0.0, 0.0), &ctx);
         let v2 = field.sample(Vec2::new(1.0, 1.0), &ctx);
 
-        assert!(v1 >= 0.0 && v1 <= 1.0);
-        assert!(v2 >= 0.0 && v2 <= 1.0);
+        assert!((0.0..=1.0).contains(&v1));
+        assert!((0.0..=1.0).contains(&v2));
         // Values should differ at different positions
         assert!((v1 - v2).abs() > 0.001 || (v1 == v2));
     }
@@ -783,7 +783,7 @@ mod tests {
         let ctx = EvalContext::new();
 
         let v = field.sample(Vec2::new(0.5, 0.5), &ctx);
-        assert!(v >= 0.0 && v <= 1.0);
+        assert!((0.0..=1.0).contains(&v));
     }
 
     #[test]

@@ -235,7 +235,7 @@ pub fn rect_centered(center: Vec2, size: Vec2) -> Path {
 pub fn circle(center: Vec2, radius: f32) -> Path {
     // Magic number for circular arc approximation with cubics
     // k = 4/3 * tan(π/8) ≈ 0.5522847498
-    const K: f32 = 0.5522847498;
+    const K: f32 = 0.552_284_8;
 
     let r = radius;
     let c = center;
@@ -297,7 +297,7 @@ pub fn rounded_rect(min: Vec2, max: Vec2, radius: f32) -> Path {
         return rect(min, max);
     }
 
-    const K: f32 = 0.5522847498;
+    const K: f32 = 0.552_284_8;
     let k = K * r;
 
     PathBuilder::new()

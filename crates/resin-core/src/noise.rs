@@ -143,8 +143,8 @@ pub fn perlin3v(p: Vec3) -> f32 {
 }
 
 // Simplex noise helpers
-const F2: f32 = 0.5 * (1.732050808 - 1.0); // (sqrt(3) - 1) / 2
-const G2: f32 = (3.0 - 1.732050808) / 6.0; // (3 - sqrt(3)) / 6
+const F2: f32 = 0.5 * (1.732_050_8 - 1.0); // (sqrt(3) - 1) / 2
+const G2: f32 = (3.0 - 1.732_050_8) / 6.0; // (3 - sqrt(3)) / 6
 const F3: f32 = 1.0 / 3.0;
 const G3: f32 = 1.0 / 6.0;
 
@@ -375,7 +375,7 @@ mod tests {
                 let y = j as f32 * 0.1;
                 let v = perlin2(x, y);
                 assert!(
-                    v >= 0.0 && v <= 1.0,
+                    (0.0..=1.0).contains(&v),
                     "perlin2({}, {}) = {} out of range",
                     x,
                     y,
@@ -394,7 +394,7 @@ mod tests {
                     let y = j as f32 * 0.2;
                     let z = k as f32 * 0.2;
                     let v = perlin3(x, y, z);
-                    assert!(v >= 0.0 && v <= 1.0, "perlin3 out of range: {}", v);
+                    assert!((0.0..=1.0).contains(&v), "perlin3 out of range: {}", v);
                 }
             }
         }
@@ -408,7 +408,7 @@ mod tests {
                 let y = j as f32 * 0.1;
                 let v = simplex2(x, y);
                 assert!(
-                    v >= 0.0 && v <= 1.0,
+                    (0.0..=1.0).contains(&v),
                     "simplex2({}, {}) = {} out of range",
                     x,
                     y,
@@ -427,7 +427,7 @@ mod tests {
                     let y = j as f32 * 0.2;
                     let z = k as f32 * 0.2;
                     let v = simplex3(x, y, z);
-                    assert!(v >= 0.0 && v <= 1.0, "simplex3 out of range: {}", v);
+                    assert!((0.0..=1.0).contains(&v), "simplex3 out of range: {}", v);
                 }
             }
         }
@@ -440,7 +440,7 @@ mod tests {
                 let x = i as f32 * 0.1;
                 let y = j as f32 * 0.1;
                 let v = fbm_perlin2(x, y, 4);
-                assert!(v >= 0.0 && v <= 1.0, "fbm out of range: {}", v);
+                assert!((0.0..=1.0).contains(&v), "fbm out of range: {}", v);
             }
         }
     }

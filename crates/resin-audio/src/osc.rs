@@ -157,7 +157,7 @@ mod tests {
             let phase = i as f32 / 100.0;
             let v = sine(phase);
             assert!(
-                v >= -1.0 && v <= 1.0,
+                (-1.0..=1.0).contains(&v),
                 "sine({}) = {} out of range",
                 phase,
                 v
@@ -199,7 +199,12 @@ mod tests {
         for i in 0..100 {
             let phase = i as f32 / 100.0;
             let v = saw(phase);
-            assert!(v >= -1.0 && v <= 1.0, "saw({}) = {} out of range", phase, v);
+            assert!(
+                (-1.0..=1.0).contains(&v),
+                "saw({}) = {} out of range",
+                phase,
+                v
+            );
         }
     }
 
@@ -209,7 +214,7 @@ mod tests {
             let phase = i as f32 / 100.0;
             let v = triangle(phase);
             assert!(
-                v >= -1.0 && v <= 1.0,
+                (-1.0..=1.0).contains(&v),
                 "triangle({}) = {} out of range",
                 phase,
                 v
