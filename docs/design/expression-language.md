@@ -367,7 +367,44 @@ pub enum Type {
     BVec2, BVec3, BVec4,  // boolean vectors
     Mat2, Mat3, Mat4,
 }
+```
 
+### Value Representation
+
+Runtime values use an enum, not `dyn Trait`:
+
+```rust
+#[derive(Clone, Copy, Debug)]
+pub enum Value {
+    F32(f32),
+    F64(f64),
+    I32(i32),
+    Bool(bool),
+    Vec2([f32; 2]),
+    Vec3([f32; 3]),
+    Vec4([f32; 4]),
+    BVec2([bool; 2]),
+    BVec3([bool; 3]),
+    BVec4([bool; 4]),
+    // Mat types if we add them
+}
+```
+
+**Why enum over `dyn Trait`:**
+
+| Concern | Enum | dyn Trait |
+|---------|------|-----------|
+| Allocation | Stack, no heap | Box per value |
+| Exhaustiveness | Compiler enforces | Runtime checks |
+| Extensibility | Fixed set | Open |
+| Serialization | Trivial | Complex |
+| Performance | Fast match | Virtual dispatch + allocation |
+
+Expression primitives are a fixed, finite set (unlike graph `Value` which wraps domain types like `Mesh`, `Image`). Enum is the right choice here.
+
+### Type Inference
+
+```rust
 /// Infer type of expression given variable types
 pub fn infer_type(expr: &Expr, vars: &HashMap<VarId, Type>) -> Result<Type, TypeError> {
     match expr {
