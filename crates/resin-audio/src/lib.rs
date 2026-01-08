@@ -2,11 +2,13 @@
 //!
 //! Provides oscillators, filters, envelopes, and audio utilities for procedural sound generation.
 
+pub mod effects;
 pub mod envelope;
 pub mod filter;
 pub mod graph;
 pub mod osc;
 
+pub use effects::{Chorus, Distortion, DistortionMode, Flanger, Phaser, Reverb, Tremolo};
 pub use envelope::{Adsr, AdsrState, Ar, Lfo, LfoWaveform};
 pub use filter::{
     Biquad, BiquadCoeffs, Delay, FeedbackDelay, HighPass, LowPass, highpass_coeff, highpass_sample,
