@@ -33,7 +33,7 @@
 ### Animation
 
 - [ ] Procedural walk cycles - parametric locomotion
-- [ ] Secondary motion - jiggle physics, follow-through, overlap
+- [x] Secondary motion - jiggle physics, follow-through, overlap (JiggleBone, JiggleChain, FollowThrough)
 - [x] Motion matching - animation database lookup (MotionDatabase, MotionMatcher, find_best_match)
 
 ### Image / Texture
