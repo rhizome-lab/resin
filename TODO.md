@@ -17,9 +17,10 @@
 - [ ] FBX import - proprietary, complex; may need external lib or Cambium
 - [ ] USD import/export - massive spec; likely needs OpenUSD bindings or Cambium
 - [ ] Alembic import/export - cached geometry/animation; C++ lib with Rust bindings exists
+- [ ] Video export - mp4/webm encoding; Cambium responsibility
 
 ### Export / Rendering
-- [ ] Video export - mp4/webm encoding (likely via external tool/ffmpeg)
+(all done!)
 
 ## Done
 - [x] Rigid body physics (RigidBody, Collider shapes, PhysicsWorld, impulse-based collision resolution)
