@@ -11,6 +11,7 @@ pub mod midi;
 pub mod osc;
 pub mod percussion;
 pub mod physical;
+pub mod room;
 pub mod spectral;
 pub mod vocoder;
 pub mod wav;
@@ -45,6 +46,11 @@ pub use osc::{
 };
 pub use percussion::{Bar, BarConfig, Membrane, MembraneConfig, Plate, PlateConfig, noise_burst};
 pub use physical::{ExtendedKarplusStrong, KarplusStrong, PluckConfig, PolyStrings};
+pub use room::{
+    EarlyReflection, RoomAcoustics, RoomGeometry, RoomMaterial, RoomMode, RoomModes, RoomSurfaces,
+    calculate_early_reflections, calculate_room_modes, calculate_rt60_eyring,
+    calculate_rt60_sabine,
+};
 pub use spectral::{
     Complex, StftConfig, StftResult, blackman_window, estimate_pitch, fft, fft_complex,
     find_peak_frequency, hamming_window, hann_window, ifft, ifft_complex, istft, rect_window,
