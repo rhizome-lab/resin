@@ -2,13 +2,55 @@
 
 ## Next Up
 
+- [ ] Documentation audit - ensure all public APIs have docs
+- [ ] Test coverage audit - identify gaps in existing crates
+
 ## Backlog
 
-### Procedural / Simulation
-(all done!)
+### Geometry / Mesh
+
+- [ ] Terrain generation - heightfield, hydraulic/thermal erosion
+- [ ] Remeshing/retopology - uniform triangle distribution
+- [ ] Lattice deformation - FFD (free-form deformation)
+- [ ] SDF from mesh - mesh → distance field conversion
+- [ ] Navigation meshes - walkable surface generation for game AI
+
+### Physics
+
+- [ ] Constraints/joints - hinges, springs, motors, ragdolls
+- [ ] Cloth-object collision - two-way interaction
+- [ ] Soft body FEM - finite element method deformation
+
+### Procedural
+
+- [ ] Procedural architecture - buildings, rooms, floor plans
+- [ ] Road/river networks - graph-based path generation
+- [ ] Terrain erosion - hydraulic, thermal simulation
+- [ ] Maze generation - recursive backtracker, Prim's, Kruskal's, Eller's
+
+### Animation
+
+- [ ] Procedural walk cycles - parametric locomotion
+- [ ] Secondary motion - jiggle physics, follow-through, overlap
+- [ ] Motion matching - animation database lookup
+
+### Image / Texture
+
+- [ ] Convolution filters - blur, sharpen, edge detection, emboss
+- [ ] Normal map from heightfield - Sobel-based normal generation
+- [ ] Ambient occlusion baking - screen-space or ray-based AO
 
 ### Audio
-(all done!)
+
+- [ ] Convolution reverb - load and apply impulse responses
+- [ ] Room acoustics simulation - ray-traced early reflections
+- [ ] Synthesizer patch system - preset save/load, modulation routing
+
+### 2D Vector
+
+- [ ] Curve booleans - proper path intersection with winding rules
+- [ ] Pressure curves - pen tool simulation, variable stroke width
+- [ ] Gradient meshes - interpolated color regions
 
 ### File Formats
 
@@ -19,8 +61,12 @@
 - [ ] Alembic import/export - cached geometry/animation; C++ lib with Rust bindings exists
 - [ ] Video export - mp4/webm encoding; Cambium responsibility
 
-### Export / Rendering
-(all done!)
+### Post-Features
+
+- [ ] Documentation pass - comprehensive docs for all new features
+- [ ] Test coverage pass - tests for all new features
+- [ ] Architecture review - evaluate patterns, identify inconsistencies
+- [ ] Refactoring - only after architecture review approval
 
 ## Done
 - [x] Rigid body physics (RigidBody, Collider shapes, PhysicsWorld, impulse-based collision resolution)
