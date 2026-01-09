@@ -2,6 +2,7 @@
 //!
 //! Provides mesh primitives and operations for procedural 3D geometry.
 
+mod architecture;
 mod bevel;
 mod boolean;
 mod curve_mesh;
@@ -24,6 +25,11 @@ mod sdf;
 mod subdivision;
 mod uv;
 
+pub use architecture::{
+    Building, DoorConfig, FloorPoint, RoofConfig, RoofStyle, WallConfig, WindowConfig,
+    generate_building, generate_stairs, generate_wall_with_door, generate_wall_with_window,
+    generate_walls,
+};
 pub use bevel::{BevelConfig, bevel_edges, bevel_mesh_edges, bevel_mesh_vertices, bevel_vertices};
 pub use boolean::{boolean_intersect, boolean_subtract, boolean_union};
 pub use curve_mesh::{
