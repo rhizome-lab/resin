@@ -51,8 +51,8 @@
 ### 2D Vector
 
 - [x] Curve booleans - proper path intersection with winding rules (FillRule, winding_number, path_xor_multi)
-- [ ] Pressure curves - pen tool simulation, variable stroke width
-- [ ] Gradient meshes - interpolated color regions
+- [x] Pressure curves - pen tool simulation, variable stroke width (PressureStroke, simulate_velocity_pressure)
+- [x] Gradient meshes - interpolated color regions (GradientMesh, GradientPatch)
 
 ### File Formats
 
