@@ -3,11 +3,11 @@
 ## Next Up
 
 ## Backlog
-- [ ] Space colonization
 - [ ] 2D rasterization (paths to pixels)
 
 ## Done
 
+- [x] Space colonization (SpaceColonization, BranchNode, generate_tree, generate_lightning, pipe model radii)
 - [x] Wave function collapse (WfcSolver, TileSet, constraint propagation, platformer/maze presets)
 - [x] Geodesic distance (Dijkstra, fast marching, geodesic_path, find_mesh_center, iso_distance)
 - [x] Mesh repair (find_boundary_loops, fill_hole_fan, fill_hole_ear_clip, fill_hole_minimum_area)

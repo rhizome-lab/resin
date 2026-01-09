@@ -25,6 +25,7 @@ pub mod noise;
 pub mod particle;
 pub mod reaction_diffusion;
 pub mod scatter;
+pub mod space_colonization;
 pub mod spline;
 pub mod spring;
 pub mod surface;
@@ -154,6 +155,10 @@ pub use scatter::{
     Instance, ScatterConfig, jitter_positions, randomize_rotation, randomize_scale, scatter_circle,
     scatter_grid, scatter_grid_2d, scatter_line, scatter_poisson_2d, scatter_random,
     scatter_random_with_config, scatter_sphere,
+};
+pub use space_colonization::{
+    BranchEdge, BranchNode, SpaceColonization, SpaceColonizationConfig, generate_lightning,
+    generate_tree,
 };
 pub use spline::{
     BSpline, BezierSpline, CatmullRom, CubicBezier, Interpolatable, Nurbs, WeightedPoint,
