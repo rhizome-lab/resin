@@ -3,6 +3,8 @@
 //! Provides union, intersection, and difference operations for paths.
 //! Paths are first flattened to polygons, then boolean operations are applied.
 //!
+//! Also provides curve intersection utilities for Bezier curves.
+//!
 //! # Example
 //!
 //! ```ignore
@@ -19,6 +21,418 @@
 use glam::Vec2;
 
 use crate::{Path, PathBuilder, PathCommand};
+
+// ============================================================================
+// Curve Intersection Types
+// ============================================================================
+
+/// A curve segment (line, quadratic, or cubic bezier).
+#[derive(Debug, Clone, Copy)]
+pub enum CurveSegment {
+    /// Line segment from start to end.
+    Line { start: Vec2, end: Vec2 },
+    /// Quadratic bezier curve.
+    Quadratic {
+        start: Vec2,
+        control: Vec2,
+        end: Vec2,
+    },
+    /// Cubic bezier curve.
+    Cubic {
+        start: Vec2,
+        control1: Vec2,
+        control2: Vec2,
+        end: Vec2,
+    },
+}
+
+/// An intersection between two curves.
+#[derive(Debug, Clone, Copy)]
+pub struct CurveIntersection {
+    /// The intersection point.
+    pub point: Vec2,
+    /// Parameter t on the first curve (0-1).
+    pub t1: f32,
+    /// Parameter t on the second curve (0-1).
+    pub t2: f32,
+}
+
+impl CurveSegment {
+    /// Evaluates the curve at parameter t (0-1).
+    pub fn evaluate(&self, t: f32) -> Vec2 {
+        match self {
+            CurveSegment::Line { start, end } => *start + (*end - *start) * t,
+            CurveSegment::Quadratic {
+                start,
+                control,
+                end,
+            } => quadratic_bezier(*start, *control, *end, t),
+            CurveSegment::Cubic {
+                start,
+                control1,
+                control2,
+                end,
+            } => cubic_bezier(*start, *control1, *control2, *end, t),
+        }
+    }
+
+    /// Computes the derivative at parameter t.
+    pub fn derivative(&self, t: f32) -> Vec2 {
+        match self {
+            CurveSegment::Line { start, end } => *end - *start,
+            CurveSegment::Quadratic {
+                start,
+                control,
+                end,
+            } => {
+                let mt = 1.0 - t;
+                (*control - *start) * (2.0 * mt) + (*end - *control) * (2.0 * t)
+            }
+            CurveSegment::Cubic {
+                start,
+                control1,
+                control2,
+                end,
+            } => {
+                let mt = 1.0 - t;
+                let mt2 = mt * mt;
+                let t2 = t * t;
+                (*control1 - *start) * (3.0 * mt2)
+                    + (*control2 - *control1) * (6.0 * mt * t)
+                    + (*end - *control2) * (3.0 * t2)
+            }
+        }
+    }
+
+    /// Returns the bounding box of the curve.
+    pub fn bounds(&self) -> (Vec2, Vec2) {
+        match self {
+            CurveSegment::Line { start, end } => (start.min(*end), start.max(*end)),
+            CurveSegment::Quadratic {
+                start,
+                control,
+                end,
+            } => {
+                let min = start.min(*control).min(*end);
+                let max = start.max(*control).max(*end);
+                (min, max)
+            }
+            CurveSegment::Cubic {
+                start,
+                control1,
+                control2,
+                end,
+            } => {
+                let min = start.min(*control1).min(*control2).min(*end);
+                let max = start.max(*control1).max(*control2).max(*end);
+                (min, max)
+            }
+        }
+    }
+
+    /// Splits the curve at parameter t, returning two subcurves.
+    pub fn split(&self, t: f32) -> (CurveSegment, CurveSegment) {
+        match self {
+            CurveSegment::Line { start, end } => {
+                let mid = *start + (*end - *start) * t;
+                (
+                    CurveSegment::Line {
+                        start: *start,
+                        end: mid,
+                    },
+                    CurveSegment::Line {
+                        start: mid,
+                        end: *end,
+                    },
+                )
+            }
+            CurveSegment::Quadratic {
+                start,
+                control,
+                end,
+            } => {
+                let (left, right) = split_quadratic(*start, *control, *end, t);
+                (
+                    CurveSegment::Quadratic {
+                        start: left.0,
+                        control: left.1,
+                        end: left.2,
+                    },
+                    CurveSegment::Quadratic {
+                        start: right.0,
+                        control: right.1,
+                        end: right.2,
+                    },
+                )
+            }
+            CurveSegment::Cubic {
+                start,
+                control1,
+                control2,
+                end,
+            } => {
+                let (left, right) = split_cubic(*start, *control1, *control2, *end, t);
+                (
+                    CurveSegment::Cubic {
+                        start: left.0,
+                        control1: left.1,
+                        control2: left.2,
+                        end: left.3,
+                    },
+                    CurveSegment::Cubic {
+                        start: right.0,
+                        control1: right.1,
+                        control2: right.2,
+                        end: right.3,
+                    },
+                )
+            }
+        }
+    }
+}
+
+/// Splits a quadratic bezier at parameter t using de Casteljau's algorithm.
+fn split_quadratic(
+    p0: Vec2,
+    p1: Vec2,
+    p2: Vec2,
+    t: f32,
+) -> ((Vec2, Vec2, Vec2), (Vec2, Vec2, Vec2)) {
+    let q0 = p0.lerp(p1, t);
+    let q1 = p1.lerp(p2, t);
+    let r = q0.lerp(q1, t);
+    ((p0, q0, r), (r, q1, p2))
+}
+
+/// Splits a cubic bezier at parameter t using de Casteljau's algorithm.
+fn split_cubic(
+    p0: Vec2,
+    p1: Vec2,
+    p2: Vec2,
+    p3: Vec2,
+    t: f32,
+) -> ((Vec2, Vec2, Vec2, Vec2), (Vec2, Vec2, Vec2, Vec2)) {
+    let q0 = p0.lerp(p1, t);
+    let q1 = p1.lerp(p2, t);
+    let q2 = p2.lerp(p3, t);
+    let r0 = q0.lerp(q1, t);
+    let r1 = q1.lerp(q2, t);
+    let s = r0.lerp(r1, t);
+    ((p0, q0, r0, s), (s, r1, q2, p3))
+}
+
+/// Checks if two bounding boxes overlap.
+fn bounds_overlap(a: (Vec2, Vec2), b: (Vec2, Vec2)) -> bool {
+    a.0.x <= b.1.x && a.1.x >= b.0.x && a.0.y <= b.1.y && a.1.y >= b.0.y
+}
+
+/// Bounding box diagonal length.
+fn bounds_size(bounds: (Vec2, Vec2)) -> f32 {
+    (bounds.1 - bounds.0).length()
+}
+
+// ============================================================================
+// Curve-Curve Intersection
+// ============================================================================
+
+/// Finds intersections between two curve segments.
+///
+/// Uses recursive subdivision for bezier curves with configurable tolerance.
+pub fn curve_intersections(
+    c1: &CurveSegment,
+    c2: &CurveSegment,
+    tolerance: f32,
+) -> Vec<CurveIntersection> {
+    let mut result = Vec::new();
+    find_intersections_recursive(c1, c2, 0.0, 1.0, 0.0, 1.0, tolerance, &mut result, 0);
+    // Remove duplicates
+    result.dedup_by(|a, b| a.point.distance(b.point) < tolerance);
+    result
+}
+
+/// Recursive subdivision to find curve intersections.
+fn find_intersections_recursive(
+    c1: &CurveSegment,
+    c2: &CurveSegment,
+    t1_min: f32,
+    t1_max: f32,
+    t2_min: f32,
+    t2_max: f32,
+    tolerance: f32,
+    result: &mut Vec<CurveIntersection>,
+    depth: usize,
+) {
+    const MAX_DEPTH: usize = 20;
+
+    // Check bounding box overlap
+    let bounds1 = c1.bounds();
+    let bounds2 = c2.bounds();
+
+    if !bounds_overlap(bounds1, bounds2) {
+        return;
+    }
+
+    // If both curves are small enough, report intersection
+    let size1 = bounds_size(bounds1);
+    let size2 = bounds_size(bounds2);
+
+    if size1 < tolerance && size2 < tolerance {
+        let t1 = (t1_min + t1_max) / 2.0;
+        let t2 = (t2_min + t2_max) / 2.0;
+        let p1 = c1.evaluate(0.5);
+        let p2 = c2.evaluate(0.5);
+        let point = (p1 + p2) / 2.0;
+        result.push(CurveIntersection { point, t1, t2 });
+        return;
+    }
+
+    if depth >= MAX_DEPTH {
+        // Max depth reached, report approximate intersection
+        let t1 = (t1_min + t1_max) / 2.0;
+        let t2 = (t2_min + t2_max) / 2.0;
+        let point = c1.evaluate(0.5);
+        result.push(CurveIntersection { point, t1, t2 });
+        return;
+    }
+
+    // Subdivide the larger curve
+    if size1 > size2 {
+        let (left, right) = c1.split(0.5);
+        let t1_mid = (t1_min + t1_max) / 2.0;
+        find_intersections_recursive(
+            &left,
+            c2,
+            t1_min,
+            t1_mid,
+            t2_min,
+            t2_max,
+            tolerance,
+            result,
+            depth + 1,
+        );
+        find_intersections_recursive(
+            &right,
+            c2,
+            t1_mid,
+            t1_max,
+            t2_min,
+            t2_max,
+            tolerance,
+            result,
+            depth + 1,
+        );
+    } else {
+        let (left, right) = c2.split(0.5);
+        let t2_mid = (t2_min + t2_max) / 2.0;
+        find_intersections_recursive(
+            c1,
+            &left,
+            t1_min,
+            t1_max,
+            t2_min,
+            t2_mid,
+            tolerance,
+            result,
+            depth + 1,
+        );
+        find_intersections_recursive(
+            c1,
+            &right,
+            t1_min,
+            t1_max,
+            t2_mid,
+            t2_max,
+            tolerance,
+            result,
+            depth + 1,
+        );
+    }
+}
+
+/// Finds intersection between a line and a bezier curve.
+pub fn line_curve_intersections(
+    line_start: Vec2,
+    line_end: Vec2,
+    curve: &CurveSegment,
+    tolerance: f32,
+) -> Vec<CurveIntersection> {
+    let line = CurveSegment::Line {
+        start: line_start,
+        end: line_end,
+    };
+    curve_intersections(&line, curve, tolerance)
+}
+
+/// Finds self-intersections in a cubic bezier curve.
+pub fn cubic_self_intersections(
+    start: Vec2,
+    control1: Vec2,
+    control2: Vec2,
+    end: Vec2,
+    tolerance: f32,
+) -> Vec<CurveIntersection> {
+    // A cubic can self-intersect if it has an inflection point
+    // Check by finding where the second derivative changes sign
+    let curve = CurveSegment::Cubic {
+        start,
+        control1,
+        control2,
+        end,
+    };
+
+    // Split curve in half and check if the two halves intersect
+    let (left, right) = curve.split(0.5);
+
+    // Exclude the common endpoint
+    let mut intersections = curve_intersections(&left, &right, tolerance);
+    intersections.retain(|i| (i.t1 - 0.5).abs() > 0.01 || (i.t2 - 0.5).abs() > 0.01);
+
+    // Adjust t values to full curve range
+    for i in &mut intersections {
+        i.t1 *= 0.5;
+        i.t2 = 0.5 + i.t2 * 0.5;
+    }
+
+    intersections
+}
+
+/// Finds the closest point on a curve to a given point.
+pub fn closest_point_on_curve(curve: &CurveSegment, point: Vec2, samples: usize) -> (Vec2, f32) {
+    let mut best_t = 0.0;
+    let mut best_dist = f32::MAX;
+    let mut best_point = curve.evaluate(0.0);
+
+    // Initial sampling
+    for i in 0..=samples {
+        let t = i as f32 / samples as f32;
+        let p = curve.evaluate(t);
+        let dist = p.distance(point);
+        if dist < best_dist {
+            best_dist = dist;
+            best_t = t;
+            best_point = p;
+        }
+    }
+
+    // Newton refinement
+    for _ in 0..5 {
+        let p = curve.evaluate(best_t);
+        let d = curve.derivative(best_t);
+        let diff = p - point;
+
+        // Project diff onto tangent
+        let d_len_sq = d.length_squared();
+        if d_len_sq < 1e-10 {
+            break;
+        }
+
+        let delta_t = -diff.dot(d) / d_len_sq;
+        best_t = (best_t + delta_t * 0.5).clamp(0.0, 1.0);
+    }
+
+    best_point = curve.evaluate(best_t);
+    (best_point, best_t)
+}
 
 /// Computes the union of two paths.
 ///
@@ -739,5 +1153,247 @@ mod tests {
 
         // Should have some vertices
         assert!(result.len() > 0);
+    }
+
+    // ========================================================================
+    // Curve Intersection Tests
+    // ========================================================================
+
+    #[test]
+    fn test_curve_segment_evaluate_line() {
+        let line = CurveSegment::Line {
+            start: Vec2::ZERO,
+            end: Vec2::new(10.0, 0.0),
+        };
+
+        assert_eq!(line.evaluate(0.0), Vec2::ZERO);
+        assert_eq!(line.evaluate(0.5), Vec2::new(5.0, 0.0));
+        assert_eq!(line.evaluate(1.0), Vec2::new(10.0, 0.0));
+    }
+
+    #[test]
+    fn test_curve_segment_evaluate_quadratic() {
+        let quad = CurveSegment::Quadratic {
+            start: Vec2::ZERO,
+            control: Vec2::new(1.0, 2.0),
+            end: Vec2::new(2.0, 0.0),
+        };
+
+        // At t=0, should be at start
+        assert_eq!(quad.evaluate(0.0), Vec2::ZERO);
+        // At t=1, should be at end
+        assert_eq!(quad.evaluate(1.0), Vec2::new(2.0, 0.0));
+        // At t=0.5, should be at peak (y-wise)
+        let mid = quad.evaluate(0.5);
+        assert!(mid.y > 0.5); // Should be above the endpoints
+    }
+
+    #[test]
+    fn test_curve_segment_split_line() {
+        let line = CurveSegment::Line {
+            start: Vec2::ZERO,
+            end: Vec2::new(10.0, 0.0),
+        };
+
+        let (left, right) = line.split(0.5);
+
+        // Check left segment
+        assert_eq!(left.evaluate(0.0), Vec2::ZERO);
+        assert_eq!(left.evaluate(1.0), Vec2::new(5.0, 0.0));
+
+        // Check right segment
+        assert_eq!(right.evaluate(0.0), Vec2::new(5.0, 0.0));
+        assert_eq!(right.evaluate(1.0), Vec2::new(10.0, 0.0));
+    }
+
+    #[test]
+    fn test_curve_segment_bounds() {
+        let cubic = CurveSegment::Cubic {
+            start: Vec2::ZERO,
+            control1: Vec2::new(0.0, 2.0),
+            control2: Vec2::new(2.0, 2.0),
+            end: Vec2::new(2.0, 0.0),
+        };
+
+        let (min, max) = cubic.bounds();
+        assert_eq!(min, Vec2::ZERO);
+        assert_eq!(max, Vec2::new(2.0, 2.0));
+    }
+
+    #[test]
+    fn test_line_line_intersection() {
+        let line1 = CurveSegment::Line {
+            start: Vec2::new(0.0, 0.0),
+            end: Vec2::new(2.0, 2.0),
+        };
+        let line2 = CurveSegment::Line {
+            start: Vec2::new(0.0, 2.0),
+            end: Vec2::new(2.0, 0.0),
+        };
+
+        let intersections = curve_intersections(&line1, &line2, 0.01);
+        assert_eq!(intersections.len(), 1);
+
+        let int = &intersections[0];
+        assert!((int.point.x - 1.0).abs() < 0.1);
+        assert!((int.point.y - 1.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_line_line_no_intersection() {
+        let line1 = CurveSegment::Line {
+            start: Vec2::new(0.0, 0.0),
+            end: Vec2::new(1.0, 0.0),
+        };
+        let line2 = CurveSegment::Line {
+            start: Vec2::new(0.0, 1.0),
+            end: Vec2::new(1.0, 1.0),
+        };
+
+        let intersections = curve_intersections(&line1, &line2, 0.01);
+        assert!(intersections.is_empty());
+    }
+
+    #[test]
+    fn test_line_quadratic_intersection() {
+        // Horizontal line at y=0.5 intersecting a quadratic arch
+        let line = CurveSegment::Line {
+            start: Vec2::new(-1.0, 0.5),
+            end: Vec2::new(3.0, 0.5),
+        };
+        let quad = CurveSegment::Quadratic {
+            start: Vec2::ZERO,
+            control: Vec2::new(1.0, 2.0),
+            end: Vec2::new(2.0, 0.0),
+        };
+
+        let intersections = curve_intersections(&line, &quad, 0.01);
+        // Should intersect twice (going up and coming down)
+        assert_eq!(intersections.len(), 2);
+    }
+
+    #[test]
+    fn test_quadratic_quadratic_intersection() {
+        let quad1 = CurveSegment::Quadratic {
+            start: Vec2::new(0.0, 0.0),
+            control: Vec2::new(1.0, 2.0),
+            end: Vec2::new(2.0, 0.0),
+        };
+        let quad2 = CurveSegment::Quadratic {
+            start: Vec2::new(0.0, 1.0),
+            control: Vec2::new(1.0, -1.0),
+            end: Vec2::new(2.0, 1.0),
+        };
+
+        let intersections = curve_intersections(&quad1, &quad2, 0.01);
+        // These curves should intersect twice
+        assert_eq!(intersections.len(), 2);
+    }
+
+    #[test]
+    fn test_cubic_cubic_intersection() {
+        let cubic1 = CurveSegment::Cubic {
+            start: Vec2::new(0.0, 0.0),
+            control1: Vec2::new(0.0, 2.0),
+            control2: Vec2::new(2.0, 2.0),
+            end: Vec2::new(2.0, 0.0),
+        };
+        let cubic2 = CurveSegment::Cubic {
+            start: Vec2::new(0.0, 1.0),
+            control1: Vec2::new(2.0, 1.0),
+            control2: Vec2::new(0.0, 1.0),
+            end: Vec2::new(2.0, 1.0),
+        };
+
+        let intersections = curve_intersections(&cubic1, &cubic2, 0.01);
+        // Should have some intersections
+        assert!(!intersections.is_empty());
+    }
+
+    #[test]
+    fn test_closest_point_on_line() {
+        let line = CurveSegment::Line {
+            start: Vec2::ZERO,
+            end: Vec2::new(10.0, 0.0),
+        };
+
+        // Point above the middle of the line
+        let (closest, t) = closest_point_on_curve(&line, Vec2::new(5.0, 3.0), 10);
+        assert!((closest.x - 5.0).abs() < 0.1);
+        assert!(closest.y.abs() < 0.1);
+        assert!((t - 0.5).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_closest_point_on_quadratic() {
+        let quad = CurveSegment::Quadratic {
+            start: Vec2::ZERO,
+            control: Vec2::new(1.0, 2.0),
+            end: Vec2::new(2.0, 0.0),
+        };
+
+        // Point above the curve
+        let (closest, t) = closest_point_on_curve(&quad, Vec2::new(1.0, 3.0), 20);
+        // Closest should be near the peak of the curve
+        assert!((closest.x - 1.0).abs() < 0.2);
+        assert!(closest.y > 0.5);
+        assert!((t - 0.5).abs() < 0.2);
+    }
+
+    #[test]
+    fn test_curve_derivative_line() {
+        let line = CurveSegment::Line {
+            start: Vec2::new(0.0, 0.0),
+            end: Vec2::new(3.0, 4.0),
+        };
+
+        // Derivative should be constant for a line
+        let d0 = line.derivative(0.0);
+        let d1 = line.derivative(1.0);
+        assert_eq!(d0, d1);
+        assert_eq!(d0, Vec2::new(3.0, 4.0));
+    }
+
+    #[test]
+    fn test_split_quadratic_de_casteljau() {
+        let start = Vec2::ZERO;
+        let control = Vec2::new(1.0, 2.0);
+        let end = Vec2::new(2.0, 0.0);
+
+        let (left, right) = split_quadratic(start, control, end, 0.5);
+
+        // The split point should be on the original curve
+        let split_point = quadratic_bezier(start, control, end, 0.5);
+        assert!((left.2 - split_point).length() < 0.001);
+        assert!((right.0 - split_point).length() < 0.001);
+    }
+
+    #[test]
+    fn test_split_cubic_de_casteljau() {
+        let p0 = Vec2::ZERO;
+        let p1 = Vec2::new(0.0, 2.0);
+        let p2 = Vec2::new(2.0, 2.0);
+        let p3 = Vec2::new(2.0, 0.0);
+
+        let (left, right) = split_cubic(p0, p1, p2, p3, 0.5);
+
+        // The split point should be on the original curve
+        let split_point = cubic_bezier(p0, p1, p2, p3, 0.5);
+        assert!((left.3 - split_point).length() < 0.001);
+        assert!((right.0 - split_point).length() < 0.001);
+    }
+
+    #[test]
+    fn test_line_curve_intersections_helper() {
+        let curve = CurveSegment::Quadratic {
+            start: Vec2::ZERO,
+            control: Vec2::new(1.0, 2.0),
+            end: Vec2::new(2.0, 0.0),
+        };
+
+        let intersections =
+            line_curve_intersections(Vec2::new(-1.0, 0.5), Vec2::new(3.0, 0.5), &curve, 0.01);
+
+        assert_eq!(intersections.len(), 2);
     }
 }

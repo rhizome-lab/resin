@@ -14,7 +14,11 @@ mod stroke;
 pub mod svg;
 mod text;
 
-pub use boolean::{path_intersect, path_subtract, path_union, path_xor};
+pub use boolean::{
+    CurveIntersection, CurveSegment, closest_point_on_curve, cubic_self_intersections,
+    curve_intersections, line_curve_intersections, path_intersect, path_subtract, path_union,
+    path_xor,
+};
 pub use delaunay::{
     Triangle, VoronoiCell, VoronoiDiagram, delaunay_triangulation, triangles_to_indices,
     voronoi_diagram, voronoi_to_segments,
