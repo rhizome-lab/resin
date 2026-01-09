@@ -3,7 +3,6 @@
 ## Next Up
 
 ## Backlog
-- [ ] Reaction-diffusion
 - [ ] Spring physics / Verlet integration
 - [ ] Mesh repair (hole filling)
 - [ ] Geodesic distance
@@ -13,6 +12,7 @@
 
 ## Done
 
+- [x] Reaction-diffusion (ReactionDiffusion, GrayScottPreset, MultiChannelRD, 5-point Laplacian)
 - [x] SVG import/parsing (parse_path_data, M/L/H/V/C/S/Q/T/A/Z commands, arc to cubic conversion)
 - [x] WAV import/export (WavFile, PCM 8/16/24/32-bit, Float32, resampling)
 - [x] Granular synthesis (GrainCloud, GrainConfig, GrainScheduler, Hann envelope)

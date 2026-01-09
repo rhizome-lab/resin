@@ -23,6 +23,7 @@ pub mod lsystem;
 mod node;
 pub mod noise;
 pub mod particle;
+pub mod reaction_diffusion;
 pub mod scatter;
 pub mod spline;
 pub mod surface;
@@ -145,6 +146,7 @@ pub use particle::{
     Vortex,
     Wind,
 };
+pub use reaction_diffusion::{GrayScottPreset, MultiChannelRD, ReactionDiffusion};
 pub use resin_macros::DynNode as DynNodeDerive;
 pub use scatter::{
     Instance, ScatterConfig, jitter_positions, randomize_rotation, randomize_scale, scatter_circle,
