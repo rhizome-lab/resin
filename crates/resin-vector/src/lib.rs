@@ -3,6 +3,7 @@
 //! Provides path primitives, vector networks, and operations for 2D vector art.
 
 mod boolean;
+mod delaunay;
 mod geometry;
 mod network;
 mod path;
@@ -11,6 +12,10 @@ pub mod svg;
 mod text;
 
 pub use boolean::{path_intersect, path_subtract, path_union, path_xor};
+pub use delaunay::{
+    Triangle, VoronoiCell, VoronoiDiagram, delaunay_triangulation, triangles_to_indices,
+    voronoi_diagram, voronoi_to_segments,
+};
 pub use geometry::{
     bounding_box, centroid, convex_hull, convex_hull_path, is_ccw, minimum_bounding_circle,
     point_in_polygon, point_on_hull, polygon_area, polygon_perimeter, signed_area,

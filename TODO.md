@@ -3,7 +3,6 @@
 ## Next Up
 
 ## Backlog
-- [ ] Voronoi/Delaunay diagrams
 - [ ] Metaballs (2D/3D)
 - [ ] Hatching patterns
 - [ ] Granular synthesis
@@ -20,6 +19,7 @@
 
 ## Done
 
+- [x] Voronoi/Delaunay diagrams (Bowyer-Watson algorithm, VoronoiDiagram, VoronoiCell)
 - [x] Convex hull and geometry utils (bounding_box, centroid, point_in_polygon, minimum_bounding_circle)
 - [x] Cellular automata (ElementaryCA, CellularAutomaton2D, GameOfLife, rule presets)
 - [x] Path simplification (simplify_path, simplify_points, smooth_path, resample_path)
