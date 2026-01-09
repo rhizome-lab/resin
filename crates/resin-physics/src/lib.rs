@@ -253,6 +253,246 @@ pub struct Contact {
 }
 
 // ============================================================================
+// Constraints / Joints
+// ============================================================================
+
+/// A constraint between bodies.
+#[derive(Clone, Debug)]
+pub enum Constraint {
+    /// Distance constraint - maintains fixed distance between two points.
+    Distance(DistanceConstraint),
+    /// Point constraint - anchors a body point to world space or another body.
+    Point(PointConstraint),
+    /// Hinge constraint - rotation around a single axis.
+    Hinge(HingeConstraint),
+    /// Spring constraint - elastic connection between points.
+    Spring(SpringConstraint),
+}
+
+/// Distance constraint parameters.
+#[derive(Clone, Debug)]
+pub struct DistanceConstraint {
+    /// First body index.
+    pub body_a: usize,
+    /// Second body index.
+    pub body_b: usize,
+    /// Local anchor point on body A.
+    pub local_anchor_a: Vec3,
+    /// Local anchor point on body B.
+    pub local_anchor_b: Vec3,
+    /// Target distance between anchors.
+    pub distance: f32,
+    /// Constraint stiffness (0-1, 1 = rigid).
+    pub stiffness: f32,
+}
+
+impl DistanceConstraint {
+    /// Create a new distance constraint.
+    pub fn new(body_a: usize, body_b: usize, distance: f32) -> Self {
+        Self {
+            body_a,
+            body_b,
+            local_anchor_a: Vec3::ZERO,
+            local_anchor_b: Vec3::ZERO,
+            distance,
+            stiffness: 1.0,
+        }
+    }
+
+    /// Set anchor points in local body space.
+    pub fn with_anchors(mut self, anchor_a: Vec3, anchor_b: Vec3) -> Self {
+        self.local_anchor_a = anchor_a;
+        self.local_anchor_b = anchor_b;
+        self
+    }
+
+    /// Set constraint stiffness.
+    pub fn with_stiffness(mut self, stiffness: f32) -> Self {
+        self.stiffness = stiffness.clamp(0.0, 1.0);
+        self
+    }
+}
+
+/// Point constraint - anchors a body to a world point or another body.
+#[derive(Clone, Debug)]
+pub struct PointConstraint {
+    /// Body index.
+    pub body: usize,
+    /// Local anchor point on the body.
+    pub local_anchor: Vec3,
+    /// Target position (world space) or second body info.
+    pub target: PointConstraintTarget,
+    /// Constraint stiffness (0-1, 1 = rigid).
+    pub stiffness: f32,
+}
+
+/// Target for a point constraint.
+#[derive(Clone, Debug)]
+pub enum PointConstraintTarget {
+    /// Fixed world position.
+    World(Vec3),
+    /// Point on another body.
+    Body {
+        /// Other body index.
+        body: usize,
+        /// Local anchor on other body.
+        local_anchor: Vec3,
+    },
+}
+
+impl PointConstraint {
+    /// Create a point constraint anchoring body to a world position.
+    pub fn to_world(body: usize, local_anchor: Vec3, world_pos: Vec3) -> Self {
+        Self {
+            body,
+            local_anchor,
+            target: PointConstraintTarget::World(world_pos),
+            stiffness: 1.0,
+        }
+    }
+
+    /// Create a point constraint connecting two bodies (ball joint).
+    pub fn between_bodies(
+        body_a: usize,
+        local_anchor_a: Vec3,
+        body_b: usize,
+        local_anchor_b: Vec3,
+    ) -> Self {
+        Self {
+            body: body_a,
+            local_anchor: local_anchor_a,
+            target: PointConstraintTarget::Body {
+                body: body_b,
+                local_anchor: local_anchor_b,
+            },
+            stiffness: 1.0,
+        }
+    }
+
+    /// Set constraint stiffness.
+    pub fn with_stiffness(mut self, stiffness: f32) -> Self {
+        self.stiffness = stiffness.clamp(0.0, 1.0);
+        self
+    }
+}
+
+/// Hinge constraint - rotation around a single axis.
+#[derive(Clone, Debug)]
+pub struct HingeConstraint {
+    /// First body index.
+    pub body_a: usize,
+    /// Second body index.
+    pub body_b: usize,
+    /// Anchor point in body A's local space.
+    pub local_anchor_a: Vec3,
+    /// Anchor point in body B's local space.
+    pub local_anchor_b: Vec3,
+    /// Hinge axis in body A's local space.
+    pub local_axis_a: Vec3,
+    /// Hinge axis in body B's local space.
+    pub local_axis_b: Vec3,
+    /// Optional angle limits (min, max) in radians.
+    pub limits: Option<(f32, f32)>,
+    /// Constraint stiffness.
+    pub stiffness: f32,
+}
+
+impl HingeConstraint {
+    /// Create a hinge constraint with axis along Y.
+    pub fn new(body_a: usize, body_b: usize) -> Self {
+        Self {
+            body_a,
+            body_b,
+            local_anchor_a: Vec3::ZERO,
+            local_anchor_b: Vec3::ZERO,
+            local_axis_a: Vec3::Y,
+            local_axis_b: Vec3::Y,
+            limits: None,
+            stiffness: 1.0,
+        }
+    }
+
+    /// Set anchor points.
+    pub fn with_anchors(mut self, anchor_a: Vec3, anchor_b: Vec3) -> Self {
+        self.local_anchor_a = anchor_a;
+        self.local_anchor_b = anchor_b;
+        self
+    }
+
+    /// Set hinge axes (should be unit vectors).
+    pub fn with_axes(mut self, axis_a: Vec3, axis_b: Vec3) -> Self {
+        self.local_axis_a = axis_a.normalize();
+        self.local_axis_b = axis_b.normalize();
+        self
+    }
+
+    /// Set angle limits in radians.
+    pub fn with_limits(mut self, min: f32, max: f32) -> Self {
+        self.limits = Some((min, max));
+        self
+    }
+
+    /// Set constraint stiffness.
+    pub fn with_stiffness(mut self, stiffness: f32) -> Self {
+        self.stiffness = stiffness.clamp(0.0, 1.0);
+        self
+    }
+}
+
+/// Spring constraint - elastic connection between points.
+#[derive(Clone, Debug)]
+pub struct SpringConstraint {
+    /// First body index.
+    pub body_a: usize,
+    /// Second body index.
+    pub body_b: usize,
+    /// Local anchor point on body A.
+    pub local_anchor_a: Vec3,
+    /// Local anchor point on body B.
+    pub local_anchor_b: Vec3,
+    /// Rest length of the spring.
+    pub rest_length: f32,
+    /// Spring stiffness (Hooke's law k).
+    pub stiffness: f32,
+    /// Damping coefficient.
+    pub damping: f32,
+}
+
+impl SpringConstraint {
+    /// Create a new spring constraint.
+    pub fn new(body_a: usize, body_b: usize, rest_length: f32) -> Self {
+        Self {
+            body_a,
+            body_b,
+            local_anchor_a: Vec3::ZERO,
+            local_anchor_b: Vec3::ZERO,
+            rest_length,
+            stiffness: 100.0,
+            damping: 1.0,
+        }
+    }
+
+    /// Set anchor points in local body space.
+    pub fn with_anchors(mut self, anchor_a: Vec3, anchor_b: Vec3) -> Self {
+        self.local_anchor_a = anchor_a;
+        self.local_anchor_b = anchor_b;
+        self
+    }
+
+    /// Set spring stiffness.
+    pub fn with_stiffness(mut self, stiffness: f32) -> Self {
+        self.stiffness = stiffness.max(0.0);
+        self
+    }
+
+    /// Set damping coefficient.
+    pub fn with_damping(mut self, damping: f32) -> Self {
+        self.damping = damping.max(0.0);
+        self
+    }
+}
+
+// ============================================================================
 // Physics World
 // ============================================================================
 
@@ -281,6 +521,8 @@ impl Default for PhysicsConfig {
 pub struct PhysicsWorld {
     /// All rigid bodies.
     pub bodies: Vec<RigidBody>,
+    /// All constraints.
+    pub constraints: Vec<Constraint>,
     /// Configuration.
     pub config: PhysicsConfig,
 }
@@ -290,6 +532,7 @@ impl PhysicsWorld {
     pub fn new(config: PhysicsConfig) -> Self {
         Self {
             bodies: Vec::new(),
+            constraints: Vec::new(),
             config,
         }
     }
@@ -311,17 +554,109 @@ impl PhysicsWorld {
         self.bodies.get_mut(index)
     }
 
+    /// Add a constraint and return its index.
+    pub fn add_constraint(&mut self, constraint: Constraint) -> usize {
+        let index = self.constraints.len();
+        self.constraints.push(constraint);
+        index
+    }
+
+    /// Add a distance constraint between two bodies.
+    pub fn add_distance_constraint(
+        &mut self,
+        body_a: usize,
+        body_b: usize,
+        distance: f32,
+    ) -> usize {
+        self.add_constraint(Constraint::Distance(DistanceConstraint::new(
+            body_a, body_b, distance,
+        )))
+    }
+
+    /// Add a point constraint anchoring a body to world position.
+    pub fn add_point_constraint_to_world(
+        &mut self,
+        body: usize,
+        local_anchor: Vec3,
+        world_pos: Vec3,
+    ) -> usize {
+        self.add_constraint(Constraint::Point(PointConstraint::to_world(
+            body,
+            local_anchor,
+            world_pos,
+        )))
+    }
+
+    /// Add a ball joint between two bodies.
+    pub fn add_ball_joint(
+        &mut self,
+        body_a: usize,
+        local_anchor_a: Vec3,
+        body_b: usize,
+        local_anchor_b: Vec3,
+    ) -> usize {
+        self.add_constraint(Constraint::Point(PointConstraint::between_bodies(
+            body_a,
+            local_anchor_a,
+            body_b,
+            local_anchor_b,
+        )))
+    }
+
+    /// Add a hinge joint between two bodies.
+    pub fn add_hinge_joint(&mut self, body_a: usize, body_b: usize) -> usize {
+        self.add_constraint(Constraint::Hinge(HingeConstraint::new(body_a, body_b)))
+    }
+
+    /// Add a spring between two bodies.
+    pub fn add_spring(
+        &mut self,
+        body_a: usize,
+        body_b: usize,
+        rest_length: f32,
+        stiffness: f32,
+        damping: f32,
+    ) -> usize {
+        self.add_constraint(Constraint::Spring(
+            SpringConstraint::new(body_a, body_b, rest_length)
+                .with_stiffness(stiffness)
+                .with_damping(damping),
+        ))
+    }
+
+    /// Get a constraint by index.
+    pub fn constraint(&self, index: usize) -> Option<&Constraint> {
+        self.constraints.get(index)
+    }
+
+    /// Get a mutable constraint by index.
+    pub fn constraint_mut(&mut self, index: usize) -> Option<&mut Constraint> {
+        self.constraints.get_mut(index)
+    }
+
+    /// Remove a constraint by index.
+    pub fn remove_constraint(&mut self, index: usize) -> Option<Constraint> {
+        if index < self.constraints.len() {
+            Some(self.constraints.remove(index))
+        } else {
+            None
+        }
+    }
+
     /// Step the simulation forward.
     pub fn step(&mut self) {
         let dt = self.config.dt;
         let gravity = self.config.gravity;
 
-        // Apply gravity
+        // Apply gravity and spring forces
         for body in &mut self.bodies {
             if !body.is_static {
                 body.apply_force(gravity * body.mass);
             }
         }
+
+        // Apply spring constraint forces (springs are force-based, not positional)
+        self.apply_spring_forces(dt);
 
         // Integrate velocities
         for body in &mut self.bodies {
@@ -340,11 +675,15 @@ impl PhysicsWorld {
         // Detect collisions
         let contacts = self.detect_collisions();
 
-        // Resolve collisions
+        // Resolve collisions and constraints iteratively
         for _ in 0..self.config.solver_iterations {
+            // Collision contacts
             for contact in &contacts {
                 self.resolve_contact(contact);
             }
+
+            // Positional constraints
+            self.solve_constraints();
         }
 
         // Integrate positions
@@ -358,6 +697,283 @@ impl PhysicsWorld {
                 let q = body.orientation;
                 let dq = Quat::from_xyzw(w.x, w.y, w.z, 0.0) * q * 0.5 * dt;
                 body.orientation = (q + dq).normalize();
+            }
+        }
+    }
+
+    /// Apply spring forces to bodies.
+    fn apply_spring_forces(&mut self, _dt: f32) {
+        // Collect spring data first to avoid borrow issues
+        let spring_data: Vec<_> = self
+            .constraints
+            .iter()
+            .filter_map(|c| {
+                if let Constraint::Spring(spring) = c {
+                    Some((
+                        spring.body_a,
+                        spring.body_b,
+                        spring.local_anchor_a,
+                        spring.local_anchor_b,
+                        spring.rest_length,
+                        spring.stiffness,
+                        spring.damping,
+                    ))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        for (body_a, body_b, local_a, local_b, rest_length, stiffness, damping) in spring_data {
+            if body_a >= self.bodies.len() || body_b >= self.bodies.len() {
+                continue;
+            }
+
+            // Get world space anchor positions
+            let pos_a = self.bodies[body_a].position + self.bodies[body_a].orientation * local_a;
+            let pos_b = self.bodies[body_b].position + self.bodies[body_b].orientation * local_b;
+
+            let delta = pos_b - pos_a;
+            let distance = delta.length();
+
+            if distance < 0.0001 {
+                continue;
+            }
+
+            let direction = delta / distance;
+            let stretch = distance - rest_length;
+
+            // Hooke's law: F = -kx
+            let spring_force = direction * stretch * stiffness;
+
+            // Damping: F = -cv
+            let vel_a = self.bodies[body_a].velocity_at_point(pos_a);
+            let vel_b = self.bodies[body_b].velocity_at_point(pos_b);
+            let relative_vel = vel_b - vel_a;
+            let damping_force = direction * relative_vel.dot(direction) * damping;
+
+            let total_force = spring_force + damping_force;
+
+            // Apply forces to bodies (split borrow)
+            if body_a < body_b {
+                let (left, right) = self.bodies.split_at_mut(body_b);
+                left[body_a].apply_force_at_point(total_force, pos_a);
+                right[0].apply_force_at_point(-total_force, pos_b);
+            } else {
+                let (left, right) = self.bodies.split_at_mut(body_a);
+                right[0].apply_force_at_point(total_force, pos_a);
+                left[body_b].apply_force_at_point(-total_force, pos_b);
+            }
+        }
+    }
+
+    /// Solve positional constraints.
+    fn solve_constraints(&mut self) {
+        // Clone constraints to avoid borrow issues
+        let constraints: Vec<_> = self.constraints.clone();
+
+        for constraint in &constraints {
+            match constraint {
+                Constraint::Distance(c) => self.solve_distance_constraint(c),
+                Constraint::Point(c) => self.solve_point_constraint(c),
+                Constraint::Hinge(c) => self.solve_hinge_constraint(c),
+                Constraint::Spring(_) => {} // Springs handled in force phase
+            }
+        }
+    }
+
+    /// Solve a distance constraint.
+    fn solve_distance_constraint(&mut self, constraint: &DistanceConstraint) {
+        let body_a_idx = constraint.body_a;
+        let body_b_idx = constraint.body_b;
+
+        if body_a_idx >= self.bodies.len() || body_b_idx >= self.bodies.len() {
+            return;
+        }
+
+        // Get world space anchor positions
+        let pos_a = self.bodies[body_a_idx].position
+            + self.bodies[body_a_idx].orientation * constraint.local_anchor_a;
+        let pos_b = self.bodies[body_b_idx].position
+            + self.bodies[body_b_idx].orientation * constraint.local_anchor_b;
+
+        let delta = pos_b - pos_a;
+        let current_distance = delta.length();
+
+        if current_distance < 0.0001 {
+            return;
+        }
+
+        let direction = delta / current_distance;
+        let error = current_distance - constraint.distance;
+
+        // Skip if error is negligible
+        if error.abs() < 0.0001 {
+            return;
+        }
+
+        // Compute correction based on inverse masses
+        let inv_mass_a = self.bodies[body_a_idx].inv_mass;
+        let inv_mass_b = self.bodies[body_b_idx].inv_mass;
+        let total_inv_mass = inv_mass_a + inv_mass_b;
+
+        if total_inv_mass < 0.0001 {
+            return;
+        }
+
+        let correction = direction * error * constraint.stiffness / total_inv_mass;
+
+        // Apply position corrections
+        if !self.bodies[body_a_idx].is_static {
+            self.bodies[body_a_idx].position += correction * inv_mass_a;
+        }
+        if !self.bodies[body_b_idx].is_static {
+            self.bodies[body_b_idx].position -= correction * inv_mass_b;
+        }
+    }
+
+    /// Solve a point constraint.
+    fn solve_point_constraint(&mut self, constraint: &PointConstraint) {
+        let body_idx = constraint.body;
+        if body_idx >= self.bodies.len() {
+            return;
+        }
+
+        // Get world space anchor position on body
+        let anchor_world = self.bodies[body_idx].position
+            + self.bodies[body_idx].orientation * constraint.local_anchor;
+
+        // Get target position
+        let target_pos = match &constraint.target {
+            PointConstraintTarget::World(pos) => *pos,
+            PointConstraintTarget::Body { body, local_anchor } => {
+                if *body >= self.bodies.len() {
+                    return;
+                }
+                self.bodies[*body].position + self.bodies[*body].orientation * *local_anchor
+            }
+        };
+
+        let delta = target_pos - anchor_world;
+        let error = delta.length();
+
+        if error < 0.0001 {
+            return;
+        }
+
+        match &constraint.target {
+            PointConstraintTarget::World(_) => {
+                // Anchor to world - body moves toward target
+                if !self.bodies[body_idx].is_static {
+                    self.bodies[body_idx].position += delta * constraint.stiffness;
+                }
+            }
+            PointConstraintTarget::Body {
+                body: other_idx, ..
+            } => {
+                // Ball joint between two bodies
+                let inv_mass_a = self.bodies[body_idx].inv_mass;
+                let inv_mass_b = self.bodies[*other_idx].inv_mass;
+                let total_inv_mass = inv_mass_a + inv_mass_b;
+
+                if total_inv_mass < 0.0001 {
+                    return;
+                }
+
+                let correction = delta * constraint.stiffness / total_inv_mass;
+
+                if !self.bodies[body_idx].is_static {
+                    self.bodies[body_idx].position += correction * inv_mass_a;
+                }
+                if !self.bodies[*other_idx].is_static {
+                    self.bodies[*other_idx].position -= correction * inv_mass_b;
+                }
+            }
+        }
+    }
+
+    /// Solve a hinge constraint.
+    fn solve_hinge_constraint(&mut self, constraint: &HingeConstraint) {
+        let body_a_idx = constraint.body_a;
+        let body_b_idx = constraint.body_b;
+
+        if body_a_idx >= self.bodies.len() || body_b_idx >= self.bodies.len() {
+            return;
+        }
+
+        // First, solve the point constraint to keep anchors together
+        let pos_a = self.bodies[body_a_idx].position
+            + self.bodies[body_a_idx].orientation * constraint.local_anchor_a;
+        let pos_b = self.bodies[body_b_idx].position
+            + self.bodies[body_b_idx].orientation * constraint.local_anchor_b;
+
+        let delta = pos_b - pos_a;
+
+        if delta.length() > 0.0001 {
+            let inv_mass_a = self.bodies[body_a_idx].inv_mass;
+            let inv_mass_b = self.bodies[body_b_idx].inv_mass;
+            let total_inv_mass = inv_mass_a + inv_mass_b;
+
+            if total_inv_mass > 0.0001 {
+                let correction = delta * constraint.stiffness / total_inv_mass;
+
+                if !self.bodies[body_a_idx].is_static {
+                    self.bodies[body_a_idx].position += correction * inv_mass_a;
+                }
+                if !self.bodies[body_b_idx].is_static {
+                    self.bodies[body_b_idx].position -= correction * inv_mass_b;
+                }
+            }
+        }
+
+        // Now solve the angular constraint to align axes
+        let world_axis_a = self.bodies[body_a_idx].orientation * constraint.local_axis_a;
+        let world_axis_b = self.bodies[body_b_idx].orientation * constraint.local_axis_b;
+
+        // Cross product gives rotation axis, dot product gives alignment
+        let axis_error = world_axis_a.cross(world_axis_b);
+
+        if axis_error.length() > 0.0001 {
+            // Apply angular correction to align axes
+            let correction = axis_error * constraint.stiffness * 0.5;
+
+            if !self.bodies[body_a_idx].is_static {
+                let q = self.bodies[body_a_idx].orientation;
+                let dq = Quat::from_xyzw(correction.x, correction.y, correction.z, 0.0) * q * 0.5;
+                self.bodies[body_a_idx].orientation = (q + dq).normalize();
+            }
+            if !self.bodies[body_b_idx].is_static {
+                let q = self.bodies[body_b_idx].orientation;
+                let dq =
+                    Quat::from_xyzw(-correction.x, -correction.y, -correction.z, 0.0) * q * 0.5;
+                self.bodies[body_b_idx].orientation = (q + dq).normalize();
+            }
+        }
+
+        // Apply angle limits if set
+        if let Some((min_angle, max_angle)) = constraint.limits {
+            // Compute relative rotation angle around hinge axis
+            let rel_quat =
+                self.bodies[body_b_idx].orientation * self.bodies[body_a_idx].orientation.inverse();
+
+            // Project to rotation around hinge axis
+            let (axis, angle) = rel_quat.to_axis_angle();
+            let projected_angle = angle * axis.dot(world_axis_a);
+
+            if projected_angle < min_angle {
+                let correction_angle = min_angle - projected_angle;
+                let correction_quat = Quat::from_axis_angle(world_axis_a, correction_angle * 0.5);
+                if !self.bodies[body_b_idx].is_static {
+                    self.bodies[body_b_idx].orientation =
+                        correction_quat * self.bodies[body_b_idx].orientation;
+                }
+            } else if projected_angle > max_angle {
+                let correction_angle = max_angle - projected_angle;
+                let correction_quat = Quat::from_axis_angle(world_axis_a, correction_angle * 0.5);
+                if !self.bodies[body_b_idx].is_static {
+                    self.bodies[body_b_idx].orientation =
+                        correction_quat * self.bodies[body_b_idx].orientation;
+                }
             }
         }
     }
@@ -943,5 +1559,305 @@ mod tests {
         // Should have slowed down due to friction
         let vx = world.bodies[1].velocity.x;
         assert!(vx < 4.0, "vx = {} should have slowed", vx);
+    }
+
+    // ========================================================================
+    // Constraint Tests
+    // ========================================================================
+
+    #[test]
+    fn test_distance_constraint_creation() {
+        let constraint = DistanceConstraint::new(0, 1, 2.0)
+            .with_anchors(Vec3::X, Vec3::NEG_X)
+            .with_stiffness(0.5);
+
+        assert_eq!(constraint.body_a, 0);
+        assert_eq!(constraint.body_b, 1);
+        assert_eq!(constraint.distance, 2.0);
+        assert_eq!(constraint.stiffness, 0.5);
+    }
+
+    #[test]
+    fn test_distance_constraint() {
+        let mut world = PhysicsWorld::new(PhysicsConfig {
+            gravity: Vec3::ZERO,
+            dt: 1.0 / 60.0,
+            solver_iterations: 20,
+        });
+
+        // Two spheres at distance 5, constrained to distance 3
+        let a = world.add_body(RigidBody::new(Vec3::ZERO, Collider::sphere(0.5), 1.0));
+        let b = world.add_body(RigidBody::new(Vec3::X * 5.0, Collider::sphere(0.5), 1.0));
+
+        world.add_distance_constraint(a, b, 3.0);
+
+        // Run simulation
+        for _ in 0..100 {
+            world.step();
+        }
+
+        // Bodies should be pulled closer to distance 3
+        let dist = (world.bodies[b].position - world.bodies[a].position).length();
+        assert!(
+            (dist - 3.0).abs() < 0.5,
+            "dist = {} should be close to 3.0",
+            dist
+        );
+    }
+
+    #[test]
+    fn test_point_constraint_to_world() {
+        let mut world = PhysicsWorld::new(PhysicsConfig {
+            gravity: Vec3::ZERO,
+            dt: 1.0 / 60.0,
+            solver_iterations: 20,
+        });
+
+        // Sphere at (5, 0, 0) anchored to origin
+        let a = world.add_body(RigidBody::new(Vec3::X * 5.0, Collider::sphere(0.5), 1.0));
+
+        world.add_point_constraint_to_world(a, Vec3::ZERO, Vec3::ZERO);
+
+        // Run simulation
+        for _ in 0..100 {
+            world.step();
+        }
+
+        // Body should be pulled to origin
+        let dist = world.bodies[a].position.length();
+        assert!(dist < 0.5, "dist = {} should be close to 0", dist);
+    }
+
+    #[test]
+    fn test_ball_joint() {
+        let mut world = PhysicsWorld::new(PhysicsConfig {
+            gravity: Vec3::new(0.0, -9.81, 0.0),
+            dt: 1.0 / 60.0,
+            solver_iterations: 20,
+        });
+
+        // Fixed sphere at origin
+        let a = world.add_body(RigidBody::new_static(Vec3::ZERO, Collider::sphere(0.5)));
+
+        // Dynamic sphere below, connected by ball joint
+        let b = world.add_body(RigidBody::new(
+            Vec3::new(0.0, -2.0, 0.0),
+            Collider::sphere(0.5),
+            1.0,
+        ));
+
+        // Connect at bottom of A to top of B
+        world.add_ball_joint(a, Vec3::Y * -0.5, b, Vec3::Y * 0.5);
+
+        // Run simulation
+        for _ in 0..200 {
+            world.step();
+        }
+
+        // The anchor points should be close together
+        let anchor_a = world.bodies[a].position + Vec3::Y * -0.5;
+        let anchor_b = world.bodies[b].position + Vec3::Y * 0.5;
+        let anchor_dist = (anchor_b - anchor_a).length();
+
+        assert!(
+            anchor_dist < 0.3,
+            "anchor distance = {} should be small",
+            anchor_dist
+        );
+    }
+
+    #[test]
+    fn test_spring_constraint() {
+        let mut world = PhysicsWorld::new(PhysicsConfig {
+            gravity: Vec3::ZERO,
+            dt: 1.0 / 60.0,
+            solver_iterations: 10,
+        });
+
+        // Two spheres: one fixed, one connected by spring
+        let a = world.add_body(RigidBody::new_static(Vec3::ZERO, Collider::sphere(0.5)));
+        let b = world.add_body(RigidBody::new(Vec3::X * 5.0, Collider::sphere(0.5), 1.0));
+
+        // Spring with rest length 2, should pull body B toward A
+        world.add_spring(a, b, 2.0, 50.0, 5.0);
+
+        let initial_dist = world.bodies[b].position.length();
+
+        // Run simulation
+        for _ in 0..200 {
+            world.step();
+        }
+
+        // Body B should have moved closer (spring pulls it toward rest length)
+        let final_dist = world.bodies[b].position.length();
+        assert!(
+            final_dist < initial_dist,
+            "Body should move closer: initial={}, final={}",
+            initial_dist,
+            final_dist
+        );
+    }
+
+    #[test]
+    fn test_spring_oscillation() {
+        let mut world = PhysicsWorld::new(PhysicsConfig {
+            gravity: Vec3::ZERO,
+            dt: 1.0 / 60.0,
+            solver_iterations: 10,
+        });
+
+        // Fixed anchor
+        let a = world.add_body(RigidBody::new_static(Vec3::ZERO, Collider::sphere(0.1)));
+
+        // Mass on spring - start stretched
+        let b = world.add_body(RigidBody::new(Vec3::X * 3.0, Collider::sphere(0.1), 1.0));
+
+        // Low damping spring - should oscillate
+        world.add_spring(a, b, 1.0, 100.0, 0.5);
+
+        // Track positions over time
+        let mut crossed_rest = false;
+        let mut min_x = 3.0_f32;
+
+        for _ in 0..300 {
+            world.step();
+            let x = world.bodies[b].position.x;
+            min_x = min_x.min(x);
+            if x < 1.0 {
+                crossed_rest = true;
+            }
+        }
+
+        // Should have oscillated past rest length
+        assert!(
+            crossed_rest,
+            "Spring should oscillate past rest length, min_x = {}",
+            min_x
+        );
+    }
+
+    #[test]
+    fn test_hinge_constraint() {
+        let mut world = PhysicsWorld::new(PhysicsConfig {
+            gravity: Vec3::ZERO,
+            dt: 1.0 / 60.0,
+            solver_iterations: 20,
+        });
+
+        // Two boxes connected by hinge
+        let a = world.add_body(RigidBody::new_static(
+            Vec3::ZERO,
+            Collider::box_shape(Vec3::ONE),
+        ));
+        let b = world.add_body(RigidBody::new(
+            Vec3::X * 3.0,
+            Collider::box_shape(Vec3::ONE),
+            1.0,
+        ));
+
+        // Hinge at right side of A, left side of B
+        world.add_constraint(Constraint::Hinge(
+            HingeConstraint::new(a, b)
+                .with_anchors(Vec3::X * 1.0, Vec3::X * -1.0)
+                .with_axes(Vec3::Y, Vec3::Y),
+        ));
+
+        // Run simulation
+        for _ in 0..100 {
+            world.step();
+        }
+
+        // Anchors should be close together
+        let anchor_a = world.bodies[a].position + world.bodies[a].orientation * Vec3::X;
+        let anchor_b = world.bodies[b].position + world.bodies[b].orientation * Vec3::X * -1.0;
+        let dist = (anchor_b - anchor_a).length();
+
+        assert!(
+            dist < 0.5,
+            "Hinge anchor distance = {} should be small",
+            dist
+        );
+    }
+
+    #[test]
+    fn test_pendulum_chain() {
+        let mut world = PhysicsWorld::new(PhysicsConfig {
+            gravity: Vec3::new(0.0, -9.81, 0.0),
+            dt: 1.0 / 60.0,
+            solver_iterations: 20,
+        });
+
+        // Fixed anchor point
+        let anchor = world.add_body(RigidBody::new_static(Vec3::Y * 5.0, Collider::sphere(0.1)));
+
+        // Chain of 3 spheres connected by distance constraints
+        let mut prev = anchor;
+        let mut bodies = vec![anchor];
+
+        for i in 0..3 {
+            let pos = Vec3::new((i + 1) as f32, 5.0, 0.0);
+            let body = world.add_body(RigidBody::new(pos, Collider::sphere(0.3), 1.0));
+            world.add_distance_constraint(prev, body, 1.0);
+            bodies.push(body);
+            prev = body;
+        }
+
+        // Run simulation - chain should fall and swing
+        for _ in 0..200 {
+            world.step();
+        }
+
+        // All bodies should be below the anchor
+        for &idx in &bodies[1..] {
+            let y = world.bodies[idx].position.y;
+            assert!(y < 5.0, "Body {} should be below anchor, y = {}", idx, y);
+        }
+    }
+
+    #[test]
+    fn test_constraint_removal() {
+        let mut world = PhysicsWorld::new(PhysicsConfig::default());
+
+        let a = world.add_body(RigidBody::new(Vec3::ZERO, Collider::sphere(0.5), 1.0));
+        let b = world.add_body(RigidBody::new(Vec3::X * 2.0, Collider::sphere(0.5), 1.0));
+
+        let c_idx = world.add_distance_constraint(a, b, 1.0);
+        assert_eq!(world.constraints.len(), 1);
+
+        world.remove_constraint(c_idx);
+        assert_eq!(world.constraints.len(), 0);
+    }
+
+    #[test]
+    fn test_multiple_constraints() {
+        let mut world = PhysicsWorld::new(PhysicsConfig {
+            gravity: Vec3::ZERO,
+            dt: 1.0 / 60.0,
+            solver_iterations: 20,
+        });
+
+        // Triangle of 3 bodies with distance constraints
+        let a = world.add_body(RigidBody::new(Vec3::ZERO, Collider::sphere(0.2), 1.0));
+        let b = world.add_body(RigidBody::new(Vec3::X * 3.0, Collider::sphere(0.2), 1.0));
+        let c = world.add_body(RigidBody::new(Vec3::Y * 3.0, Collider::sphere(0.2), 1.0));
+
+        // Target: equilateral-ish triangle with side length 2
+        world.add_distance_constraint(a, b, 2.0);
+        world.add_distance_constraint(b, c, 2.0);
+        world.add_distance_constraint(c, a, 2.0);
+
+        // Run simulation
+        for _ in 0..200 {
+            world.step();
+        }
+
+        // Check all distances are close to 2
+        let d_ab = (world.bodies[b].position - world.bodies[a].position).length();
+        let d_bc = (world.bodies[c].position - world.bodies[b].position).length();
+        let d_ca = (world.bodies[a].position - world.bodies[c].position).length();
+
+        assert!((d_ab - 2.0).abs() < 0.3, "d_ab = {} should be ~2.0", d_ab);
+        assert!((d_bc - 2.0).abs() < 0.3, "d_bc = {} should be ~2.0", d_bc);
+        assert!((d_ca - 2.0).abs() < 0.3, "d_ca = {} should be ~2.0", d_ca);
     }
 }
