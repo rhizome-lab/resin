@@ -5,6 +5,7 @@
 mod boolean;
 mod delaunay;
 mod geometry;
+mod gradient_mesh;
 mod hatching;
 mod network;
 mod path;
@@ -21,6 +22,10 @@ pub use delaunay::{
 pub use geometry::{
     bounding_box, centroid, convex_hull, convex_hull_path, is_ccw, minimum_bounding_circle,
     point_in_polygon, point_on_hull, polygon_area, polygon_perimeter, signed_area,
+};
+pub use gradient_mesh::{
+    GradientFace, GradientMesh, GradientPatch, GradientVertex, diagonal_gradient_mesh,
+    four_corner_gradient_mesh, linear_gradient_mesh,
 };
 pub use hatching::{
     HatchConfig, HatchLine, cross_hatch_polygon, cross_hatch_rect, hatch_lines_to_paths,
