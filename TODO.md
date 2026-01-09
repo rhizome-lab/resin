@@ -3,8 +3,6 @@
 ## Next Up
 
 ## Backlog
-
-- [ ] Convex hull
 - [ ] Voronoi/Delaunay diagrams
 - [ ] Metaballs (2D/3D)
 - [ ] Hatching patterns
@@ -22,6 +20,7 @@
 
 ## Done
 
+- [x] Convex hull and geometry utils (bounding_box, centroid, point_in_polygon, minimum_bounding_circle)
 - [x] Cellular automata (ElementaryCA, CellularAutomaton2D, GameOfLife, rule presets)
 - [x] Path simplification (simplify_path, simplify_points, smooth_path, resample_path)
 - [x] Karplus-Strong string synthesis (KarplusStrong, ExtendedKarplusStrong, PolyStrings, PluckConfig)
