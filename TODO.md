@@ -5,8 +5,6 @@
 ## Backlog
 
 ### Procedural / Simulation
-- [ ] Fluid simulation - SPH, grid-based, 2D/3D
-- [ ] Smoke/gas simulation - density advection, buoyancy
 - [ ] Rigid body physics - collision detection, constraints, stacking
 
 ### Audio
@@ -21,10 +19,12 @@
 - [ ] Alembic import/export - cached geometry/animation; C++ lib with Rust bindings exists
 
 ### Export / Rendering
-- [ ] Animation export - image sequences, GIF encoding
 - [ ] Video export - mp4/webm encoding (likely via external tool/ffmpeg)
 
 ## Done
+- [x] Fluid simulation (FluidGrid2D/3D stable fluids, Sph2D/3D particle hydrodynamics)
+- [x] Smoke/gas simulation (SmokeGrid2D/3D, buoyancy, temperature, dissipation)
+- [x] Animation export (AnimationConfig, render_animation, export_image_sequence, export_gif)
 - [x] Physical modeling percussion (Membrane, Bar, Plate, modal synthesis, drum/cymbal/bell presets)
 - [x] Vocoder (Vocoder, FilterbankVocoder, spectral cross-synthesis, envelope follower)
 - [x] Spectral processing (FFT, IFFT, STFT, ISTFT, window functions, pitch detection, spectral analysis)
