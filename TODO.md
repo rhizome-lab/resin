@@ -38,8 +38,8 @@
 
 ### Image / Texture
 
-- [ ] Convolution filters - blur, sharpen, edge detection, emboss
-- [ ] Normal map from heightfield - Sobel-based normal generation
+- [x] Convolution filters - blur, sharpen, edge detection, emboss (Kernel, convolve, detect_edges)
+- [x] Normal map from heightfield - Sobel-based normal generation (heightfield_to_normal_map)
 - [x] Ambient occlusion baking - ray-based AO (bake_ao_vertices, bake_ao_texture, AoAccelerator)
 
 ### Audio

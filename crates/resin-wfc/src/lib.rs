@@ -1,7 +1,8 @@
-//! Wave Function Collapse algorithm for procedural generation.
+//! Wave Function Collapse and maze generation algorithms.
 //!
-//! Implements a constraint-based tile placement algorithm for generating
-//! patterns that satisfy local adjacency rules.
+//! Provides procedural generation algorithms including:
+//! - Wave Function Collapse for tile-based generation
+//! - Classic maze algorithms (recursive backtracker, Prim's, Kruskal's, Eller's)
 //!
 //! # Example
 //!
@@ -29,6 +30,8 @@
 //! // Get result
 //! let grid = solver.get_result();
 //! ```
+
+pub mod maze;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
