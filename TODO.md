@@ -67,8 +67,8 @@
 
 - [x] Documentation pass - comprehensive docs for all new features
 - [x] Test coverage pass - tests for all new features
-- [ ] Architecture review - evaluate patterns, identify inconsistencies
-- [ ] Refactoring - only after architecture review approval
+- [x] Architecture review - evaluate patterns, identify inconsistencies (see docs/architecture-review.md)
+- [x] Refactoring - HIGH: tuple returns → named structs, panics → Option; MEDIUM: collision dedup, missing traits, step() split
 
 ## Done
 - [x] Rigid body physics (RigidBody, Collider shapes, PhysicsWorld, impulse-based collision resolution)
