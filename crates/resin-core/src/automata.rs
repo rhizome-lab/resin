@@ -13,7 +13,7 @@
 //! ca.step();
 //!
 //! // 2D: Game of Life
-//! let mut life = GameOfLife::new(50, 50);
+//! let mut life = GameOfLife::life(50, 50);
 //! life.randomize(12345, 0.3);
 //! life.step();
 //! ```
