@@ -9,6 +9,7 @@ mod ik;
 mod locomotion;
 mod motion_matching;
 mod path3d;
+pub mod secondary;
 mod skeleton;
 mod skin;
 mod transform;
@@ -28,6 +29,10 @@ pub use motion_matching::{
     compute_match_cost, find_best_match,
 };
 pub use path3d::{Path3D, Path3DBuilder, PathCommand3D, PathSample, line3d, polyline3d};
+pub use secondary::{
+    Drag, FollowThrough, JiggleBone, JiggleChain, OverlappingAction, RotationFollowThrough,
+    SecondaryConfig, SecondaryMotion,
+};
 pub use skeleton::{AddBoneResult, Bone, BoneId, Pose, Skeleton};
 pub use skin::{MAX_INFLUENCES, Skin, VertexInfluences};
 pub use transform::Transform;
