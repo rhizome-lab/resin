@@ -6,7 +6,7 @@
 //! # Example
 //!
 //! ```
-//! use resin_lsystem::{LSystem, Rule, TurtleConfig, interpret_turtle_2d};
+//! use rhizome_resin_lsystem::{LSystem, Rule, TurtleConfig, interpret_turtle_2d};
 //!
 //! // Koch curve
 //! let lsystem = LSystem::new("F")

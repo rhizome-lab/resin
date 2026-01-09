@@ -7,7 +7,7 @@
 //! # Example
 //!
 //! ```
-//! use resin_audio::{GrainCloud, GrainConfig};
+//! use rhizome_resin_audio::{GrainCloud, GrainConfig};
 //!
 //! // Create a grain cloud with a sample buffer
 //! let buffer = vec![0.0f32; 44100]; // 1 second of silence

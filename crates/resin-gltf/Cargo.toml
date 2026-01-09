@@ -1,10 +1,10 @@
 [package]
-name = "resin-gltf"
+name = "rhizome-resin-gltf"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-resin-mesh = { path = "../resin-mesh" }
+rhizome-resin-mesh = { path = "../resin-mesh" }
 glam = "0.29"
 gltf = "1.4"
 gltf-json = "1.4"

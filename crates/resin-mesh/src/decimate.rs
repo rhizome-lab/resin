@@ -5,7 +5,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use resin_mesh::{sphere, decimate, DecimateConfig};
+//! use rhizome_resin_mesh::{sphere, decimate, DecimateConfig};
 //!
 //! let high_poly = sphere(32, 16);
 //! let low_poly = decimate(&high_poly, DecimateConfig::target_triangles(100));

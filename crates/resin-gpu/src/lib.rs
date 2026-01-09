@@ -11,7 +11,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use resin_gpu::{GpuContext, NoiseType, generate_noise_texture};
+//! use rhizome_resin_gpu::{GpuContext, NoiseType, generate_noise_texture};
 //!
 //! let ctx = GpuContext::new()?;
 //! let texture = generate_noise_texture(&ctx, 512, 512, NoiseType::Perlin, 4.0)?;

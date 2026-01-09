@@ -5,8 +5,8 @@
 //! # Export Example
 //!
 //! ```ignore
-//! use resin_mesh::{Mesh, uv_sphere};
-//! use resin_gltf::{GltfExporter, ExportFormat};
+//! use rhizome_resin_mesh::{Mesh, uv_sphere};
+//! use rhizome_resin_gltf::{GltfExporter, ExportFormat};
 //!
 //! let mesh = uv_sphere(32, 16);
 //! let exporter = GltfExporter::new().with_mesh("sphere", mesh);
@@ -16,7 +16,7 @@
 //! # Import Example
 //!
 //! ```ignore
-//! use resin_gltf::import_gltf;
+//! use rhizome_resin_gltf::import_gltf;
 //!
 //! let scene = import_gltf("model.glb").unwrap();
 //! let mesh = scene.first_mesh().unwrap();

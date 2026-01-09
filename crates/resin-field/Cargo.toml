@@ -1,5 +1,5 @@
 [package]
-name = "resin-field"
+name = "rhizome-resin-field"
 version = "0.1.0"
 edition = "2024"
 description = "Field trait and combinators for procedural graphics"
@@ -8,4 +8,4 @@ repository = "https://github.com/rhizome-lab/resin"
 
 [dependencies]
 glam.workspace = true
-resin-noise = { path = "../resin-noise" }
+rhizome-resin-noise = { path = "../resin-noise" }

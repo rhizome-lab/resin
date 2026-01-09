@@ -461,7 +461,7 @@ impl Default for SmoothConfig {
 /// # Example
 ///
 /// ```ignore
-/// use resin_mesh::{box_mesh, smooth};
+/// use rhizome_resin_mesh::{box_mesh, smooth};
 ///
 /// let cube = box_mesh();
 /// let smoothed = smooth(&cube, 0.5, 3);

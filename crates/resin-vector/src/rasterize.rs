@@ -5,8 +5,8 @@
 //! # Example
 //!
 //! ```
-//! use resin_vector::rasterize::{Rasterizer, FillRule};
-//! use resin_vector::polygon;
+//! use rhizome_resin_vector::rasterize::{Rasterizer, FillRule};
+//! use rhizome_resin_vector::polygon;
 //! use glam::Vec2;
 //!
 //! // Create a triangle path

@@ -1,5 +1,5 @@
 [package]
-name = "resin-spring"
+name = "rhizome-resin-spring"
 version = "0.1.0"
 edition = "2024"
 description = "Spring physics and soft body simulation"

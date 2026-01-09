@@ -55,11 +55,11 @@ Optional, domain-specific, or heavyweight features go in plugin crates:
 ```
 Core (always available)     Plugin (opt-in)
 ─────────────────────       ─────────────────────
-Mesh primitives             resin-instances (instancing)
-Audio nodes                 resin-poly (polyphony)
-Rig primitives              resin-autorig (procedural rigging)
-Skeleton/skinning           resin-anim (animation blending)
-Expression core             resin-expr-opt (constant folding)
+Mesh primitives             rhizome-resin-instances (instancing)
+Audio nodes                 rhizome-resin-poly (polyphony)
+Rig primitives              rhizome-resin-autorig (procedural rigging)
+Skeleton/skinning           rhizome-resin-anim (animation blending)
+Expression core             rhizome-resin-expr-opt (constant folding)
 ```
 
 **Why plugins:**
@@ -162,7 +162,7 @@ fn load_plugins(path: &Path) -> Vec<Box<dyn DynNode>>;
 // (wasm, dylib, statically linked - host's choice)
 ```
 
-Optional adapters (`resin-wasm-plugins`, etc.) for common loading patterns.
+Optional adapters (`rhizome-resin-wasm-plugins`, etc.) for common loading patterns.
 
 ## Bevy Compatibility
 
@@ -181,26 +181,26 @@ Implementation is split by domain, with plugin crates for optional features:
 crates/
   # Core crates (always available)
   resin/              # umbrella crate, re-exports
-  resin-core/         # shared primitives, Value enum, Graph
-  resin-mesh/         # 3D mesh generation, half-edge
-  resin-audio/        # audio synthesis, nodes
-  resin-texture/      # procedural textures, fields
-  resin-vector/       # 2D vector art, paths
-  resin-rig/          # rigging, bones, skinning
+  rhizome-resin-core/         # shared primitives, Value enum, Graph
+  rhizome-resin-mesh/         # 3D mesh generation, half-edge
+  rhizome-resin-audio/        # audio synthesis, nodes
+  rhizome-resin-texture/      # procedural textures, fields
+  rhizome-resin-vector/       # 2D vector art, paths
+  rhizome-resin-rig/          # rigging, bones, skinning
 
   # Expression crates
-  resin-expr/         # core AST, interpreter
-  resin-expr-macros/  # proc macros for expressions
-  resin-expr-parse/   # runtime parser
-  resin-expr-wgsl/    # WGSL codegen
-  resin-expr-cranelift/ # Cranelift JIT
+  rhizome-resin-expr/         # core AST, interpreter
+  rhizome-resin-expr-macros/  # proc macros for expressions
+  rhizome-resin-expr-parse/   # runtime parser
+  rhizome-resin-expr-wgsl/    # WGSL codegen
+  rhizome-resin-expr-cranelift/ # Cranelift JIT
 
   # Plugin crates (opt-in)
-  resin-instances/    # mesh instancing
-  resin-poly/         # audio polyphony
-  resin-autorig/      # procedural rigging
-  resin-anim/         # animation blending
-  resin-expr-opt/     # expression optimization
+  rhizome-resin-instances/    # mesh instancing
+  rhizome-resin-poly/         # audio polyphony
+  rhizome-resin-autorig/      # procedural rigging
+  rhizome-resin-anim/         # animation blending
+  rhizome-resin-expr-opt/     # expression optimization
 ```
 
 Each crate should be usable independently.

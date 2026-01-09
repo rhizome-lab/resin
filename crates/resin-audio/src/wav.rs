@@ -5,7 +5,7 @@
 //! # Example
 //!
 //! ```no_run
-//! use resin_audio::wav::{WavFile, WavFormat};
+//! use rhizome_resin_audio::wav::{WavFile, WavFormat};
 //!
 //! // Read a WAV file
 //! let wav = WavFile::load("input.wav").unwrap();

@@ -6,7 +6,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use resin_vector::{circle, rect, path_union, path_intersect, path_subtract};
+//! use rhizome_resin_vector::{circle, rect, path_union, path_intersect, path_subtract};
 //!
 //! let a = circle(Vec2::ZERO, 1.0);
 //! let b = circle(Vec2::new(0.5, 0.0), 1.0);

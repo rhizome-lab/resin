@@ -1,5 +1,5 @@
 [package]
-name = "resin-expr"
+name = "rhizome-resin-expr"
 version = "0.1.0"
 edition = "2024"
 description = "Expression language parser for resin"

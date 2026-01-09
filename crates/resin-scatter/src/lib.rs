@@ -3,7 +3,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use resin_core::{ScatterConfig, scatter_grid, scatter_random, Instance};
+//! use rhizome_resin_core::{ScatterConfig, scatter_grid, scatter_random, Instance};
 //! use glam::Vec3;
 //!
 //! // Random scatter in a box

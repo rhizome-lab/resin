@@ -7,7 +7,7 @@
 //!
 //! ```
 //! use glam::Vec2;
-//! use resin_vector::{HatchConfig, hatch_rect, cross_hatch_rect};
+//! use rhizome_resin_vector::{HatchConfig, hatch_rect, cross_hatch_rect};
 //!
 //! // Simple parallel hatching
 //! let config = HatchConfig::new().with_spacing(5.0).with_angle(45.0);

@@ -7,7 +7,7 @@
 //!
 //! ```
 //! use glam::Vec2;
-//! use resin_vector::{delaunay_triangulation, voronoi_diagram};
+//! use rhizome_resin_vector::{delaunay_triangulation, voronoi_diagram};
 //!
 //! let points = vec![
 //!     Vec2::new(0.0, 0.0),
@@ -92,7 +92,7 @@ pub struct VoronoiDiagram {
 ///
 /// ```
 /// use glam::Vec2;
-/// use resin_vector::delaunay_triangulation;
+/// use rhizome_resin_vector::delaunay_triangulation;
 ///
 /// let points = vec![
 ///     Vec2::new(0.0, 0.0),
@@ -252,7 +252,7 @@ fn circumcircle(points: &[Vec2], tri: &TriangleInternal) -> (Vec2, f32) {
 ///
 /// ```
 /// use glam::Vec2;
-/// use resin_vector::voronoi_diagram;
+/// use rhizome_resin_vector::voronoi_diagram;
 ///
 /// let points = vec![
 ///     Vec2::new(0.0, 0.0),

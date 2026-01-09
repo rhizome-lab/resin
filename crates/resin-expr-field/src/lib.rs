@@ -6,10 +6,10 @@
 //! # Example
 //!
 //! ```
-//! use resin_expr_field::{ExprField, register_noise};
-//! use resin_expr::FunctionRegistry;
-//! use resin_expr_std::std_registry;
-//! use resin_field::{Field, EvalContext};
+//! use rhizome_resin_expr_field::{ExprField, register_noise};
+//! use rhizome_resin_expr::FunctionRegistry;
+//! use rhizome_resin_expr_std::std_registry;
+//! use rhizome_resin_field::{Field, EvalContext};
 //! use glam::Vec2;
 //!
 //! // Create registry with standard math + noise functions
@@ -22,8 +22,8 @@
 //! ```
 
 use glam::{Vec2, Vec3};
-use resin_expr::{EvalError, Expr, ExprFn, FunctionRegistry, ParseError};
-use resin_field::{EvalContext, Field};
+use rhizome_resin_expr::{EvalError, Expr, ExprFn, FunctionRegistry, ParseError};
+use rhizome_resin_field::{EvalContext, Field};
 use std::collections::HashMap;
 
 // ============================================================================
@@ -41,7 +41,7 @@ impl ExprFn for Noise {
     }
     fn call(&self, args: &[f32]) -> f32 {
         let [x, y] = args else { return 0.0 };
-        resin_noise::perlin2(*x, *y)
+        rhizome_resin_noise::perlin2(*x, *y)
     }
 }
 
@@ -56,7 +56,7 @@ impl ExprFn for Perlin {
     }
     fn call(&self, args: &[f32]) -> f32 {
         let [x, y] = args else { return 0.0 };
-        resin_noise::perlin2(*x, *y)
+        rhizome_resin_noise::perlin2(*x, *y)
     }
 }
 
@@ -71,7 +71,7 @@ impl ExprFn for Perlin3 {
     }
     fn call(&self, args: &[f32]) -> f32 {
         let [x, y, z] = args else { return 0.0 };
-        resin_noise::perlin3(*x, *y, *z)
+        rhizome_resin_noise::perlin3(*x, *y, *z)
     }
 }
 
@@ -86,7 +86,7 @@ impl ExprFn for Simplex {
     }
     fn call(&self, args: &[f32]) -> f32 {
         let [x, y] = args else { return 0.0 };
-        resin_noise::simplex2(*x, *y)
+        rhizome_resin_noise::simplex2(*x, *y)
     }
 }
 
@@ -101,7 +101,7 @@ impl ExprFn for Simplex3 {
     }
     fn call(&self, args: &[f32]) -> f32 {
         let [x, y, z] = args else { return 0.0 };
-        resin_noise::simplex3(*x, *y, *z)
+        rhizome_resin_noise::simplex3(*x, *y, *z)
     }
 }
 
@@ -116,7 +116,7 @@ impl ExprFn for Fbm {
     }
     fn call(&self, args: &[f32]) -> f32 {
         let [x, y, octaves] = args else { return 0.0 };
-        resin_noise::fbm_perlin2(*x, *y, *octaves as u32)
+        rhizome_resin_noise::fbm_perlin2(*x, *y, *octaves as u32)
     }
 }
 

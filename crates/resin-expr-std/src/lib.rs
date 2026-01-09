@@ -6,8 +6,8 @@
 //! # Usage
 //!
 //! ```
-//! use resin_expr::{Expr, FunctionRegistry};
-//! use resin_expr_std::register_std;
+//! use rhizome_resin_expr::{Expr, FunctionRegistry};
+//! use rhizome_resin_expr_std::register_std;
 //! use std::collections::HashMap;
 //!
 //! let mut registry = FunctionRegistry::new();
@@ -18,7 +18,7 @@
 //! let value = expr.eval(&vars, &registry).unwrap();
 //! ```
 
-use resin_expr::{Ast, ExprFn, FunctionRegistry};
+use rhizome_resin_expr::{Ast, ExprFn, FunctionRegistry};
 
 // ============================================================================
 // Macro for simple functions
@@ -221,14 +221,14 @@ impl ExprFn for InverseLerp {
         let v = &args[2];
         // (v - a) / (b - a)
         Some(Ast::BinOp(
-            resin_expr::BinOp::Div,
+            rhizome_resin_expr::BinOp::Div,
             Box::new(Ast::BinOp(
-                resin_expr::BinOp::Sub,
+                rhizome_resin_expr::BinOp::Sub,
                 Box::new(v.clone()),
                 Box::new(a.clone()),
             )),
             Box::new(Ast::BinOp(
-                resin_expr::BinOp::Sub,
+                rhizome_resin_expr::BinOp::Sub,
                 Box::new(b.clone()),
                 Box::new(a.clone()),
             )),
@@ -320,7 +320,7 @@ pub fn std_registry() -> FunctionRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use resin_expr::Expr;
+    use rhizome_resin_expr::Expr;
     use std::collections::HashMap;
 
     fn eval(expr: &str, vars: &[(&str, f32)]) -> f32 {

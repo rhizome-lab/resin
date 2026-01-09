@@ -5,7 +5,7 @@
 //! # Example
 //!
 //! ```
-//! use resin_mesh::{Mesh, repair::{find_boundary_loops, fill_hole_fan}};
+//! use rhizome_resin_mesh::{Mesh, repair::{find_boundary_loops, fill_hole_fan}};
 //!
 //! let mut mesh = Mesh::new();
 //! // ... build a mesh with holes ...

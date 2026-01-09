@@ -3,7 +3,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use resin_mesh::{marching_cubes, MarchingCubesConfig};
+//! use rhizome_resin_mesh::{marching_cubes, MarchingCubesConfig};
 //! use glam::Vec3;
 //!
 //! // Define a sphere SDF

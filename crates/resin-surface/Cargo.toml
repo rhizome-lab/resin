@@ -1,5 +1,5 @@
 [package]
-name = "resin-surface"
+name = "rhizome-resin-surface"
 version = "0.1.0"
 edition = "2024"
 description = "NURBS surfaces and tensor product surfaces"

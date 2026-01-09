@@ -5,7 +5,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use resin_mesh::{loft, LoftConfig};
+//! use rhizome_resin_mesh::{loft, LoftConfig};
 //! use glam::Vec3;
 //!
 //! // Create three circular profiles at different heights

@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! ```
-//! use resin_field::{Field, EvalContext, Perlin2D};
+//! use rhizome_resin_field::{Field, EvalContext, Perlin2D};
 //! use glam::Vec2;
 //!
 //! // Create a noise field
@@ -379,7 +379,7 @@ impl Field<Vec2, f32> for Perlin2D {
     fn sample(&self, input: Vec2, _ctx: &EvalContext) -> f32 {
         // Offset by seed
         let p = input + Vec2::new(self.seed as f32 * 17.0, self.seed as f32 * 31.0);
-        resin_noise::perlin2(p.x, p.y)
+        rhizome_resin_noise::perlin2(p.x, p.y)
     }
 }
 
@@ -407,7 +407,7 @@ impl Field<Vec3, f32> for Perlin3D {
                 self.seed as f32 * 31.0,
                 self.seed as f32 * 47.0,
             );
-        resin_noise::perlin3(p.x, p.y, p.z)
+        rhizome_resin_noise::perlin3(p.x, p.y, p.z)
     }
 }
 
@@ -430,7 +430,7 @@ impl Simplex2D {
 impl Field<Vec2, f32> for Simplex2D {
     fn sample(&self, input: Vec2, _ctx: &EvalContext) -> f32 {
         let p = input + Vec2::new(self.seed as f32 * 17.0, self.seed as f32 * 31.0);
-        resin_noise::simplex2(p.x, p.y)
+        rhizome_resin_noise::simplex2(p.x, p.y)
     }
 }
 
@@ -458,7 +458,7 @@ impl Field<Vec3, f32> for Simplex3D {
                 self.seed as f32 * 31.0,
                 self.seed as f32 * 47.0,
             );
-        resin_noise::simplex3(p.x, p.y, p.z)
+        rhizome_resin_noise::simplex3(p.x, p.y, p.z)
     }
 }
 
@@ -1596,7 +1596,7 @@ impl Metaball {
 ///
 /// ```
 /// use glam::Vec2;
-/// use resin_field::{Field, EvalContext, Metaball, Metaballs2D};
+/// use rhizome_resin_field::{Field, EvalContext, Metaball, Metaballs2D};
 ///
 /// let balls = vec![
 ///     Metaball::new_2d(Vec2::new(0.0, 0.0), 1.0),

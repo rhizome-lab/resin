@@ -1,9 +1,9 @@
 [package]
-name = "resin-expr-std"
+name = "rhizome-resin-expr-std"
 version = "0.1.0"
 edition = "2024"
 description = "Standard function library for resin expressions"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-resin-expr = { path = "../resin-expr" }
+rhizome-resin-expr = { path = "../resin-expr" }

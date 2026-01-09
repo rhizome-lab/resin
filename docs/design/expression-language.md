@@ -109,7 +109,7 @@ All functions (including `sin`, `cos`, etc.) are registered via `ExprFn` trait. 
 ```rust
 /// Expression function - all functions implement this
 pub trait ExprFn: Send + Sync {
-    /// Unique function name (e.g., "sin", "resin_noise::perlin")
+    /// Unique function name (e.g., "sin", "rhizome_resin_noise::perlin")
     fn name(&self) -> &str;
 
     /// Function signature for type checking
@@ -129,19 +129,19 @@ pub trait ExprFn: Send + Sync {
 Backend crates define extension traits for native compilation. Functions that don't implement an extension trait fall back to `decompose()` or `interpret()`.
 
 ```rust
-// In resin-expr-wgsl crate
+// In rhizome-resin-expr-wgsl crate
 pub trait WgslExprFn: ExprFn {
     /// Generate WGSL code for this function call
     fn compile_wgsl(&self, args: &[&str]) -> String;
 }
 
-// In resin-expr-cranelift crate
+// In rhizome-resin-expr-cranelift crate
 pub trait CraneliftExprFn: ExprFn {
     /// Generate Cranelift IR for this function call
     fn compile_cranelift(&self, builder: &mut FunctionBuilder, args: &[cranelift::Value]) -> cranelift::Value;
 }
 
-// In resin-expr-lua crate (potential future backend)
+// In rhizome-resin-expr-lua crate (potential future backend)
 pub trait LuaExprFn: ExprFn {
     /// Generate Lua code for this function call
     fn compile_lua(&self, args: &[&str]) -> String;
@@ -173,7 +173,7 @@ impl FunctionRegistry {
 Backend crates wrap the registry with their extension trait downcasting:
 
 ```rust
-// In resin-expr-wgsl:
+// In rhizome-resin-expr-wgsl:
 impl WgslCompiler {
     fn compile_call(&self, name: &str, args: &[Expr]) -> Result<String> {
         let func = self.registry.get(name).ok_or(UnknownFunction(name))?;
@@ -204,12 +204,12 @@ impl WgslCompiler {
 | Complex functions (noise) | Implement backend extension traits |
 | String -> function lookup | Single registry, backends downcast |
 
-### Standard Library (`resin-expr-std`)
+### Standard Library (`rhizome-resin-expr-std`)
 
 Standard math functions live in a separate crate. This keeps core minimal and allows users to customize or replace the stdlib.
 
 ```rust
-// In resin-expr-std crate
+// In rhizome-resin-expr-std crate
 
 /// Sine function
 pub struct Sin;
@@ -297,7 +297,7 @@ impl ExprFn for InverseLerp {
 Functions that can't decompose need backend-specific implementations:
 
 ```rust
-// In resin-noise crate
+// In rhizome-resin-noise crate
 pub struct Perlin2D;
 
 impl ExprFn for Perlin2D {
@@ -314,7 +314,7 @@ impl ExprFn for Perlin2D {
     fn interpret(&self, args: &[Value]) -> Result<Value> {
         let x = args[0].as_f32()?;
         let y = args[1].as_f32()?;
-        Ok(Value::F32(resin_core::noise::perlin2(x, y)))
+        Ok(Value::F32(rhizome_resin_core::noise::perlin2(x, y)))
     }
 }
 
@@ -511,7 +511,7 @@ Three ways to build expressions:
 Operator overloading + named constructors:
 
 ```rust
-use resin_expr::prelude::*;
+use rhizome_resin_expr::prelude::*;
 
 // Builds Expr AST via operators
 let e = (position() + 1.0) * sin(time());
@@ -536,7 +536,7 @@ pub fn sin(x: impl Into<Expr>) -> Expr {
 ### 2. Proc Macro (compile-time parsing)
 
 ```rust
-use resin_expr::expr;
+use rhizome_resin_expr::expr;
 
 // Parsed at compile time, produces Expr AST
 let e = expr!(sin(position * 2.0) + time);
@@ -557,7 +557,7 @@ let e = expr!(if uv.x > 0.5 { 1.0 } else { 0.0 });
 **Implementation sketch:**
 
 ```rust
-// resin-expr-macros crate
+// rhizome-resin-expr-macros crate
 #[proc_macro]
 pub fn expr(input: TokenStream) -> TokenStream {
     let parsed = parse_expr_syntax(input);
@@ -569,7 +569,7 @@ pub fn expr(input: TokenStream) -> TokenStream {
 ### 3. Runtime Parser (for loaded files, user input)
 
 ```rust
-use resin_expr::parse;
+use rhizome_resin_expr::parse;
 
 // Parsed at runtime
 let source = "sin(position * 2.0) + time";
@@ -752,25 +752,25 @@ Expressions are pure. No assignment, no side effects.
 ## Crate Structure
 
 ```
-resin-expr/           # Core: AST, types, registry, interpreter loop
-resin-expr-std/       # Standard functions (sin, cos, etc.)
-resin-expr-macros/    # Proc macro: expr!()
-resin-expr-parse/     # Runtime parser
-resin-expr-wgsl/      # WGSL codegen + WGSL impls for std functions
-resin-expr-cranelift/ # Cranelift JIT codegen + native impls
-resin-expr-lua/       # Lua codegen (potential)
+rhizome-resin-expr/           # Core: AST, types, registry, interpreter loop
+rhizome-resin-expr-std/       # Standard functions (sin, cos, etc.)
+rhizome-resin-expr-macros/    # Proc macro: expr!()
+rhizome-resin-expr-parse/     # Runtime parser
+rhizome-resin-expr-wgsl/      # WGSL codegen + WGSL impls for std functions
+rhizome-resin-expr-cranelift/ # Cranelift JIT codegen + native impls
+rhizome-resin-expr-lua/       # Lua codegen (potential)
 ```
 
 **Why this split:**
 
 | Crate | Reason for separation |
 |-------|----------------------|
-| `resin-expr-std` | Standard functions, optional (users can provide their own) |
-| `resin-expr-macros` | Required - proc macros must be own crate |
-| `resin-expr-parse` | Optional - not needed for hardcoded expressions |
-| `resin-expr-wgsl` | Optional - not needed for CPU-only |
-| `resin-expr-cranelift` | Optional - very heavy dep (~50 crates) |
-| `resin-expr-lua` | Optional - for Lua scripting integration |
+| `rhizome-resin-expr-std` | Standard functions, optional (users can provide their own) |
+| `rhizome-resin-expr-macros` | Required - proc macros must be own crate |
+| `rhizome-resin-expr-parse` | Optional - not needed for hardcoded expressions |
+| `rhizome-resin-expr-wgsl` | Optional - not needed for CPU-only |
+| `rhizome-resin-expr-cranelift` | Optional - very heavy dep (~50 crates) |
+| `rhizome-resin-expr-lua` | Optional - for Lua scripting integration |
 
 **Core crate includes interpreter loop:**
 
@@ -786,17 +786,17 @@ The interpreter loop just walks the AST and calls `registry.get(name)?.interpret
 **Dependency flow:**
 
 ```
-resin-expr-std ──────┐
+rhizome-resin-expr-std ──────┐
                      │
-resin-expr-macros ───┼──▶ resin-expr (core)
+rhizome-resin-expr-macros ───┼──▶ rhizome-resin-expr (core)
                      │
-resin-expr-parse ────┤
+rhizome-resin-expr-parse ────┤
                      │
-resin-expr-wgsl ─────┼──▶ resin-expr-std (for WgslExprFn impls)
+rhizome-resin-expr-wgsl ─────┼──▶ rhizome-resin-expr-std (for WgslExprFn impls)
                      │
-resin-expr-cranelift─┤
+rhizome-resin-expr-cranelift─┤
                      │
-resin-expr-lua ──────┘
+rhizome-resin-expr-lua ──────┘
 ```
 
 Backend crates depend on both core (for traits) and std (for backend-specific impls of std functions).
@@ -805,7 +805,7 @@ Backend crates depend on both core (for traits) and std (for backend-specific im
 
 1. **Matrix operations** - `*` operator works on matrices (like WGSL). Type inference dispatches: scalar×scalar, vec×vec (component-wise), mat×vec, mat×mat. No AST change needed.
 
-2. **Constant folding** - Separate `resin-expr-opt` crate. AST -> AST transformation, not part of core.
+2. **Constant folding** - Separate `rhizome-resin-expr-opt` crate. AST -> AST transformation, not part of core.
 
 3. **Square matrices only** - Mat2/3/4, no Mat3x4. Convert at domain boundaries.
 
@@ -824,7 +824,7 @@ Backend crates depend on both core (for traits) and std (for backend-specific im
 | AST scope | Math + conditionals + let bindings |
 | Loops | No (use graph recurrence) |
 | Functions | All functions are `ExprFn` plugins, no hardcoded set |
-| Standard library | `resin-expr-std` crate, optional |
+| Standard library | `rhizome-resin-expr-std` crate, optional |
 | Backends | WGSL, Cranelift, Lua (potential) via extension traits |
 | Fallback strategy | `decompose()` -> backend impl -> `interpret()` |
 | Type system | Inference from operations |

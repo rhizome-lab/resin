@@ -1,5 +1,5 @@
 [package]
-name = "resin-noise"
+name = "rhizome-resin-noise"
 version = "0.1.0"
 edition = "2024"
 description = "Noise functions (Perlin, Simplex, FBM)"

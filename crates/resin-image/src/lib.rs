@@ -5,8 +5,8 @@
 //! # Example
 //!
 //! ```ignore
-//! use resin_image::{ImageField, WrapMode, FilterMode};
-//! use resin_field::{Field, EvalContext};
+//! use rhizome_resin_image::{ImageField, WrapMode, FilterMode};
+//! use rhizome_resin_field::{Field, EvalContext};
 //! use glam::Vec2;
 //!
 //! let field = ImageField::from_file("texture.png")?;
@@ -22,8 +22,8 @@ use std::path::Path;
 use glam::{Vec2, Vec4};
 use image::{DynamicImage, GenericImageView, ImageError};
 
-use resin_color::Rgba;
-use resin_field::{EvalContext, Field};
+use rhizome_resin_color::Rgba;
+use rhizome_resin_field::{EvalContext, Field};
 
 /// How to handle UV coordinates outside [0, 1].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

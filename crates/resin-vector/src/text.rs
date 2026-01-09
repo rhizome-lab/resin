@@ -3,7 +3,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use resin_vector::{Font, TextConfig, text_to_paths};
+//! use rhizome_resin_vector::{Font, TextConfig, text_to_paths};
 //!
 //! let font = Font::from_bytes(include_bytes!("font.ttf")).unwrap();
 //! let paths = text_to_paths("Hello", &font, TextConfig::default());

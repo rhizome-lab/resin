@@ -71,8 +71,8 @@ fn value_wrap_for(
 /// # Usage
 ///
 /// ```ignore
-/// use resin_macros::DynNode;
-/// use resin_core::Value;
+/// use rhizome_resin_macros::DynNode;
+/// use rhizome_resin_core::Value;
 ///
 /// #[derive(DynNode, Default)]
 /// struct AddNode {

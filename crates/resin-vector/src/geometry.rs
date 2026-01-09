@@ -12,7 +12,7 @@ use glam::Vec2;
 /// # Example
 /// ```
 /// use glam::Vec2;
-/// use resin_vector::convex_hull;
+/// use rhizome_resin_vector::convex_hull;
 ///
 /// let points = vec![
 ///     Vec2::new(0.0, 0.0),

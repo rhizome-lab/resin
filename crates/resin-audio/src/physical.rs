@@ -5,7 +5,7 @@
 //! # Example
 //!
 //! ```
-//! use resin_audio::physical::{KarplusStrong, PluckConfig};
+//! use rhizome_resin_audio::physical::{KarplusStrong, PluckConfig};
 //!
 //! let mut ks = KarplusStrong::new(44100.0);
 //! ks.pluck(440.0, PluckConfig::default());

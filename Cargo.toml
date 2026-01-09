@@ -38,27 +38,27 @@ bevy = { version = "0.15", default-features = false, features = [
 ] }
 
 # Resin crates
-resin-core = { path = "crates/resin-core" }
-resin-expr = { path = "crates/resin-expr" }
-resin-mesh = { path = "crates/resin-mesh" }
-resin-audio = { path = "crates/resin-audio" }
-resin-vector = { path = "crates/resin-vector" }
-resin-rig = { path = "crates/resin-rig" }
-resin-gltf = { path = "crates/resin-gltf" }
+rhizome-resin-core = { path = "crates/resin-core" }
+rhizome-resin-expr = { path = "crates/resin-expr" }
+rhizome-resin-mesh = { path = "crates/resin-mesh" }
+rhizome-resin-audio = { path = "crates/resin-audio" }
+rhizome-resin-vector = { path = "crates/resin-vector" }
+rhizome-resin-rig = { path = "crates/resin-rig" }
+rhizome-resin-gltf = { path = "crates/resin-gltf" }
 
 [package]
-name = "resin-examples"
+name = "rhizome-resin-examples"
 version.workspace = true
 edition.workspace = true
 publish = false
 
 [dependencies]
 bevy = { workspace = true }
-resin-core = { workspace = true }
-resin-mesh = { workspace = true }
-resin-audio = { workspace = true }
-resin-vector = { workspace = true }
-resin-rig = { workspace = true }
+rhizome-resin-core = { workspace = true }
+rhizome-resin-mesh = { workspace = true }
+rhizome-resin-audio = { workspace = true }
+rhizome-resin-vector = { workspace = true }
+rhizome-resin-rig = { workspace = true }
 glam = { workspace = true }
 
 [[example]]

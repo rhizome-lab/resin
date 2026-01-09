@@ -162,19 +162,19 @@ Alternative: Generic graph over specific data types per domain.
 ### Domain-Specific Data + Shared Utilities
 
 ```
-resin-core/
+rhizome-resin-core/
 ├── math (Vec2, Vec3, Quat, Transform, etc.)
 ├── param (ParamValue, expressions, animation)
 ├── interpolate (Lerp trait, easing functions)
 ├── noise (Perlin, Simplex - used by mesh, texture)
 └── color (Color, gradient, blend modes)
 
-resin-mesh/
+rhizome-resin-mesh/
 ├── mesh (Mesh struct, attributes)
 ├── generators (Box, Sphere, etc.)
 └── modifiers (Subdivide, Boolean, etc.)
 
-resin-audio/
+rhizome-resin-audio/
 ├── buffer (Buffer, Context)
 ├── node (AudioNode trait)
 ├── generators (Oscillators)
@@ -274,7 +274,7 @@ This could unify:
 
 ## Next Steps
 
-1. Implement `resin-core` with shared types (math, color, params)
+1. Implement `rhizome-resin-core` with shared types (math, color, params)
 2. Pick one domain to prototype (mesh or texture - good synergy)
 3. Iterate on core abstractions as second domain is added
 4. Look for forced abstractions and refactor

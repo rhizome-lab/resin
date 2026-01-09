@@ -22,7 +22,7 @@
 //! # Example
 //!
 //! ```
-//! use resin_expr::{Expr, FunctionRegistry};
+//! use rhizome_resin_expr::{Expr, FunctionRegistry};
 //! use std::collections::HashMap;
 //!
 //! let registry = FunctionRegistry::new();

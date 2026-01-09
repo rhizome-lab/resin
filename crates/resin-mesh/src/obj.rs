@@ -9,7 +9,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use resin_mesh::{box_mesh, export_obj, import_obj};
+//! use rhizome_resin_mesh::{box_mesh, export_obj, import_obj};
 //!
 //! let cube = box_mesh();
 //! let obj_string = export_obj(&cube);

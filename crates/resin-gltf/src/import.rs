@@ -2,7 +2,7 @@
 
 use glam::{Vec2, Vec3};
 use gltf::{Document, Gltf};
-use resin_mesh::Mesh;
+use rhizome_resin_mesh::Mesh;
 use std::path::Path;
 
 use crate::export::{GltfError, GltfMaterial, GltfMesh, GltfResult};

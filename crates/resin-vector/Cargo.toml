@@ -1,5 +1,5 @@
 [package]
-name = "resin-vector"
+name = "rhizome-resin-vector"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -7,5 +7,5 @@ description = "2D vector graphics for resin"
 
 [dependencies]
 glam.workspace = true
-resin-core = { path = "../resin-core" }
+rhizome-resin-core = { path = "../resin-core" }
 ab_glyph = "0.2"

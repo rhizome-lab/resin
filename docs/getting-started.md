@@ -33,12 +33,12 @@ cargo test
 
 | Crate | Description |
 |-------|-------------|
-| `resin-core` | Graph evaluation, noise, Field trait, EvalContext |
-| `resin-mesh` | 3D mesh generation, primitives (box, sphere) |
-| `resin-audio` | Audio oscillators and synthesis |
-| `resin-vector` | 2D paths, shapes, bezier curves |
-| `resin-rig` | Skeleton, bones, poses, skinning |
-| `resin-macros` | Derive macros (`#[derive(DynNode)]`) |
+| `rhizome-resin-core` | Graph evaluation, noise, Field trait, EvalContext |
+| `rhizome-resin-mesh` | 3D mesh generation, primitives (box, sphere) |
+| `rhizome-resin-audio` | Audio oscillators and synthesis |
+| `rhizome-resin-vector` | 2D paths, shapes, bezier curves |
+| `rhizome-resin-rig` | Skeleton, bones, poses, skinning |
+| `rhizome-resin-macros` | Derive macros (`#[derive(DynNode)]`) |
 
 ## Using as a Library
 
@@ -47,17 +47,17 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 # Individual crates (recommended)
-resin-core = "0.1"
-resin-mesh = "0.1"
-resin-audio = "0.1"
-resin-vector = "0.1"
-resin-rig = "0.1"
+rhizome-resin-core = "0.1"
+rhizome-resin-mesh = "0.1"
+rhizome-resin-audio = "0.1"
+rhizome-resin-vector = "0.1"
+rhizome-resin-rig = "0.1"
 ```
 
 ## Example: Creating a Node Graph
 
 ```rust
-use resin_core::{Graph, DynNodeDerive, EvalContext, Value};
+use rhizome_resin_core::{Graph, DynNodeDerive, EvalContext, Value};
 
 // Define a custom node using the derive macro
 #[derive(DynNodeDerive, Clone, Default)]
@@ -90,7 +90,7 @@ fn main() {
 ## Example: Procedural Texture with Fields
 
 ```rust
-use resin_core::{Field, Perlin2D, Fbm2D, EvalContext};
+use rhizome_resin_core::{Field, Perlin2D, Fbm2D, EvalContext};
 use glam::Vec2;
 
 fn main() {
@@ -114,7 +114,7 @@ fn main() {
 ## Example: Simple Skeleton
 
 ```rust
-use resin_rig::{Skeleton, Bone, Pose, Transform};
+use rhizome_resin_rig::{Skeleton, Bone, Pose, Transform};
 use glam::{Vec3, Quat};
 use std::f32::consts::FRAC_PI_4;
 

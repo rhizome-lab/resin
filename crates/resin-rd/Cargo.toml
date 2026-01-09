@@ -1,5 +1,5 @@
 [package]
-name = "resin-rd"
+name = "rhizome-resin-rd"
 version = "0.1.0"
 edition = "2024"
 description = "Reaction-diffusion simulation (Gray-Scott model)"

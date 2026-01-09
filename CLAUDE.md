@@ -65,7 +65,7 @@ Do not:
 ### Rust
 
 - Edition 2024
-- Workspace with sub-crates by domain (e.g., `crates/resin-mesh/`, `crates/resin-audio/`)
+- Workspace with sub-crates by domain (e.g., `crates/rhizome-resin-mesh/`, `crates/rhizome-resin-audio/`)
 - Implementation goes in sub-crates, not all in one monolith
 
 ### Updating CLAUDE.md

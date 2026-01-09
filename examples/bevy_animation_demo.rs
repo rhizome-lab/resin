@@ -9,7 +9,7 @@ use bevy::{
     prelude::*,
     render::mesh::{Indices, PrimitiveTopology},
 };
-use resin_rig::{
+use rhizome_resin_rig::{
     Bone, BoneId, IkChain, IkConfig, Pose, Skeleton, Transform as ResinTransform, solve_fabrik,
 };
 

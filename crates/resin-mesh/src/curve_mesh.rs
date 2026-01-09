@@ -3,7 +3,7 @@
 //! # Example
 //!
 //! ```ignore
-//! use resin_mesh::{extrude_profile, revolve_profile, sweep_profile};
+//! use rhizome_resin_mesh::{extrude_profile, revolve_profile, sweep_profile};
 //! use glam::{Vec2, Vec3};
 //!
 //! // Create a profile (2D outline)

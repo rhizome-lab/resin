@@ -20,9 +20,9 @@ Forcing a plugin system on everyone would conflict with our modular philosophy.
 ┌─────────────────────────────────────────────────┐
 │  Host Application (DAW, modeler, game, etc.)    │
 ├─────────────────────────────────────────────────┤
-│  Optional: resin-wasm-plugins / resin-lua / ... │  ← adapters
+│  Optional: rhizome-resin-wasm-plugins / rhizome-resin-lua / ... │  ← adapters
 ├─────────────────────────────────────────────────┤
-│  resin-core: traits + serialization contract    │  ← resin provides
+│  rhizome-resin-core: traits + serialization contract    │  ← resin provides
 └─────────────────────────────────────────────────┘
 ```
 
@@ -149,7 +149,7 @@ Works with `typetag` for automatic registration if all code is statically linked
 ### WASM Plugins (optional adapter)
 
 ```rust
-// resin-wasm-plugins crate
+// rhizome-resin-wasm-plugins crate
 pub struct WasmPluginHost {
     engine: wasmtime::Engine,
     registry: OpRegistry<dyn MeshOp>,
@@ -167,7 +167,7 @@ impl WasmPluginHost {
 ### Lua Scripting (optional adapter)
 
 ```rust
-// resin-lua-plugins crate
+// rhizome-rhizome-resin-lua-plugins crate
 pub struct LuaPluginHost {
     lua: mlua::Lua,
     registry: OpRegistry<dyn MeshOp>,
@@ -217,7 +217,7 @@ If a type name isn't registered, deserialization fails with clear error ("unknow
 
 | Component | Responsibility |
 |-----------|----------------|
-| resin-core | Op traits, serialization format, registry interface |
+| rhizome-resin-core | Op traits, serialization format, registry interface |
 | resin-*-plugins | Optional adapters for common plugin models |
 | Host application | Plugin discovery, loading, sandboxing |
 

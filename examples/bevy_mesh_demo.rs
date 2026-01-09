@@ -9,7 +9,7 @@ use bevy::{
     prelude::*,
     render::mesh::{Indices, PrimitiveTopology},
 };
-use resin_mesh::{box_mesh, subdivide_loop_n, uv_sphere};
+use rhizome_resin_mesh::{box_mesh, subdivide_loop_n, uv_sphere};
 
 fn main() {
     App::new()
@@ -103,7 +103,7 @@ fn rotate_meshes(time: Res<Time>, mut query: Query<(&mut Transform, &Rotating)>)
 }
 
 /// Convert a resin Mesh to a Bevy Mesh.
-fn resin_mesh_to_bevy(resin: &resin_mesh::Mesh) -> Mesh {
+fn resin_mesh_to_bevy(resin: &rhizome_resin_mesh::Mesh) -> Mesh {
     let mut mesh = Mesh::new(
         PrimitiveTopology::TriangleList,
         bevy::render::render_asset::RenderAssetUsages::default(),

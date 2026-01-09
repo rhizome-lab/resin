@@ -20,5 +20,5 @@ pub use error::{GraphError, TypeError};
 pub use glam;
 pub use graph::{Edge, Graph, NodeId};
 pub use node::{BoxedNode, DynNode, PortDescriptor};
-pub use resin_macros::DynNode as DynNodeDerive;
+pub use rhizome_resin_macros::DynNode as DynNodeDerive;
 pub use value::{Value, ValueType};

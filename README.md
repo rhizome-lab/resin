@@ -15,16 +15,16 @@ Constructive generation and manipulation of media in Rust.
 
 ```toml
 [dependencies]
-resin-core = "0.1"
-resin-mesh = "0.1"
-resin-audio = "0.1"
-resin-vector = "0.1"
-resin-rig = "0.1"
+rhizome-resin-core = "0.1"
+rhizome-resin-mesh = "0.1"
+rhizome-resin-audio = "0.1"
+rhizome-resin-vector = "0.1"
+rhizome-resin-rig = "0.1"
 ```
 
 ```rust
-use resin_mesh::{box_mesh, sphere};
-use resin_core::{Field, Perlin2D, EvalContext};
+use rhizome_resin_mesh::{box_mesh, sphere};
+use rhizome_resin_core::{Field, Perlin2D, EvalContext};
 use glam::Vec2;
 
 // Mesh primitives
