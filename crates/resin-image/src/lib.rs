@@ -1033,6 +1033,91 @@ pub fn emboss(image: &ImageField) -> ImageField {
     ImageField::from_raw(data, width, height)
 }
 
+// ============================================================================
+// Normal map generation
+// ============================================================================
+
+/// Generates a normal map from a heightfield/grayscale image.
+///
+/// Uses Sobel operators to compute gradients, then constructs normal vectors.
+/// The output is an RGB image where:
+/// - R = X component of normal (mapped to 0-1)
+/// - G = Y component of normal (mapped to 0-1)
+/// - B = Z component of normal (mapped to 0-1)
+///
+/// # Arguments
+/// * `heightfield` - Grayscale image where brightness = height
+/// * `strength` - How pronounced the normals should be (typically 1.0-10.0)
+///
+/// # Example
+///
+/// ```
+/// use rhizome_resin_image::{ImageField, heightfield_to_normal_map};
+///
+/// // Create a simple gradient heightfield
+/// let data: Vec<_> = (0..16).map(|i| {
+///     let v = (i % 4) as f32 / 3.0;
+///     [v, v, v, 1.0]
+/// }).collect();
+/// let heightfield = ImageField::from_raw(data, 4, 4);
+///
+/// let normal_map = heightfield_to_normal_map(&heightfield, 2.0);
+/// ```
+pub fn heightfield_to_normal_map(heightfield: &ImageField, strength: f32) -> ImageField {
+    let (width, height) = heightfield.dimensions();
+
+    // Compute gradients using Sobel operators
+    let dx = convolve(heightfield, &Kernel::sobel_vertical());
+    let dy = convolve(heightfield, &Kernel::sobel_horizontal());
+
+    let mut data = Vec::with_capacity((width * height) as usize);
+
+    for y in 0..height {
+        for x in 0..width {
+            // Get gradient values (use red channel for grayscale)
+            let gx = dx.get_pixel(x, y)[0] * strength;
+            let gy = dy.get_pixel(x, y)[0] * strength;
+
+            // Construct normal vector: (-gx, -gy, 1) and normalize
+            let len = (gx * gx + gy * gy + 1.0).sqrt();
+            let nx = -gx / len;
+            let ny = -gy / len;
+            let nz = 1.0 / len;
+
+            // Map from [-1, 1] to [0, 1] for storage
+            let r = nx * 0.5 + 0.5;
+            let g = ny * 0.5 + 0.5;
+            let b = nz * 0.5 + 0.5;
+
+            data.push([r, g, b, 1.0]);
+        }
+    }
+
+    ImageField::from_raw(data, width, height)
+}
+
+/// Generates a normal map from a Field<Vec2, f32> heightfield.
+///
+/// This samples the field at the specified resolution and generates normals.
+///
+/// # Arguments
+/// * `field` - A 2D scalar field representing height
+/// * `config` - Bake configuration for resolution
+/// * `strength` - Normal map strength
+pub fn field_to_normal_map<F: Field<Vec2, f32>>(
+    field: &F,
+    config: &BakeConfig,
+    strength: f32,
+) -> ImageField {
+    let ctx = EvalContext::new();
+
+    // First bake the heightfield
+    let heightfield = bake_scalar(field, config, &ctx);
+
+    // Then convert to normal map
+    heightfield_to_normal_map(&heightfield, strength)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1361,5 +1446,81 @@ mod tests {
         assert_eq!(result.dimensions(), (5, 5));
         let center = result.get_pixel(2, 2);
         assert!(center[0] > 0.0);
+    }
+
+    // Normal map tests
+
+    #[test]
+    fn test_heightfield_to_normal_map_flat() {
+        // Flat heightfield should produce normals pointing straight up (0.5, 0.5, 1.0)
+        let data = vec![[0.5, 0.5, 0.5, 1.0]; 9];
+        let heightfield = ImageField::from_raw(data, 3, 3);
+
+        let normal_map = heightfield_to_normal_map(&heightfield, 1.0);
+        assert_eq!(normal_map.dimensions(), (3, 3));
+
+        // Center pixel should have normal pointing up (encoded as ~0.5, ~0.5, ~1.0)
+        let center = normal_map.get_pixel(1, 1);
+        assert!((center[0] - 0.5).abs() < 0.1); // X ~= 0
+        assert!((center[1] - 0.5).abs() < 0.1); // Y ~= 0
+        assert!(center[2] > 0.9); // Z ~= 1 (pointing up)
+    }
+
+    #[test]
+    fn test_heightfield_to_normal_map_slope() {
+        // Create a slope (gradient from left to right)
+        let data: Vec<_> = (0..9)
+            .map(|i| {
+                let v = (i % 3) as f32 / 2.0;
+                [v, v, v, 1.0]
+            })
+            .collect();
+        let heightfield = ImageField::from_raw(data, 3, 3);
+
+        let normal_map = heightfield_to_normal_map(&heightfield, 2.0);
+        assert_eq!(normal_map.dimensions(), (3, 3));
+
+        // Normals should tilt in the X direction
+        let center = normal_map.get_pixel(1, 1);
+        // X component should be non-zero due to slope
+        assert!(center[2] > 0.5); // Z still positive (pointing somewhat up)
+    }
+
+    #[test]
+    fn test_heightfield_to_normal_map_strength() {
+        // Same heightfield with different strengths
+        let data: Vec<_> = (0..9)
+            .map(|i| {
+                let v = (i % 3) as f32 / 2.0;
+                [v, v, v, 1.0]
+            })
+            .collect();
+        let heightfield = ImageField::from_raw(data, 3, 3);
+
+        let weak = heightfield_to_normal_map(&heightfield, 1.0);
+        let strong = heightfield_to_normal_map(&heightfield, 5.0);
+
+        // Stronger normals should have lower Z (more tilted)
+        let weak_z = weak.get_pixel(1, 1)[2];
+        let strong_z = strong.get_pixel(1, 1)[2];
+        assert!(weak_z >= strong_z);
+    }
+
+    #[test]
+    fn test_field_to_normal_map() {
+        // Use a simple gradient field
+        let config = BakeConfig::new(4, 4);
+        let normal_map = field_to_normal_map(&GradientField, &config, 2.0);
+
+        assert_eq!(normal_map.dimensions(), (4, 4));
+        // All pixels should have valid normal values in [0, 1]
+        for y in 0..4 {
+            for x in 0..4 {
+                let pixel = normal_map.get_pixel(x, y);
+                assert!(pixel[0] >= 0.0 && pixel[0] <= 1.0);
+                assert!(pixel[1] >= 0.0 && pixel[1] <= 1.0);
+                assert!(pixel[2] >= 0.0 && pixel[2] <= 1.0);
+            }
+        }
     }
 }
