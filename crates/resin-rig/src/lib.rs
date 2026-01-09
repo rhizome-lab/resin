@@ -30,8 +30,9 @@ pub use motion_matching::{
 };
 pub use path3d::{Path3D, Path3DBuilder, PathCommand3D, PathSample, line3d, polyline3d};
 pub use secondary::{
-    Drag, FollowThrough, JiggleBone, JiggleChain, OverlappingAction, RotationFollowThrough,
-    SecondaryConfig, SecondaryMotion,
+    Drag, FollowThrough, JiggleBone, JiggleChain, JiggleMesh, OverlappingAction,
+    RotationFollowThrough, SecondaryConfig, SecondaryMotion, WindForce, apply_wind_to_bone,
+    apply_wind_to_chain,
 };
 pub use skeleton::{AddBoneResult, Bone, BoneId, Pose, Skeleton};
 pub use skin::{MAX_INFLUENCES, Skin, VertexInfluences};

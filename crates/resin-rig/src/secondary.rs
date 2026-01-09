@@ -278,7 +278,7 @@ impl JiggleBone {
 #[derive(Debug, Clone)]
 pub struct JiggleChain {
     /// Bones in the chain.
-    bones: Vec<JiggleBone>,
+    pub bones: Vec<JiggleBone>,
     /// Segment lengths between bones.
     lengths: Vec<f32>,
     /// Root position.
@@ -723,6 +723,218 @@ impl SecondaryMotion {
     }
 }
 
+// ============================================================================
+// Mesh-Based Jiggle
+// ============================================================================
+
+/// A mesh-based jiggle system for soft body secondary motion.
+///
+/// Applies jiggle physics to mesh vertices, useful for flesh, cloth, or other
+/// deformable surfaces attached to a skeleton.
+#[derive(Debug, Clone)]
+pub struct JiggleMesh {
+    /// Jiggle bones for each vertex.
+    bones: Vec<JiggleBone>,
+    /// Original vertex positions (rest pose).
+    rest_positions: Vec<Vec3>,
+    /// Anchor mask (true = fixed, false = can jiggle).
+    anchored: Vec<bool>,
+}
+
+impl JiggleMesh {
+    /// Creates a jiggle mesh from vertex positions.
+    pub fn new(positions: &[Vec3], config: SecondaryConfig) -> Self {
+        let bones: Vec<JiggleBone> = positions
+            .iter()
+            .map(|&pos| JiggleBone::from_config(config.clone()).with_rest_position(pos))
+            .collect();
+
+        Self {
+            bones,
+            rest_positions: positions.to_vec(),
+            anchored: vec![false; positions.len()],
+        }
+    }
+
+    /// Sets vertices as anchored (won't jiggle).
+    pub fn anchor_vertices(&mut self, indices: &[usize]) {
+        for &idx in indices {
+            if idx < self.anchored.len() {
+                self.anchored[idx] = true;
+            }
+        }
+    }
+
+    /// Anchors vertices above a certain Y threshold.
+    pub fn anchor_above_y(&mut self, y_threshold: f32) {
+        for (i, pos) in self.rest_positions.iter().enumerate() {
+            if pos.y > y_threshold {
+                self.anchored[i] = true;
+            }
+        }
+    }
+
+    /// Updates the jiggle mesh with new target positions.
+    pub fn update(&mut self, targets: &[Vec3], dt: f32) {
+        for (i, (bone, &target)) in self.bones.iter_mut().zip(targets.iter()).enumerate() {
+            if self.anchored[i] {
+                // Anchored vertices snap to target without physics
+                bone.position = target;
+                bone.velocity = Vec3::ZERO;
+            } else {
+                bone.update(target, Quat::IDENTITY, dt);
+            }
+        }
+    }
+
+    /// Updates with a transform applied to rest positions.
+    pub fn update_with_transform(&mut self, translation: Vec3, rotation: Quat, dt: f32) {
+        for (i, (bone, &rest)) in self
+            .bones
+            .iter_mut()
+            .zip(self.rest_positions.iter())
+            .enumerate()
+        {
+            let target = translation + rotation * rest;
+            if self.anchored[i] {
+                // Anchored vertices snap to target without physics
+                bone.position = target;
+                bone.velocity = Vec3::ZERO;
+            } else {
+                bone.update(target, rotation, dt);
+            }
+        }
+    }
+
+    /// Resets all points to their rest positions.
+    pub fn reset(&mut self) {
+        for (bone, &rest) in self.bones.iter_mut().zip(self.rest_positions.iter()) {
+            bone.position = rest;
+            bone.velocity = Vec3::ZERO;
+        }
+    }
+
+    /// Gets current positions.
+    pub fn positions(&self) -> Vec<Vec3> {
+        self.bones.iter().map(|b| b.position()).collect()
+    }
+
+    /// Gets offset from rest for each vertex.
+    pub fn offsets(&self) -> Vec<Vec3> {
+        self.bones.iter().map(|b| b.offset()).collect()
+    }
+
+    /// Returns the number of vertices.
+    pub fn vertex_count(&self) -> usize {
+        self.bones.len()
+    }
+}
+
+// ============================================================================
+// Wind Force
+// ============================================================================
+
+/// Simulates wind force on jiggle systems.
+///
+/// Provides a wind vector with optional turbulence for more natural motion.
+#[derive(Debug, Clone, Copy)]
+pub struct WindForce {
+    /// Base wind direction and strength.
+    pub direction: Vec3,
+    /// Turbulence strength (0 = steady wind).
+    pub turbulence: f32,
+    /// Turbulence frequency (higher = faster variation).
+    pub frequency: f32,
+    /// Current time for noise sampling.
+    time: f32,
+}
+
+impl Default for WindForce {
+    fn default() -> Self {
+        Self {
+            direction: Vec3::new(1.0, 0.0, 0.0),
+            turbulence: 0.3,
+            frequency: 2.0,
+            time: 0.0,
+        }
+    }
+}
+
+impl WindForce {
+    /// Creates a new wind force.
+    pub fn new(direction: Vec3, turbulence: f32) -> Self {
+        Self {
+            direction,
+            turbulence,
+            frequency: 2.0,
+            time: 0.0,
+        }
+    }
+
+    /// Sets the turbulence frequency.
+    pub fn with_frequency(mut self, frequency: f32) -> Self {
+        self.frequency = frequency;
+        self
+    }
+
+    /// Advances time and returns the current wind vector at a position.
+    ///
+    /// The wind varies based on position and time to simulate turbulence.
+    pub fn sample(&mut self, dt: f32, position: Vec3) -> Vec3 {
+        self.time += dt;
+
+        if self.turbulence <= 0.0 {
+            return self.direction;
+        }
+
+        // Simple turbulence using position-based variation
+        let noise_x = ((position.x + self.time * self.frequency) * 3.0).sin();
+        let noise_y = ((position.y + self.time * self.frequency * 1.3) * 2.5).sin();
+        let noise_z = ((position.z + self.time * self.frequency * 0.7) * 2.8).sin();
+
+        let turbulence_vec = Vec3::new(noise_x, noise_y, noise_z) * self.turbulence;
+
+        self.direction + turbulence_vec
+    }
+
+    /// Gets the current wind direction without advancing time.
+    pub fn current(&self, position: Vec3) -> Vec3 {
+        if self.turbulence <= 0.0 {
+            return self.direction;
+        }
+
+        let noise_x = ((position.x + self.time * self.frequency) * 3.0).sin();
+        let noise_y = ((position.y + self.time * self.frequency * 1.3) * 2.5).sin();
+        let noise_z = ((position.z + self.time * self.frequency * 0.7) * 2.8).sin();
+
+        self.direction + Vec3::new(noise_x, noise_y, noise_z) * self.turbulence
+    }
+
+    /// Resets the time accumulator.
+    pub fn reset(&mut self) {
+        self.time = 0.0;
+    }
+}
+
+/// Applies wind force to a jiggle bone.
+pub fn apply_wind_to_bone(bone: &mut JiggleBone, wind: &mut WindForce, dt: f32) {
+    let wind_force = wind.sample(dt, bone.position());
+    // Wind acts as an additional velocity impulse
+    bone.velocity += wind_force * dt;
+}
+
+/// Applies wind force to a jiggle chain.
+pub fn apply_wind_to_chain(chain: &mut JiggleChain, wind: &mut WindForce, dt: f32) {
+    let positions = chain.world_positions();
+    for (i, pos) in positions.iter().enumerate() {
+        if i == 0 {
+            continue; // Skip root
+        }
+        let wind_force = wind.sample(dt, *pos);
+        chain.bones[i].velocity += wind_force * dt;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -902,5 +1114,158 @@ mod tests {
 
         // Should be clamped to max displacement
         assert!(bone.offset().length() <= 0.5 + 0.01);
+    }
+
+    // ========================================================================
+    // JiggleMesh Tests
+    // ========================================================================
+
+    #[test]
+    fn test_jiggle_mesh_creation() {
+        let positions = vec![
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(1.0, 0.0, 0.0),
+            Vec3::new(0.0, 1.0, 0.0),
+        ];
+
+        let mesh = JiggleMesh::new(&positions, SecondaryConfig::soft());
+        assert_eq!(mesh.vertex_count(), 3);
+    }
+
+    #[test]
+    fn test_jiggle_mesh_anchor() {
+        let positions = vec![Vec3::ZERO, Vec3::X, Vec3::Y];
+        let mut mesh = JiggleMesh::new(&positions, SecondaryConfig::default());
+
+        mesh.anchor_vertices(&[0]);
+
+        // Anchored vertex should stay fixed after update
+        let targets = vec![Vec3::new(10.0, 0.0, 0.0), Vec3::X, Vec3::Y];
+        mesh.update(&targets, 0.016);
+
+        let pos = mesh.positions();
+        assert_eq!(pos[0], Vec3::new(10.0, 0.0, 0.0)); // Anchored, moved to target
+    }
+
+    #[test]
+    fn test_jiggle_mesh_anchor_above_y() {
+        let positions = vec![
+            Vec3::new(0.0, 0.0, 0.0),
+            Vec3::new(0.0, 0.5, 0.0),
+            Vec3::new(0.0, 1.5, 0.0),
+        ];
+
+        let mut mesh = JiggleMesh::new(&positions, SecondaryConfig::default());
+        mesh.anchor_above_y(1.0);
+
+        // Only the point at y=1.5 should be anchored
+        assert!(!mesh.anchored[0]);
+        assert!(!mesh.anchored[1]);
+        assert!(mesh.anchored[2]);
+    }
+
+    #[test]
+    fn test_jiggle_mesh_update_with_transform() {
+        let positions = vec![Vec3::ZERO, Vec3::X];
+        // Use a critically damped config without gravity for predictable test
+        let config = SecondaryConfig {
+            stiffness: 300.0,
+            damping: 35.0, // Critically damped
+            mass: 1.0,
+            gravity: Vec3::ZERO,
+            max_displacement: 2.0,
+            enable_collision: false,
+        };
+        let mut mesh = JiggleMesh::new(&positions, config);
+
+        // Run enough updates for spring to converge toward target
+        for _ in 0..100 {
+            mesh.update_with_transform(Vec3::Y, Quat::IDENTITY, 0.016);
+        }
+
+        // With critically damped spring, should approach target
+        let pos = mesh.positions();
+        // Target for first vertex is ZERO + Y = (0, 1, 0)
+        // Position is in local space (relative to parent which is at Y)
+        // So local position should be close to ZERO (which is rest_position)
+        assert!(
+            pos[0].length() < 0.5,
+            "position {} should be close to rest",
+            pos[0]
+        );
+    }
+
+    #[test]
+    fn test_jiggle_mesh_reset() {
+        let positions = vec![Vec3::ZERO, Vec3::X];
+        let mut mesh = JiggleMesh::new(&positions, SecondaryConfig::default());
+
+        mesh.update(&[Vec3::Y, Vec3::Y], 0.1);
+        mesh.reset();
+
+        let pos = mesh.positions();
+        assert_eq!(pos[0], Vec3::ZERO);
+        assert_eq!(pos[1], Vec3::X);
+    }
+
+    // ========================================================================
+    // WindForce Tests
+    // ========================================================================
+
+    #[test]
+    fn test_wind_force_creation() {
+        let wind = WindForce::new(Vec3::X, 0.5);
+        assert_eq!(wind.direction, Vec3::X);
+        assert_eq!(wind.turbulence, 0.5);
+    }
+
+    #[test]
+    fn test_wind_force_no_turbulence() {
+        let mut wind = WindForce::new(Vec3::X, 0.0);
+        let sample = wind.sample(0.016, Vec3::ZERO);
+        assert_eq!(sample, Vec3::X);
+    }
+
+    #[test]
+    fn test_wind_force_with_turbulence() {
+        let mut wind = WindForce::new(Vec3::X, 0.5);
+
+        let s1 = wind.sample(0.016, Vec3::ZERO);
+        let s2 = wind.sample(0.016, Vec3::new(10.0, 5.0, 3.0));
+
+        // With turbulence, samples at different positions/times should differ
+        assert!(s1 != s2 || wind.turbulence == 0.0);
+    }
+
+    #[test]
+    fn test_wind_force_reset() {
+        let mut wind = WindForce::new(Vec3::X, 0.3);
+        wind.sample(1.0, Vec3::ZERO);
+        wind.reset();
+        assert_eq!(wind.time, 0.0);
+    }
+
+    #[test]
+    fn test_apply_wind_to_bone() {
+        let mut bone = JiggleBone::new();
+        let mut wind = WindForce::new(Vec3::X * 10.0, 0.0);
+
+        let initial_vel = bone.velocity();
+        apply_wind_to_bone(&mut bone, &mut wind, 0.1);
+
+        assert!(bone.velocity().x > initial_vel.x);
+    }
+
+    #[test]
+    fn test_apply_wind_to_chain() {
+        let config = SecondaryConfig::tail();
+        let mut chain = JiggleChain::new(3, 0.5, config);
+        chain.update(Vec3::ZERO, Quat::IDENTITY, 0.016);
+
+        let mut wind = WindForce::new(Vec3::X * 10.0, 0.0);
+        apply_wind_to_chain(&mut chain, &mut wind, 0.1);
+
+        // Non-root bones should have velocity from wind
+        assert!(chain.bones[1].velocity().x > 0.0);
     }
 }
