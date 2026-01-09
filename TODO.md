@@ -3,7 +3,6 @@
 ## Next Up
 
 ## Backlog
-- [ ] Hatching patterns
 - [ ] Granular synthesis
 - [ ] WAV import/export
 - [ ] SVG import (parsing)
@@ -18,6 +17,7 @@
 
 ## Done
 
+- [x] Hatching patterns (HatchConfig, hatch_rect, cross_hatch_rect, hatch_polygon)
 - [x] Metaballs 2D/3D (Metaball, Metaballs2D, Metaballs3D, MetaballSdf2D/3D)
 - [x] Voronoi/Delaunay diagrams (Bowyer-Watson algorithm, VoronoiDiagram, VoronoiCell)
 - [x] Convex hull and geometry utils (bounding_box, centroid, point_in_polygon, minimum_bounding_circle)
