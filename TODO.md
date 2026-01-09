@@ -2,8 +2,6 @@
 
 ## Next Up
 
-- [ ] Cellular automata (1D/2D)
-
 ## Backlog
 
 - [ ] Convex hull
@@ -24,6 +22,7 @@
 
 ## Done
 
+- [x] Cellular automata (ElementaryCA, CellularAutomaton2D, GameOfLife, rule presets)
 - [x] Path simplification (simplify_path, simplify_points, smooth_path, resample_path)
 - [x] Karplus-Strong string synthesis (KarplusStrong, ExtendedKarplusStrong, PolyStrings, PluckConfig)
 - [x] MIDI support (MidiMessage parsing, note/freq conversion, CC constants, velocity/amplitude)

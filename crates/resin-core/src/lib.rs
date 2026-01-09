@@ -10,6 +10,7 @@
 //! - [`expr::Expr`] - Expression language for field evaluation
 
 mod attributes;
+pub mod automata;
 pub mod color;
 mod context;
 pub mod easing;
@@ -29,6 +30,9 @@ mod value;
 
 pub use attributes::{
     FullGeometry, Geometry, HasColors, HasIndices, HasNormals, HasPositions, HasUVs,
+};
+pub use automata::{
+    CellularAutomaton2D, ElementaryCA, GameOfLife, elementary_rules, rules as ca_rules,
 };
 pub use color::{
     BlendMode, ColorStop, Gradient, Hsl, Hsv, LinearRgb, Rgba, blend, blend_with_alpha,
