@@ -41,35 +41,65 @@ pub type Program = u8;
 pub mod cc {
     use super::Controller;
 
+    /// Modulation wheel (CC 1).
     pub const MOD_WHEEL: Controller = 1;
+    /// Breath controller (CC 2).
     pub const BREATH: Controller = 2;
+    /// Foot controller (CC 4).
     pub const FOOT: Controller = 4;
+    /// Portamento time (CC 5).
     pub const PORTAMENTO_TIME: Controller = 5;
+    /// Channel volume (CC 7).
     pub const VOLUME: Controller = 7;
+    /// Balance (CC 8).
     pub const BALANCE: Controller = 8;
+    /// Pan (CC 10).
     pub const PAN: Controller = 10;
+    /// Expression (CC 11).
     pub const EXPRESSION: Controller = 11;
+    /// Sustain pedal (CC 64).
     pub const SUSTAIN: Controller = 64;
+    /// Portamento on/off (CC 65).
     pub const PORTAMENTO: Controller = 65;
+    /// Sostenuto pedal (CC 66).
     pub const SOSTENUTO: Controller = 66;
+    /// Soft pedal (CC 67).
     pub const SOFT_PEDAL: Controller = 67;
+    /// Legato footswitch (CC 68).
     pub const LEGATO: Controller = 68;
+    /// Hold 2 (CC 69).
     pub const HOLD_2: Controller = 69;
+    /// Filter resonance (CC 71).
     pub const RESONANCE: Controller = 71;
+    /// Release time (CC 72).
     pub const RELEASE_TIME: Controller = 72;
+    /// Attack time (CC 73).
     pub const ATTACK_TIME: Controller = 73;
+    /// Filter cutoff (CC 74).
     pub const CUTOFF: Controller = 74;
+    /// Decay time (CC 75).
     pub const DECAY_TIME: Controller = 75;
+    /// Vibrato rate (CC 76).
     pub const VIBRATO_RATE: Controller = 76;
+    /// Vibrato depth (CC 77).
     pub const VIBRATO_DEPTH: Controller = 77;
+    /// Vibrato delay (CC 78).
     pub const VIBRATO_DELAY: Controller = 78;
+    /// Reverb send (CC 91).
     pub const REVERB: Controller = 91;
+    /// Tremolo depth (CC 92).
     pub const TREMOLO: Controller = 92;
+    /// Chorus send (CC 93).
     pub const CHORUS: Controller = 93;
+    /// Detune (CC 94).
     pub const DETUNE: Controller = 94;
+    /// Phaser depth (CC 95).
     pub const PHASER: Controller = 95;
+    /// All sound off (CC 120).
     pub const ALL_SOUND_OFF: Controller = 120;
+    /// Reset all controllers (CC 121).
     pub const RESET_ALL: Controller = 121;
+    /// All notes off (CC 123).
     pub const ALL_NOTES_OFF: Controller = 123;
 }
 
@@ -78,34 +108,61 @@ pub mod cc {
 pub enum MidiMessage {
     /// Note Off event.
     NoteOff {
+        /// MIDI channel (0-15).
         channel: Channel,
+        /// Note number (0-127).
         note: Note,
+        /// Release velocity (0-127).
         velocity: Velocity,
     },
     /// Note On event.
     NoteOn {
+        /// MIDI channel (0-15).
         channel: Channel,
+        /// Note number (0-127).
         note: Note,
+        /// Attack velocity (0-127).
         velocity: Velocity,
     },
     /// Polyphonic aftertouch (pressure per note).
     PolyPressure {
+        /// MIDI channel (0-15).
         channel: Channel,
+        /// Note number (0-127).
         note: Note,
+        /// Pressure value (0-127).
         pressure: u8,
     },
     /// Control change.
     ControlChange {
+        /// MIDI channel (0-15).
         channel: Channel,
+        /// Controller number (0-127).
         controller: Controller,
+        /// Controller value (0-127).
         value: ControlValue,
     },
     /// Program change.
-    ProgramChange { channel: Channel, program: Program },
+    ProgramChange {
+        /// MIDI channel (0-15).
+        channel: Channel,
+        /// Program number (0-127).
+        program: Program,
+    },
     /// Channel aftertouch (pressure for whole channel).
-    ChannelPressure { channel: Channel, pressure: u8 },
+    ChannelPressure {
+        /// MIDI channel (0-15).
+        channel: Channel,
+        /// Pressure value (0-127).
+        pressure: u8,
+    },
     /// Pitch bend.
-    PitchBend { channel: Channel, value: i16 },
+    PitchBend {
+        /// MIDI channel (0-15).
+        channel: Channel,
+        /// Pitch bend value (-8192 to 8191).
+        value: i16,
+    },
     /// System exclusive (contains data without start/end markers).
     SysEx(Vec<u8>),
     /// MIDI Time Code quarter frame.
@@ -477,25 +534,43 @@ pub fn normalized_to_cc(value: f32) -> ControlValue {
 pub mod notes {
     use super::Note;
 
+    /// C in octave -1 (MIDI note 0).
     pub const C_NEG1: Note = 0;
+    /// C in octave 0 (MIDI note 12).
     pub const C0: Note = 12;
+    /// C in octave 1 (MIDI note 24).
     pub const C1: Note = 24;
+    /// C in octave 2 (MIDI note 36).
     pub const C2: Note = 36;
+    /// C in octave 3 (MIDI note 48).
     pub const C3: Note = 48;
-    pub const C4: Note = 60; // Middle C
+    /// Middle C (MIDI note 60).
+    pub const C4: Note = 60;
+    /// C in octave 5 (MIDI note 72).
     pub const C5: Note = 72;
+    /// C in octave 6 (MIDI note 84).
     pub const C6: Note = 84;
+    /// C in octave 7 (MIDI note 96).
     pub const C7: Note = 96;
+    /// C in octave 8 (MIDI note 108).
     pub const C8: Note = 108;
 
-    pub const A0: Note = 21; // Lowest piano key
-    pub const A4: Note = 69; // Concert pitch (440 Hz)
-    pub const C8_TOP: Note = 108; // Highest piano key
+    /// A0, lowest piano key (MIDI note 21).
+    pub const A0: Note = 21;
+    /// A4, concert pitch 440 Hz (MIDI note 69).
+    pub const A4: Note = 69;
+    /// C8, highest piano key (MIDI note 108).
+    pub const C8_TOP: Note = 108;
 
+    /// D4 (MIDI note 62).
     pub const D4: Note = 62;
+    /// E4 (MIDI note 64).
     pub const E4: Note = 64;
+    /// F4 (MIDI note 65).
     pub const F4: Note = 65;
+    /// G4 (MIDI note 67).
     pub const G4: Note = 67;
+    /// B4 (MIDI note 71).
     pub const B4: Note = 71;
 }
 

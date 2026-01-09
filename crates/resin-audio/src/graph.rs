@@ -214,12 +214,17 @@ pub struct Oscillator {
 /// Waveform types for oscillators.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Waveform {
+    /// Sine wave.
     #[default]
     Sine,
+    /// Square wave.
     Square,
+    /// Sawtooth wave.
     Saw,
+    /// Triangle wave.
     Triangle,
-    Pulse(u8), // duty cycle as percentage (0-100)
+    /// Pulse wave with duty cycle (0-100%).
+    Pulse(u8),
 }
 
 impl Default for Oscillator {
@@ -295,10 +300,12 @@ impl AudioNode for Oscillator {
 /// Gain node that scales the signal.
 #[derive(Debug, Clone, Copy)]
 pub struct Gain {
+    /// Gain multiplier.
     pub value: f32,
 }
 
 impl Gain {
+    /// Create a new gain node.
     pub fn new(value: f32) -> Self {
         Self { value }
     }
@@ -313,10 +320,12 @@ impl AudioNode for Gain {
 /// DC offset node.
 #[derive(Debug, Clone, Copy)]
 pub struct Offset {
+    /// Offset value to add.
     pub value: f32,
 }
 
 impl Offset {
+    /// Create a new offset node.
     pub fn new(value: f32) -> Self {
         Self { value }
     }
@@ -331,15 +340,19 @@ impl AudioNode for Offset {
 /// Clipping/saturation node.
 #[derive(Debug, Clone, Copy)]
 pub struct Clip {
+    /// Minimum output value.
     pub min: f32,
+    /// Maximum output value.
     pub max: f32,
 }
 
 impl Clip {
+    /// Create a new clip node with min/max bounds.
     pub fn new(min: f32, max: f32) -> Self {
         Self { min, max }
     }
 
+    /// Create a symmetric clip node (-threshold to +threshold).
     pub fn symmetric(threshold: f32) -> Self {
         Self::new(-threshold, threshold)
     }
@@ -360,10 +373,12 @@ impl AudioNode for Clip {
 /// Soft clipping (tanh saturation).
 #[derive(Debug, Clone, Copy)]
 pub struct SoftClip {
+    /// Drive amount (higher = more saturation).
     pub drive: f32,
 }
 
 impl SoftClip {
+    /// Create a new soft clip node.
     pub fn new(drive: f32) -> Self {
         Self { drive }
     }
@@ -389,6 +404,7 @@ impl AudioNode for SoftClip {
 pub struct LowPassNode(pub LowPass);
 
 impl LowPassNode {
+    /// Create a new low-pass filter node.
     pub fn new(cutoff: f32, sample_rate: f32) -> Self {
         Self(LowPass::new(cutoff, sample_rate))
     }
@@ -408,6 +424,7 @@ impl AudioNode for LowPassNode {
 pub struct HighPassNode(pub HighPass);
 
 impl HighPassNode {
+    /// Create a new high-pass filter node.
     pub fn new(cutoff: f32, sample_rate: f32) -> Self {
         Self(HighPass::new(cutoff, sample_rate))
     }
@@ -427,18 +444,22 @@ impl AudioNode for HighPassNode {
 pub struct BiquadNode(pub Biquad);
 
 impl BiquadNode {
+    /// Create a low-pass biquad filter node.
     pub fn lowpass(cutoff: f32, q: f32, sample_rate: f32) -> Self {
         Self(Biquad::lowpass(cutoff, q, sample_rate))
     }
 
+    /// Create a high-pass biquad filter node.
     pub fn highpass(cutoff: f32, q: f32, sample_rate: f32) -> Self {
         Self(Biquad::highpass(cutoff, q, sample_rate))
     }
 
+    /// Create a band-pass biquad filter node.
     pub fn bandpass(center: f32, q: f32, sample_rate: f32) -> Self {
         Self(Biquad::bandpass(center, q, sample_rate))
     }
 
+    /// Create a notch biquad filter node.
     pub fn notch(center: f32, q: f32, sample_rate: f32) -> Self {
         Self(Biquad::notch(center, q, sample_rate))
     }
@@ -458,10 +479,12 @@ impl AudioNode for BiquadNode {
 pub struct DelayNode(pub Delay);
 
 impl DelayNode {
+    /// Create a new delay node with sample counts.
     pub fn new(max_samples: usize, delay_samples: usize) -> Self {
         Self(Delay::new(max_samples, delay_samples))
     }
 
+    /// Create a new delay node with time values.
     pub fn from_time(max_seconds: f32, delay_seconds: f32, sample_rate: f32) -> Self {
         Self(Delay::from_time(max_seconds, delay_seconds, sample_rate))
     }
@@ -481,10 +504,12 @@ impl AudioNode for DelayNode {
 pub struct FeedbackDelayNode(pub FeedbackDelay);
 
 impl FeedbackDelayNode {
+    /// Create a new feedback delay node with sample counts.
     pub fn new(max_samples: usize, delay_samples: usize, feedback: f32) -> Self {
         Self(FeedbackDelay::new(max_samples, delay_samples, feedback))
     }
 
+    /// Create a new feedback delay node with time values.
     pub fn from_time(
         max_seconds: f32,
         delay_seconds: f32,
@@ -520,20 +545,24 @@ pub struct AdsrNode {
 }
 
 impl AdsrNode {
+    /// Create a new ADSR envelope node.
     pub fn new(attack: f32, decay: f32, sustain: f32, release: f32) -> Self {
         Self {
             env: Adsr::with_params(attack, decay, sustain, release),
         }
     }
 
+    /// Trigger the envelope (note on).
     pub fn trigger(&mut self) {
         self.env.trigger();
     }
 
+    /// Release the envelope (note off).
     pub fn release(&mut self) {
         self.env.release();
     }
 
+    /// Returns true if the envelope is still active.
     pub fn is_active(&self) -> bool {
         self.env.is_active()
     }
@@ -556,12 +585,14 @@ pub struct ArNode {
 }
 
 impl ArNode {
+    /// Create a new AR envelope node.
     pub fn new(attack: f32, release: f32) -> Self {
         Self {
             env: Ar::new(attack, release),
         }
     }
 
+    /// Trigger the envelope.
     pub fn trigger(&mut self) {
         self.env.trigger();
     }
@@ -584,17 +615,20 @@ pub struct LfoNode {
 }
 
 impl LfoNode {
+    /// Create a new LFO node with the given frequency.
     pub fn new(frequency: f32) -> Self {
         Self {
             lfo: Lfo::with_frequency(frequency),
         }
     }
 
+    /// Set the LFO amplitude.
     pub fn with_amplitude(mut self, amplitude: f32) -> Self {
         self.lfo.amplitude = amplitude;
         self
     }
 
+    /// Set the LFO DC offset.
     pub fn with_offset(mut self, offset: f32) -> Self {
         self.lfo.offset = offset;
         self
@@ -622,6 +656,7 @@ pub struct RingMod {
 }
 
 impl RingMod {
+    /// Create a new ring modulator with the given modulator node.
     pub fn new<N: AudioNode + 'static>(modulator: N) -> Self {
         Self {
             modulator: Box::new(modulator),

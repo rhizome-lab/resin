@@ -5,10 +5,15 @@
 /// ADSR envelope state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AdsrState {
+    /// Not active.
     Idle,
+    /// Rising to peak.
     Attack,
+    /// Falling to sustain level.
     Decay,
+    /// Holding at sustain level.
     Sustain,
+    /// Falling to zero after note off.
     Release,
 }
 
@@ -160,11 +165,16 @@ impl Adsr {
 /// LFO (Low Frequency Oscillator) waveform type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LfoWaveform {
+    /// Smooth sine wave.
     #[default]
     Sine,
+    /// Linear triangle wave.
     Triangle,
+    /// Sawtooth wave.
     Saw,
+    /// Square wave.
     Square,
+    /// Sample-and-hold random.
     Random,
 }
 

@@ -168,10 +168,15 @@ impl HighPass {
 /// Biquad filter coefficients.
 #[derive(Debug, Clone, Copy)]
 pub struct BiquadCoeffs {
+    /// Feedforward coefficient b0.
     pub b0: f32,
+    /// Feedforward coefficient b1.
     pub b1: f32,
+    /// Feedforward coefficient b2.
     pub b2: f32,
+    /// Feedback coefficient a1.
     pub a1: f32,
+    /// Feedback coefficient a2.
     pub a2: f32,
 }
 

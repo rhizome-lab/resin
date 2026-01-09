@@ -29,7 +29,9 @@ use std::f32::consts::PI;
 /// A complex number for FFT operations.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Complex {
+    /// Real part.
     pub re: f32,
+    /// Imaginary part.
     pub im: f32,
 }
 
