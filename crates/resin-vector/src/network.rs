@@ -45,16 +45,20 @@ pub struct EdgeId(pub u32);
 const NULL_ID: u32 = u32::MAX;
 
 impl NodeId {
+    /// Sentinel value representing no node.
     pub const NULL: NodeId = NodeId(NULL_ID);
 
+    /// Returns true if this is the null sentinel.
     pub fn is_null(self) -> bool {
         self.0 == NULL_ID
     }
 }
 
 impl EdgeId {
+    /// Sentinel value representing no edge.
     pub const NULL: EdgeId = EdgeId(NULL_ID);
 
+    /// Returns true if this is the null sentinel.
     pub fn is_null(self) -> bool {
         self.0 == NULL_ID
     }

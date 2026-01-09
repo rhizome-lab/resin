@@ -182,16 +182,22 @@ impl TurtleConfig {
 /// 2D turtle state.
 #[derive(Debug, Clone, Copy)]
 pub struct TurtleState2D {
+    /// Current position.
     pub position: Vec2,
+    /// Current heading in radians.
     pub angle: f32,
+    /// Distance to move per step.
     pub step: f32,
 }
 
 /// Segment produced by turtle interpretation.
 #[derive(Debug, Clone)]
 pub struct TurtleSegment2D {
+    /// Start point of the segment.
     pub start: Vec2,
+    /// End point of the segment.
     pub end: Vec2,
+    /// Recursion depth when this segment was drawn.
     pub depth: usize,
 }
 
@@ -268,6 +274,7 @@ pub fn interpret_turtle_2d(input: &str, config: &TurtleConfig) -> Vec<TurtleSegm
 /// 3D turtle state.
 #[derive(Debug, Clone, Copy)]
 pub struct TurtleState3D {
+    /// Current position.
     pub position: Vec3,
     /// Heading (forward direction).
     pub heading: Vec3,
@@ -275,6 +282,7 @@ pub struct TurtleState3D {
     pub left: Vec3,
     /// Up direction.
     pub up: Vec3,
+    /// Distance to move per step.
     pub step: f32,
 }
 
@@ -293,8 +301,11 @@ impl Default for TurtleState3D {
 /// Segment produced by 3D turtle interpretation.
 #[derive(Debug, Clone)]
 pub struct TurtleSegment3D {
+    /// Start point of the segment.
     pub start: Vec3,
+    /// End point of the segment.
     pub end: Vec3,
+    /// Recursion depth when this segment was drawn.
     pub depth: usize,
 }
 

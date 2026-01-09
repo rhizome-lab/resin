@@ -7,16 +7,24 @@ use glam::Vec3;
 /// Linear RGB color (0-1 range, not gamma corrected).
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct LinearRgb {
+    /// Red channel (0-1).
     pub r: f32,
+    /// Green channel (0-1).
     pub g: f32,
+    /// Blue channel (0-1).
     pub b: f32,
 }
 
 impl LinearRgb {
+    /// Black (0, 0, 0).
     pub const BLACK: Self = Self::new(0.0, 0.0, 0.0);
+    /// White (1, 1, 1).
     pub const WHITE: Self = Self::new(1.0, 1.0, 1.0);
+    /// Red (1, 0, 0).
     pub const RED: Self = Self::new(1.0, 0.0, 0.0);
+    /// Green (0, 1, 0).
     pub const GREEN: Self = Self::new(0.0, 1.0, 0.0);
+    /// Blue (0, 0, 1).
     pub const BLUE: Self = Self::new(0.0, 0.0, 1.0);
 
     /// Creates a new RGB color.
@@ -257,15 +265,22 @@ impl Hsv {
 /// RGBA color with alpha channel.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Rgba {
+    /// Red channel (0-1).
     pub r: f32,
+    /// Green channel (0-1).
     pub g: f32,
+    /// Blue channel (0-1).
     pub b: f32,
+    /// Alpha channel (0-1).
     pub a: f32,
 }
 
 impl Rgba {
+    /// Fully transparent black.
     pub const TRANSPARENT: Self = Self::new(0.0, 0.0, 0.0, 0.0);
+    /// Opaque black.
     pub const BLACK: Self = Self::new(0.0, 0.0, 0.0, 1.0);
+    /// Opaque white.
     pub const WHITE: Self = Self::new(1.0, 1.0, 1.0, 1.0);
 
     /// Creates a new RGBA color.

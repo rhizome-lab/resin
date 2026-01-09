@@ -5,8 +5,11 @@ use glam::{Mat4, Quat, Vec3};
 /// A 3D transform (translation, rotation, scale).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Transform {
+    /// Position offset.
     pub translation: Vec3,
+    /// Rotation quaternion.
     pub rotation: Quat,
+    /// Scale factors per axis.
     pub scale: Vec3,
 }
 

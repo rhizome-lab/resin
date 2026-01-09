@@ -313,25 +313,36 @@ impl AnimationStack {
 pub enum BlendNode {
     /// A single animation clip.
     Clip {
+        /// The animation clip to play.
         clip: AnimationClip,
+        /// Current playback time in seconds.
         time: f32,
+        /// Playback speed multiplier.
         speed: f32,
     },
-    /// Linear blend between two nodes based on a parameter.
+    /// Linear blend between nodes based on a 1D parameter.
     Blend1D {
-        children: Vec<(f32, Box<BlendNode>)>, // (threshold, node)
+        /// Child nodes with their threshold values (threshold, node).
+        children: Vec<(f32, Box<BlendNode>)>,
+        /// Current blend parameter value.
         parameter: f32,
     },
     /// 2D blend between nodes based on two parameters.
     Blend2D {
-        children: Vec<(f32, f32, Box<BlendNode>)>, // (x, y, node)
+        /// Child nodes with their 2D positions (x, y, node).
+        children: Vec<(f32, f32, Box<BlendNode>)>,
+        /// Current X parameter value.
         parameter_x: f32,
+        /// Current Y parameter value.
         parameter_y: f32,
     },
-    /// Additive blend.
+    /// Additive blend layering.
     Additive {
+        /// Base animation node.
         base: Box<BlendNode>,
+        /// Additive layer to apply on top.
         additive: Box<BlendNode>,
+        /// Blend weight for the additive layer (0-1).
         weight: f32,
     },
 }

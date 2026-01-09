@@ -34,12 +34,19 @@ pub enum Value {
 /// Type identifier for values in the graph system.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ValueType {
+    /// 32-bit floating point.
     F32,
+    /// 64-bit floating point.
     F64,
+    /// 32-bit signed integer.
     I32,
+    /// Boolean.
     Bool,
+    /// 2D vector.
     Vec2,
+    /// 3D vector.
     Vec3,
+    /// 4D vector.
     Vec4,
 }
 

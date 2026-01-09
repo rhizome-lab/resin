@@ -857,15 +857,22 @@ impl Default for SphConfig {
 /// A single SPH particle.
 #[derive(Clone, Debug)]
 pub struct SphParticle2D {
+    /// Current position.
     pub position: Vec2,
+    /// Current velocity.
     pub velocity: Vec2,
+    /// Accumulated force this timestep.
     pub force: Vec2,
+    /// Computed density at this particle.
     pub density: f32,
+    /// Computed pressure at this particle.
     pub pressure: f32,
+    /// Particle mass.
     pub mass: f32,
 }
 
 impl SphParticle2D {
+    /// Create a new particle at rest.
     pub fn new(position: Vec2, mass: f32) -> Self {
         Self {
             position,
@@ -880,8 +887,11 @@ impl SphParticle2D {
 
 /// 2D SPH fluid simulation.
 pub struct Sph2D {
+    /// All particles in the simulation.
     pub particles: Vec<SphParticle2D>,
+    /// Simulation parameters.
     pub config: SphConfig,
+    /// Simulation bounds (min, max).
     pub bounds: (Vec2, Vec2),
 }
 
@@ -1049,15 +1059,22 @@ impl Sph2D {
 /// A single 3D SPH particle.
 #[derive(Clone, Debug)]
 pub struct SphParticle3D {
+    /// Current position.
     pub position: Vec3,
+    /// Current velocity.
     pub velocity: Vec3,
+    /// Accumulated force this timestep.
     pub force: Vec3,
+    /// Computed density at this particle.
     pub density: f32,
+    /// Computed pressure at this particle.
     pub pressure: f32,
+    /// Particle mass.
     pub mass: f32,
 }
 
 impl SphParticle3D {
+    /// Create a new particle at rest.
     pub fn new(position: Vec3, mass: f32) -> Self {
         Self {
             position,
@@ -1105,8 +1122,11 @@ impl Default for SphConfig3D {
 
 /// 3D SPH fluid simulation.
 pub struct Sph3D {
+    /// All particles in the simulation.
     pub particles: Vec<SphParticle3D>,
+    /// Simulation parameters.
     pub config: SphConfig3D,
+    /// Simulation bounds (min, max).
     pub bounds: (Vec3, Vec3),
 }
 

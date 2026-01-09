@@ -11,11 +11,19 @@ pub enum PathCommand {
     /// Draw a line to a point.
     LineTo(Vec2),
     /// Quadratic bezier curve to a point with one control point.
-    QuadTo { control: Vec2, to: Vec2 },
+    QuadTo {
+        /// Control point.
+        control: Vec2,
+        /// End point.
+        to: Vec2,
+    },
     /// Cubic bezier curve to a point with two control points.
     CubicTo {
+        /// First control point.
         control1: Vec2,
+        /// Second control point.
         control2: Vec2,
+        /// End point.
         to: Vec2,
     },
     /// Close the current subpath by drawing a line to the start.

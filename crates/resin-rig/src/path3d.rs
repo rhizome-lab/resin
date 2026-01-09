@@ -11,8 +11,11 @@ pub enum PathCommand3D {
     LineTo(Vec3),
     /// Cubic bezier curve to a point with two control points.
     CubicTo {
+        /// First control point.
         control1: Vec3,
+        /// Second control point.
         control2: Vec3,
+        /// End point.
         to: Vec3,
     },
 }

@@ -43,24 +43,30 @@ pub struct FaceId(pub u32);
 const NULL_ID: u32 = u32::MAX;
 
 impl HalfEdgeId {
+    /// Sentinel value representing no half-edge.
     pub const NULL: HalfEdgeId = HalfEdgeId(NULL_ID);
 
+    /// Returns true if this is the null sentinel.
     pub fn is_null(self) -> bool {
         self.0 == NULL_ID
     }
 }
 
 impl VertexId {
+    /// Sentinel value representing no vertex.
     pub const NULL: VertexId = VertexId(NULL_ID);
 
+    /// Returns true if this is the null sentinel.
     pub fn is_null(self) -> bool {
         self.0 == NULL_ID
     }
 }
 
 impl FaceId {
+    /// Sentinel value representing no face.
     pub const NULL: FaceId = FaceId(NULL_ID);
 
+    /// Returns true if this is the null sentinel.
     pub fn is_null(self) -> bool {
         self.0 == NULL_ID
     }

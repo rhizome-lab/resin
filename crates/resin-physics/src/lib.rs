@@ -14,12 +14,23 @@ use glam::{Mat3, Quat, Vec3};
 /// Collision shape for rigid bodies.
 #[derive(Clone, Debug)]
 pub enum Collider {
-    /// Sphere with radius.
-    Sphere { radius: f32 },
-    /// Axis-aligned box with half-extents.
-    Box { half_extents: Vec3 },
+    /// Sphere collider.
+    Sphere {
+        /// Radius of the sphere.
+        radius: f32,
+    },
+    /// Axis-aligned box collider.
+    Box {
+        /// Half-extents along each axis.
+        half_extents: Vec3,
+    },
     /// Infinite plane defined by normal and distance from origin.
-    Plane { normal: Vec3, distance: f32 },
+    Plane {
+        /// Unit normal pointing away from the solid side.
+        normal: Vec3,
+        /// Distance from origin along the normal.
+        distance: f32,
+    },
 }
 
 impl Collider {

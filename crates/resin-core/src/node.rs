@@ -13,6 +13,7 @@ pub struct PortDescriptor {
 }
 
 impl PortDescriptor {
+    /// Create a new port descriptor.
     pub fn new(name: &'static str, value_type: ValueType) -> Self {
         Self { name, value_type }
     }

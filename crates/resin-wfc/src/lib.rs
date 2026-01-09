@@ -35,9 +35,13 @@ use std::collections::{HashMap, HashSet, VecDeque};
 /// Direction for adjacency rules in 2D.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Direction {
+    /// Positive Y direction.
     Up,
+    /// Negative Y direction.
     Down,
+    /// Negative X direction.
     Left,
+    /// Positive X direction.
     Right,
 }
 
