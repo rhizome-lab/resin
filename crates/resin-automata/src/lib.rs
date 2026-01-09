@@ -367,7 +367,441 @@ pub mod elementary_rules {
     pub const RULE_250: u8 = 250;
 }
 
-/// Simple RNG for cellular automata.
+// ============================================================================
+// Maze Generation
+// ============================================================================
+
+/// A 2D maze grid.
+///
+/// Cells are either passages (false) or walls (true).
+/// Odd coordinates are cells, even coordinates are walls/borders.
+#[derive(Debug, Clone)]
+pub struct Maze {
+    /// Grid data (true = wall, false = passage).
+    grid: Vec<Vec<bool>>,
+    /// Width in cells (not including walls).
+    width: usize,
+    /// Height in cells (not including walls).
+    height: usize,
+}
+
+impl Maze {
+    /// Creates a new maze filled with walls.
+    pub fn new(width: usize, height: usize) -> Self {
+        // Grid dimensions include walls between cells
+        let grid_width = width * 2 + 1;
+        let grid_height = height * 2 + 1;
+
+        Self {
+            grid: vec![vec![true; grid_width]; grid_height],
+            width,
+            height,
+        }
+    }
+
+    /// Returns the maze width in cells.
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    /// Returns the maze height in cells.
+    pub fn height(&self) -> usize {
+        self.height
+    }
+
+    /// Returns the grid width (including walls).
+    pub fn grid_width(&self) -> usize {
+        self.width * 2 + 1
+    }
+
+    /// Returns the grid height (including walls).
+    pub fn grid_height(&self) -> usize {
+        self.height * 2 + 1
+    }
+
+    /// Returns true if the given grid position is a wall.
+    pub fn is_wall(&self, x: usize, y: usize) -> bool {
+        self.grid
+            .get(y)
+            .and_then(|row| row.get(x))
+            .copied()
+            .unwrap_or(true)
+    }
+
+    /// Returns the grid as a 2D boolean array.
+    pub fn grid(&self) -> &Vec<Vec<bool>> {
+        &self.grid
+    }
+
+    /// Carves a passage at cell coordinates.
+    fn carve_cell(&mut self, cx: usize, cy: usize) {
+        let gx = cx * 2 + 1;
+        let gy = cy * 2 + 1;
+        if gy < self.grid.len() && gx < self.grid[0].len() {
+            self.grid[gy][gx] = false;
+        }
+    }
+
+    /// Carves a passage between two adjacent cells.
+    fn carve_between(&mut self, cx1: usize, cy1: usize, cx2: usize, cy2: usize) {
+        let gx = cx1 + cx2 + 1;
+        let gy = cy1 + cy2 + 1;
+        if gy < self.grid.len() && gx < self.grid[0].len() {
+            self.grid[gy][gx] = false;
+        }
+    }
+
+    /// Converts the maze to a string representation.
+    pub fn to_string_art(&self) -> String {
+        let mut result = String::new();
+        for row in &self.grid {
+            for &cell in row {
+                result.push(if cell { '█' } else { ' ' });
+            }
+            result.push('\n');
+        }
+        result
+    }
+}
+
+/// Maze generation algorithm type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum MazeAlgorithm {
+    /// Recursive backtracker (depth-first search).
+    /// Creates long, winding passages with few dead ends.
+    #[default]
+    RecursiveBacktracker,
+    /// Prim's algorithm (minimum spanning tree).
+    /// Creates mazes with many short dead ends.
+    Prims,
+    /// Kruskal's algorithm (minimum spanning tree).
+    /// Creates mazes with uniform passage distribution.
+    Kruskals,
+    /// Eller's algorithm (row-by-row).
+    /// Memory-efficient, can generate infinite mazes.
+    Ellers,
+    /// Binary tree algorithm.
+    /// Simple and fast, but has diagonal bias.
+    BinaryTree,
+    /// Sidewinder algorithm.
+    /// Similar to binary tree but with horizontal bias.
+    Sidewinder,
+}
+
+/// Generates a maze using the specified algorithm.
+///
+/// # Example
+///
+/// ```
+/// use rhizome_resin_automata::{generate_maze, MazeAlgorithm};
+///
+/// let maze = generate_maze(10, 10, MazeAlgorithm::RecursiveBacktracker, 12345);
+/// assert_eq!(maze.width(), 10);
+/// assert_eq!(maze.height(), 10);
+/// ```
+pub fn generate_maze(width: usize, height: usize, algorithm: MazeAlgorithm, seed: u64) -> Maze {
+    match algorithm {
+        MazeAlgorithm::RecursiveBacktracker => generate_recursive_backtracker(width, height, seed),
+        MazeAlgorithm::Prims => generate_prims(width, height, seed),
+        MazeAlgorithm::Kruskals => generate_kruskals(width, height, seed),
+        MazeAlgorithm::Ellers => generate_ellers(width, height, seed),
+        MazeAlgorithm::BinaryTree => generate_binary_tree(width, height, seed),
+        MazeAlgorithm::Sidewinder => generate_sidewinder(width, height, seed),
+    }
+}
+
+/// Recursive backtracker maze generation (depth-first search).
+fn generate_recursive_backtracker(width: usize, height: usize, seed: u64) -> Maze {
+    let mut maze = Maze::new(width, height);
+    let mut rng = SimpleRng::new(seed);
+    let mut visited = vec![vec![false; width]; height];
+    let mut stack = Vec::new();
+
+    // Start at (0, 0)
+    let start_x = 0;
+    let start_y = 0;
+    visited[start_y][start_x] = true;
+    maze.carve_cell(start_x, start_y);
+    stack.push((start_x, start_y));
+
+    while let Some(&(cx, cy)) = stack.last() {
+        // Get unvisited neighbors
+        let mut neighbors = Vec::new();
+
+        if cx > 0 && !visited[cy][cx - 1] {
+            neighbors.push((cx - 1, cy));
+        }
+        if cx < width - 1 && !visited[cy][cx + 1] {
+            neighbors.push((cx + 1, cy));
+        }
+        if cy > 0 && !visited[cy - 1][cx] {
+            neighbors.push((cx, cy - 1));
+        }
+        if cy < height - 1 && !visited[cy + 1][cx] {
+            neighbors.push((cx, cy + 1));
+        }
+
+        if neighbors.is_empty() {
+            stack.pop();
+        } else {
+            // Choose random neighbor
+            let idx = (rng.next_u64() as usize) % neighbors.len();
+            let (nx, ny) = neighbors[idx];
+
+            visited[ny][nx] = true;
+            maze.carve_cell(nx, ny);
+            maze.carve_between(cx, cy, nx, ny);
+            stack.push((nx, ny));
+        }
+    }
+
+    maze
+}
+
+/// Prim's algorithm maze generation.
+fn generate_prims(width: usize, height: usize, seed: u64) -> Maze {
+    let mut maze = Maze::new(width, height);
+    let mut rng = SimpleRng::new(seed);
+    let mut in_maze = vec![vec![false; width]; height];
+    let mut frontier = Vec::new();
+
+    // Start at (0, 0)
+    in_maze[0][0] = true;
+    maze.carve_cell(0, 0);
+
+    // Add neighbors to frontier
+    if width > 1 {
+        frontier.push((1, 0, 0, 0));
+    }
+    if height > 1 {
+        frontier.push((0, 1, 0, 0));
+    }
+
+    while !frontier.is_empty() {
+        // Pick random frontier cell
+        let idx = (rng.next_u64() as usize) % frontier.len();
+        let (fx, fy, px, py) = frontier.swap_remove(idx);
+
+        if in_maze[fy][fx] {
+            continue;
+        }
+
+        // Add to maze
+        in_maze[fy][fx] = true;
+        maze.carve_cell(fx, fy);
+        maze.carve_between(px, py, fx, fy);
+
+        // Add new frontier cells
+        let neighbors = [
+            (fx.wrapping_sub(1), fy),
+            (fx + 1, fy),
+            (fx, fy.wrapping_sub(1)),
+            (fx, fy + 1),
+        ];
+
+        for (nx, ny) in neighbors {
+            if nx < width && ny < height && !in_maze[ny][nx] {
+                frontier.push((nx, ny, fx, fy));
+            }
+        }
+    }
+
+    maze
+}
+
+/// Kruskal's algorithm maze generation.
+fn generate_kruskals(width: usize, height: usize, seed: u64) -> Maze {
+    let mut maze = Maze::new(width, height);
+    let mut rng = SimpleRng::new(seed);
+
+    // Initialize cells
+    for y in 0..height {
+        for x in 0..width {
+            maze.carve_cell(x, y);
+        }
+    }
+
+    // Create list of all walls between cells
+    let mut walls = Vec::new();
+    for y in 0..height {
+        for x in 0..width {
+            if x < width - 1 {
+                walls.push((x, y, x + 1, y));
+            }
+            if y < height - 1 {
+                walls.push((x, y, x, y + 1));
+            }
+        }
+    }
+
+    // Shuffle walls
+    for i in (1..walls.len()).rev() {
+        let j = (rng.next_u64() as usize) % (i + 1);
+        walls.swap(i, j);
+    }
+
+    // Union-find structure
+    let mut parent: Vec<usize> = (0..width * height).collect();
+
+    fn find(parent: &mut [usize], mut i: usize) -> usize {
+        while parent[i] != i {
+            parent[i] = parent[parent[i]];
+            i = parent[i];
+        }
+        i
+    }
+
+    fn union(parent: &mut [usize], i: usize, j: usize) {
+        let pi = find(parent, i);
+        let pj = find(parent, j);
+        if pi != pj {
+            parent[pi] = pj;
+        }
+    }
+
+    // Process walls
+    for (x1, y1, x2, y2) in walls {
+        let i1 = y1 * width + x1;
+        let i2 = y2 * width + x2;
+
+        if find(&mut parent, i1) != find(&mut parent, i2) {
+            maze.carve_between(x1, y1, x2, y2);
+            union(&mut parent, i1, i2);
+        }
+    }
+
+    maze
+}
+
+/// Eller's algorithm maze generation (row-by-row).
+fn generate_ellers(width: usize, height: usize, seed: u64) -> Maze {
+    let mut maze = Maze::new(width, height);
+    let mut rng = SimpleRng::new(seed);
+
+    // Set IDs for each cell in current row
+    let mut set_id: Vec<usize> = (0..width).collect();
+    let mut next_set = width;
+
+    for y in 0..height {
+        // Carve all cells in this row
+        for x in 0..width {
+            maze.carve_cell(x, y);
+        }
+
+        // Randomly join adjacent cells in different sets
+        for x in 0..width - 1 {
+            if set_id[x] != set_id[x + 1] && (y == height - 1 || rng.next_bool()) {
+                let old_set = set_id[x + 1];
+                let new_set = set_id[x];
+                for i in 0..width {
+                    if set_id[i] == old_set {
+                        set_id[i] = new_set;
+                    }
+                }
+                maze.carve_between(x, y, x + 1, y);
+            }
+        }
+
+        // If not last row, create vertical connections
+        if y < height - 1 {
+            // Group cells by set
+            let mut sets: std::collections::HashMap<usize, Vec<usize>> =
+                std::collections::HashMap::new();
+            for (x, &s) in set_id.iter().enumerate() {
+                sets.entry(s).or_default().push(x);
+            }
+
+            // Each set must have at least one vertical connection
+            let mut has_down = vec![false; width];
+            for cells in sets.values() {
+                // Randomly select cells for vertical connections (at least one)
+                let mut made_connection = false;
+                for &x in cells {
+                    if rng.next_bool() || (!made_connection && x == *cells.last().unwrap()) {
+                        has_down[x] = true;
+                        maze.carve_between(x, y, x, y + 1);
+                        made_connection = true;
+                    }
+                }
+            }
+
+            // Create new set IDs for next row
+            for x in 0..width {
+                if !has_down[x] {
+                    set_id[x] = next_set;
+                    next_set += 1;
+                }
+            }
+        }
+    }
+
+    maze
+}
+
+/// Binary tree maze generation.
+fn generate_binary_tree(width: usize, height: usize, seed: u64) -> Maze {
+    let mut maze = Maze::new(width, height);
+    let mut rng = SimpleRng::new(seed);
+
+    for y in 0..height {
+        for x in 0..width {
+            maze.carve_cell(x, y);
+
+            // Choose to carve north or west (if possible)
+            let can_north = y > 0;
+            let can_west = x > 0;
+
+            if can_north && can_west {
+                if rng.next_bool() {
+                    maze.carve_between(x, y, x, y - 1);
+                } else {
+                    maze.carve_between(x, y, x - 1, y);
+                }
+            } else if can_north {
+                maze.carve_between(x, y, x, y - 1);
+            } else if can_west {
+                maze.carve_between(x, y, x - 1, y);
+            }
+        }
+    }
+
+    maze
+}
+
+/// Sidewinder maze generation.
+fn generate_sidewinder(width: usize, height: usize, seed: u64) -> Maze {
+    let mut maze = Maze::new(width, height);
+    let mut rng = SimpleRng::new(seed);
+
+    for y in 0..height {
+        let mut run_start = 0;
+
+        for x in 0..width {
+            maze.carve_cell(x, y);
+
+            let at_east_boundary = x == width - 1;
+            let at_north_boundary = y == 0;
+
+            let should_close = at_east_boundary || (!at_north_boundary && rng.next_bool());
+
+            if should_close {
+                if !at_north_boundary {
+                    // Carve north from a random cell in the run
+                    let carve_x = run_start + (rng.next_u64() as usize) % (x - run_start + 1);
+                    maze.carve_between(carve_x, y, carve_x, y - 1);
+                }
+                run_start = x + 1;
+            } else {
+                // Carve east
+                maze.carve_between(x, y, x + 1, y);
+            }
+        }
+    }
+
+    maze
+}
+
+/// Simple RNG for cellular automata and maze generation.
 struct SimpleRng {
     state: u64,
 }
@@ -560,5 +994,158 @@ mod tests {
         // Cell at (0,0) should count (4,4) as neighbor when wrapping
         let count = ca.count_neighbors(0, 0);
         assert!(count >= 2);
+    }
+
+    // Maze generation tests
+
+    #[test]
+    fn test_maze_dimensions() {
+        let maze = Maze::new(10, 8);
+        assert_eq!(maze.width(), 10);
+        assert_eq!(maze.height(), 8);
+        assert_eq!(maze.grid_width(), 21);
+        assert_eq!(maze.grid_height(), 17);
+    }
+
+    #[test]
+    fn test_maze_recursive_backtracker() {
+        let maze = generate_maze(5, 5, MazeAlgorithm::RecursiveBacktracker, 12345);
+        assert_eq!(maze.width(), 5);
+        assert_eq!(maze.height(), 5);
+
+        // All cells should be carved (not walls)
+        for y in 0..5 {
+            for x in 0..5 {
+                let gx = x * 2 + 1;
+                let gy = y * 2 + 1;
+                assert!(
+                    !maze.is_wall(gx, gy),
+                    "Cell ({}, {}) should be carved",
+                    x,
+                    y
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_maze_prims() {
+        let maze = generate_maze(5, 5, MazeAlgorithm::Prims, 12345);
+        assert_eq!(maze.width(), 5);
+
+        // Check that cells are connected
+        let mut passage_count = 0;
+        for row in maze.grid() {
+            for &cell in row {
+                if !cell {
+                    passage_count += 1;
+                }
+            }
+        }
+        assert!(passage_count > 0);
+    }
+
+    #[test]
+    fn test_maze_kruskals() {
+        let maze = generate_maze(5, 5, MazeAlgorithm::Kruskals, 12345);
+        assert_eq!(maze.width(), 5);
+
+        // All cells should be carved
+        for y in 0..5 {
+            for x in 0..5 {
+                let gx = x * 2 + 1;
+                let gy = y * 2 + 1;
+                assert!(!maze.is_wall(gx, gy));
+            }
+        }
+    }
+
+    #[test]
+    fn test_maze_ellers() {
+        let maze = generate_maze(5, 5, MazeAlgorithm::Ellers, 12345);
+        assert_eq!(maze.width(), 5);
+        assert_eq!(maze.height(), 5);
+    }
+
+    #[test]
+    fn test_maze_binary_tree() {
+        let maze = generate_maze(5, 5, MazeAlgorithm::BinaryTree, 12345);
+        assert_eq!(maze.width(), 5);
+
+        // First row should have only westward passages (except first cell)
+        // This is a characteristic of binary tree mazes
+    }
+
+    #[test]
+    fn test_maze_sidewinder() {
+        let maze = generate_maze(5, 5, MazeAlgorithm::Sidewinder, 12345);
+        assert_eq!(maze.width(), 5);
+    }
+
+    #[test]
+    fn test_maze_deterministic() {
+        // Same seed should produce same maze
+        let maze1 = generate_maze(10, 10, MazeAlgorithm::RecursiveBacktracker, 42);
+        let maze2 = generate_maze(10, 10, MazeAlgorithm::RecursiveBacktracker, 42);
+
+        assert_eq!(maze1.grid(), maze2.grid());
+    }
+
+    #[test]
+    fn test_maze_different_seeds() {
+        // Different seeds should produce different mazes
+        let maze1 = generate_maze(10, 10, MazeAlgorithm::RecursiveBacktracker, 1);
+        let maze2 = generate_maze(10, 10, MazeAlgorithm::RecursiveBacktracker, 2);
+
+        assert_ne!(maze1.grid(), maze2.grid());
+    }
+
+    #[test]
+    fn test_maze_to_string_art() {
+        let maze = generate_maze(3, 3, MazeAlgorithm::BinaryTree, 12345);
+        let art = maze.to_string_art();
+
+        // Should have 7 lines (3*2+1 rows)
+        let lines: Vec<_> = art.lines().collect();
+        assert_eq!(lines.len(), 7);
+
+        // Each line should have 7 characters
+        for line in &lines {
+            assert_eq!(line.chars().count(), 7);
+        }
+    }
+
+    #[test]
+    fn test_maze_all_algorithms_complete() {
+        // All algorithms should produce valid mazes
+        let algorithms = [
+            MazeAlgorithm::RecursiveBacktracker,
+            MazeAlgorithm::Prims,
+            MazeAlgorithm::Kruskals,
+            MazeAlgorithm::Ellers,
+            MazeAlgorithm::BinaryTree,
+            MazeAlgorithm::Sidewinder,
+        ];
+
+        for algo in algorithms {
+            let maze = generate_maze(8, 8, algo, 12345);
+            assert_eq!(maze.width(), 8);
+            assert_eq!(maze.height(), 8);
+
+            // All cell positions should be passages
+            for y in 0..8 {
+                for x in 0..8 {
+                    let gx = x * 2 + 1;
+                    let gy = y * 2 + 1;
+                    assert!(
+                        !maze.is_wall(gx, gy),
+                        "Algorithm {:?} failed at ({}, {})",
+                        algo,
+                        x,
+                        y
+                    );
+                }
+            }
+        }
     }
 }
