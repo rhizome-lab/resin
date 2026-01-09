@@ -14,6 +14,7 @@ mod loops;
 mod marching_cubes;
 mod mesh;
 mod morph;
+mod navmesh;
 mod obj;
 mod ops;
 mod primitives;
@@ -46,6 +47,9 @@ pub use mesh::{Mesh, MeshBuilder};
 pub use morph::{
     MorphTarget, MorphTargetSet, MorphWeights, apply_morph_targets,
     apply_morph_targets_with_normals, blend_positions,
+};
+pub use navmesh::{
+    NavMesh, NavMeshConfig, NavPath, NavPolygon, create_grid_navmesh, find_path, smooth_path,
 };
 pub use obj::{ObjError, export_obj, export_obj_with_name, import_obj, import_obj_from_reader};
 pub use ops::{
