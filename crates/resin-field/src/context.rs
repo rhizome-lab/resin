@@ -1,10 +1,10 @@
-//! Evaluation context for graph execution.
+//! Evaluation context for field sampling.
 
 use glam::UVec2;
 
-/// Context provided to nodes during evaluation.
+/// Context provided during field evaluation.
 ///
-/// Contains runtime parameters that nodes may query.
+/// Contains runtime parameters that fields may query.
 /// Follows the Shadertoy pattern for time/resolution.
 #[derive(Debug, Clone)]
 pub struct EvalContext {

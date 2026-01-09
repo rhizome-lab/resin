@@ -2,10 +2,10 @@
 
 use std::collections::HashMap;
 
-use crate::context::EvalContext;
 use crate::error::GraphError;
 use crate::node::{BoxedNode, DynNode};
 use crate::value::Value;
+use resin_field::EvalContext;
 
 /// Unique identifier for a node in a graph.
 pub type NodeId = u32;

@@ -1,8 +1,8 @@
 //! Node trait for graph execution.
 
-use crate::context::EvalContext;
 use crate::error::GraphError;
 use crate::value::{Value, ValueType};
+use resin_field::EvalContext;
 
 /// Port descriptor for a node input or output.
 #[derive(Debug, Clone)]

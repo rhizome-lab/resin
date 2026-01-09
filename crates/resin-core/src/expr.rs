@@ -18,9 +18,8 @@
 //! let value: f32 = field.sample(Vec2::new(0.5, 0.0), &ctx);
 //! ```
 
-use crate::context::EvalContext;
-use crate::field::Field;
 use glam::{Vec2, Vec3};
+use resin_field::{EvalContext, Field};
 use resin_noise;
 use std::collections::HashMap;
 

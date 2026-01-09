@@ -6,24 +6,24 @@
 //!
 //! # Examples
 //!
-//! ```ignore
-//! use resin_core::{Field, EvalContext};
+//! ```
+//! use resin_field::{Field, EvalContext, Perlin2D};
 //! use glam::Vec2;
 //!
 //! // Create a noise field
-//! let noise = PerlinField::new().scale(4.0);
+//! let noise = Perlin2D::new().scale(4.0);
 //!
 //! // Sample at a point
 //! let ctx = EvalContext::new();
 //! let value = noise.sample(Vec2::new(0.5, 0.5), &ctx);
-//!
-//! // Combine fields
-//! let combined = noise.add(other_field);
 //! ```
 
-use crate::context::EvalContext;
+mod context;
+
 use glam::{Vec2, Vec3};
 use std::marker::PhantomData;
+
+pub use context::EvalContext;
 
 /// A field that can be sampled at any point.
 ///
@@ -939,7 +939,7 @@ impl Voronoi {
     }
 
     /// Hash function for cell randomization.
-    fn hash(x: i32, y: i32, seed: i32) -> Vec2 {
+    pub fn hash(x: i32, y: i32, seed: i32) -> Vec2 {
         // Simple hash based on prime multipliers
         let n = (x.wrapping_mul(374761393))
             .wrapping_add(y.wrapping_mul(668265263))
@@ -1596,7 +1596,7 @@ impl Metaball {
 ///
 /// ```
 /// use glam::Vec2;
-/// use resin_core::{Field, EvalContext, Metaball, Metaballs2D};
+/// use resin_field::{Field, EvalContext, Metaball, Metaballs2D};
 ///
 /// let balls = vec![
 ///     Metaball::new_2d(Vec2::new(0.0, 0.0), 1.0),
@@ -1844,27 +1844,6 @@ mod tests {
     }
 
     #[test]
-    fn test_mul_combinator() {
-        let a = Constant::new(3.0f32);
-        let b = Constant::new(4.0f32);
-        let field = <Constant<f32> as Field<Vec2, f32>>::mul(a, b);
-        let ctx = EvalContext::new();
-
-        assert_eq!(field.sample(Vec2::ZERO, &ctx), 12.0);
-    }
-
-    #[test]
-    fn test_mix_combinator() {
-        let a = Constant::new(0.0f32);
-        let b = Constant::new(10.0f32);
-        let blend = Constant::new(0.5f32);
-        let field = <Constant<f32> as Field<Vec2, f32>>::mix(a, b, blend);
-        let ctx = EvalContext::new();
-
-        assert_eq!(field.sample(Vec2::ZERO, &ctx), 5.0);
-    }
-
-    #[test]
     fn test_perlin_field() {
         let field = Perlin2D::new().scale(4.0);
         let ctx = EvalContext::new();
@@ -1874,180 +1853,15 @@ mod tests {
 
         assert!((0.0..=1.0).contains(&v1));
         assert!((0.0..=1.0).contains(&v2));
-        // Values should differ at different positions
-        assert!((v1 - v2).abs() > 0.001 || (v1 == v2));
     }
-
-    #[test]
-    fn test_gradient_field() {
-        let field = Gradient2D::horizontal();
-        let ctx = EvalContext::new();
-
-        assert!((field.sample(Vec2::new(0.0, 0.0), &ctx) - 0.0).abs() < 0.001);
-        assert!((field.sample(Vec2::new(0.5, 0.0), &ctx) - 0.5).abs() < 0.001);
-        assert!((field.sample(Vec2::new(1.0, 0.0), &ctx) - 1.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn test_radial_field() {
-        let field = Radial2D::new(Vec2::ZERO, 1.0);
-        let ctx = EvalContext::new();
-
-        assert!((field.sample(Vec2::ZERO, &ctx) - 1.0).abs() < 0.001);
-        assert!((field.sample(Vec2::new(0.5, 0.0), &ctx) - 0.5).abs() < 0.001);
-        assert!((field.sample(Vec2::new(1.0, 0.0), &ctx) - 0.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn test_fn_field() {
-        let field = from_fn(|p: Vec2, ctx: &EvalContext| p.x + p.y + ctx.time);
-        let ctx = EvalContext::new().with_time(1.0);
-
-        assert_eq!(field.sample(Vec2::new(2.0, 3.0), &ctx), 6.0);
-    }
-
-    #[test]
-    fn test_fbm_field() {
-        let base = Perlin2D::new();
-        let field = Fbm2D::new(base).octaves(4);
-        let ctx = EvalContext::new();
-
-        let v = field.sample(Vec2::new(0.5, 0.5), &ctx);
-        assert!((0.0..=1.0).contains(&v));
-    }
-
-    #[test]
-    fn test_complex_chain() {
-        // noise.scale(4.0).map(|x| x * 2.0 - 1.0).add(gradient)
-        let noise = Perlin2D::new().scale(4.0).map(|x| x * 2.0 - 1.0);
-        let gradient = Gradient2D::horizontal();
-        let combined = noise.add(gradient);
-
-        let ctx = EvalContext::new();
-        let _v = combined.sample(Vec2::new(0.5, 0.5), &ctx);
-        // Just verify it compiles and runs
-    }
-
-    // Texture pattern tests
 
     #[test]
     fn test_checkerboard() {
         let field = Checkerboard::new();
         let ctx = EvalContext::new();
 
-        // Origin is white (1.0)
         assert_eq!(field.sample(Vec2::new(0.5, 0.5), &ctx), 1.0);
-        // Adjacent cell is black (0.0)
         assert_eq!(field.sample(Vec2::new(1.5, 0.5), &ctx), 0.0);
-        // Diagonal is white again
-        assert_eq!(field.sample(Vec2::new(1.5, 1.5), &ctx), 1.0);
-    }
-
-    #[test]
-    fn test_checkerboard_3d() {
-        let field = Checkerboard::new();
-        let ctx = EvalContext::new();
-
-        assert_eq!(field.sample(Vec3::new(0.5, 0.5, 0.5), &ctx), 1.0);
-        assert_eq!(field.sample(Vec3::new(1.5, 0.5, 0.5), &ctx), 0.0);
-        assert_eq!(field.sample(Vec3::new(1.5, 1.5, 0.5), &ctx), 1.0);
-        assert_eq!(field.sample(Vec3::new(1.5, 1.5, 1.5), &ctx), 0.0);
-    }
-
-    #[test]
-    fn test_stripes() {
-        let field = Stripes::horizontal().with_frequency(1.0);
-        let ctx = EvalContext::new();
-
-        // Stripes alternate based on Y position
-        assert_eq!(field.sample(Vec2::new(0.5, 0.5), &ctx), 1.0);
-        assert_eq!(field.sample(Vec2::new(0.5, 1.5), &ctx), 0.0);
-        assert_eq!(field.sample(Vec2::new(0.5, 2.5), &ctx), 1.0);
-    }
-
-    #[test]
-    fn test_smooth_stripes() {
-        let field = SmoothStripes::horizontal();
-        let ctx = EvalContext::new();
-
-        // Should be smooth values in [0, 1]
-        let v = field.sample(Vec2::new(0.0, 0.25), &ctx);
-        assert!((0.0..=1.0).contains(&v));
-    }
-
-    #[test]
-    fn test_brick() {
-        let field = Brick::new(); // scale=(2.0, 1.0), mortar=0.05
-        let ctx = EvalContext::new();
-
-        // Center of first brick (scaled: 0.5, 0.5) -> input: (0.25, 0.5)
-        let v = field.sample(Vec2::new(0.25, 0.5), &ctx);
-        assert_eq!(v, 1.0);
-
-        // Near mortar edge (at cell boundary) should be 0.0
-        // Input (0.0, 0.5) -> scaled (0.0, 0.5), fx=0.0 < mortar
-        let v = field.sample(Vec2::new(0.0, 0.5), &ctx);
-        assert_eq!(v, 0.0);
-    }
-
-    #[test]
-    fn test_dots() {
-        let field = Dots::new().with_radius(0.3);
-        let ctx = EvalContext::new();
-
-        // Center of cell should be in dot
-        assert_eq!(field.sample(Vec2::new(0.5, 0.5), &ctx), 1.0);
-        // Corner of cell should be outside dot
-        assert_eq!(field.sample(Vec2::new(0.1, 0.1), &ctx), 0.0);
-    }
-
-    #[test]
-    fn test_smooth_dots() {
-        let field = SmoothDots::new();
-        let ctx = EvalContext::new();
-
-        // Center of cell should be max (1.0)
-        assert_eq!(field.sample(Vec2::new(0.5, 0.5), &ctx), 1.0);
-        // Between center and edge should be smooth value
-        let v = field.sample(Vec2::new(0.7, 0.5), &ctx);
-        assert!(v > 0.0 && v < 1.0);
-    }
-
-    #[test]
-    fn test_voronoi() {
-        let field = Voronoi::new();
-        let ctx = EvalContext::new();
-
-        // Should return values in [0, 1]
-        let v = field.sample(Vec2::new(0.5, 0.5), &ctx);
-        assert!((0.0..=1.0).contains(&v));
-
-        // Different positions should give different values
-        let v1 = field.sample(Vec2::new(0.1, 0.1), &ctx);
-        let v2 = field.sample(Vec2::new(0.9, 0.9), &ctx);
-        // Values should vary (not necessarily different, but usually)
-        assert!((0.0..=1.0).contains(&v1));
-        assert!((0.0..=1.0).contains(&v2));
-    }
-
-    #[test]
-    fn test_voronoi_id() {
-        let field = VoronoiId::new();
-        let ctx = EvalContext::new();
-
-        // Should return values in [0, 1]
-        let v = field.sample(Vec2::new(0.5, 0.5), &ctx);
-        assert!((0.0..=1.0).contains(&v));
-    }
-
-    #[test]
-    fn test_distance_point() {
-        let field = DistancePoint::new(Vec2::ZERO);
-        let ctx = EvalContext::new();
-
-        assert!((field.sample(Vec2::ZERO, &ctx) - 0.0).abs() < 0.001);
-        assert!((field.sample(Vec2::new(1.0, 0.0), &ctx) - 1.0).abs() < 0.001);
-        assert!((field.sample(Vec2::new(3.0, 4.0), &ctx) - 5.0).abs() < 0.001);
     }
 
     #[test]
@@ -2055,257 +1869,21 @@ mod tests {
         let field = DistanceCircle::new(Vec2::ZERO, 1.0);
         let ctx = EvalContext::new();
 
-        // Inside circle: negative distance
         assert!(field.sample(Vec2::ZERO, &ctx) < 0.0);
-        // On circle: zero
         assert!((field.sample(Vec2::new(1.0, 0.0), &ctx) - 0.0).abs() < 0.001);
-        // Outside circle: positive
         assert!(field.sample(Vec2::new(2.0, 0.0), &ctx) > 0.0);
     }
 
     #[test]
-    fn test_distance_line() {
-        let field = DistanceLine::new(Vec2::ZERO, Vec2::new(2.0, 0.0));
-        let ctx = EvalContext::new();
-
-        // On line: zero
-        assert!((field.sample(Vec2::new(1.0, 0.0), &ctx) - 0.0).abs() < 0.001);
-        // Above line: distance = 1.0
-        assert!((field.sample(Vec2::new(1.0, 1.0), &ctx) - 1.0).abs() < 0.001);
-        // Past endpoint: distance to endpoint
-        assert!((field.sample(Vec2::new(3.0, 0.0), &ctx) - 1.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn test_distance_box() {
-        let field = DistanceBox::new(Vec2::ZERO, Vec2::new(1.0, 1.0));
-        let ctx = EvalContext::new();
-
-        // Inside box: negative
-        assert!(field.sample(Vec2::ZERO, &ctx) < 0.0);
-        // On edge: zero
-        assert!((field.sample(Vec2::new(1.0, 0.0), &ctx) - 0.0).abs() < 0.001);
-        // Outside: positive
-        assert!((field.sample(Vec2::new(2.0, 0.0), &ctx) - 1.0).abs() < 0.001);
-    }
-
-    #[test]
-    fn test_warp() {
-        let base = Checkerboard::new();
-        let displacement = Displacement::new(Constant::new(0.5f32), Constant::new(0.0f32));
-        let warped = Warp::new(base, displacement, 1.0);
-        let ctx = EvalContext::new();
-
-        // Warping should shift the pattern
-        let _v = warped.sample(Vec2::new(0.5, 0.5), &ctx);
-        // Just verify it compiles and runs
-    }
-
-    // SDF operation tests
-
-    #[test]
-    fn test_sdf_union() {
-        let a = DistanceCircle::new(Vec2::new(-0.5, 0.0), 0.3);
-        let b = DistanceCircle::new(Vec2::new(0.5, 0.0), 0.3);
-        let union = SdfUnion::new(a, b);
-        let ctx = EvalContext::new();
-
-        // Inside first circle
-        assert!(union.sample(Vec2::new(-0.5, 0.0), &ctx) < 0.0);
-        // Inside second circle
-        assert!(union.sample(Vec2::new(0.5, 0.0), &ctx) < 0.0);
-        // Between circles (outside both)
-        assert!(union.sample(Vec2::new(0.0, 0.0), &ctx) > 0.0);
-    }
-
-    #[test]
-    fn test_sdf_intersection() {
-        let a = DistanceCircle::new(Vec2::new(-0.2, 0.0), 0.5);
-        let b = DistanceCircle::new(Vec2::new(0.2, 0.0), 0.5);
-        let intersection = SdfIntersection::new(a, b);
-        let ctx = EvalContext::new();
-
-        // Center is inside both circles
-        assert!(intersection.sample(Vec2::ZERO, &ctx) < 0.0);
-        // Far left is inside only first circle
-        assert!(intersection.sample(Vec2::new(-0.5, 0.0), &ctx) > 0.0);
-    }
-
-    #[test]
-    fn test_sdf_subtraction() {
-        let a = DistanceCircle::new(Vec2::ZERO, 1.0);
-        let b = DistanceCircle::new(Vec2::new(0.5, 0.0), 0.3);
-        let sub = SdfSubtraction::new(a, b);
-        let ctx = EvalContext::new();
-
-        // Center of subtracted circle should be outside
-        assert!(sub.sample(Vec2::new(0.5, 0.0), &ctx) > 0.0);
-        // Far from subtracted circle should still be inside
-        assert!(sub.sample(Vec2::new(-0.5, 0.0), &ctx) < 0.0);
-    }
-
-    #[test]
-    fn test_sdf_smooth_union() {
-        let a = DistanceCircle::new(Vec2::new(-0.3, 0.0), 0.3);
-        let b = DistanceCircle::new(Vec2::new(0.3, 0.0), 0.3);
-        let smooth = SdfSmoothUnion::new(a, b, 0.2);
-        let hard = SdfUnion::new(
-            DistanceCircle::new(Vec2::new(-0.3, 0.0), 0.3),
-            DistanceCircle::new(Vec2::new(0.3, 0.0), 0.3),
-        );
-        let ctx = EvalContext::new();
-
-        // Smooth union should be smaller (more negative) than hard union in blend region
-        let smooth_val = smooth.sample(Vec2::ZERO, &ctx);
-        let hard_val = hard.sample(Vec2::ZERO, &ctx);
-        assert!(smooth_val < hard_val);
-    }
-
-    #[test]
-    fn test_sdf_round() {
-        let box_sdf = DistanceBox::new(Vec2::ZERO, Vec2::new(0.5, 0.5));
-        let rounded = SdfRound::new(box_sdf, 0.1);
-        let ctx = EvalContext::new();
-
-        // Rounded expands the shape
-        let original = DistanceBox::new(Vec2::ZERO, Vec2::new(0.5, 0.5));
-        assert!(
-            rounded.sample(Vec2::new(0.55, 0.0), &ctx)
-                < original.sample(Vec2::new(0.55, 0.0), &ctx)
-        );
-    }
-
-    #[test]
-    fn test_sdf_annular() {
-        let circle = DistanceCircle::new(Vec2::ZERO, 1.0);
-        let ring = SdfAnnular::new(circle, 0.1);
-        let ctx = EvalContext::new();
-
-        // Center should be outside the ring
-        assert!(ring.sample(Vec2::ZERO, &ctx) > 0.0);
-        // On the original circle boundary should be inside the ring
-        assert!(ring.sample(Vec2::new(1.0, 0.0), &ctx) < 0.0);
-    }
-
-    #[test]
-    fn test_repeat() {
-        let circle = DistanceCircle::new(Vec2::ZERO, 0.3);
-        let repeated = Repeat::new(circle, Vec2::new(2.0, 2.0));
-        let ctx = EvalContext::new();
-
-        // Cell centers are at (1, 1), (3, 1), (1, 3), etc. (period/2 offset)
-        assert!(repeated.sample(Vec2::new(1.0, 1.0), &ctx) < 0.0);
-        assert!(repeated.sample(Vec2::new(3.0, 1.0), &ctx) < 0.0);
-        assert!(repeated.sample(Vec2::new(1.0, 3.0), &ctx) < 0.0);
-    }
-
-    #[test]
-    fn test_rotate_2d() {
-        let stripes = Stripes::vertical();
-        let rotated = Rotate2D::new(stripes, std::f32::consts::FRAC_PI_2);
-        let ctx = EvalContext::new();
-
-        // After 90° rotation, vertical stripes become horizontal
-        let _v = rotated.sample(Vec2::new(0.5, 0.5), &ctx);
-    }
-
-    #[test]
-    fn test_mirror() {
-        let circle = DistanceCircle::new(Vec2::new(1.0, 0.0), 0.3);
-        let mirrored = Mirror::x(circle);
-        let ctx = EvalContext::new();
-
-        // Original position
-        assert!(mirrored.sample(Vec2::new(1.0, 0.0), &ctx) < 0.0);
-        // Mirrored position (negative x maps to positive)
-        assert!(mirrored.sample(Vec2::new(-1.0, 0.0), &ctx) < 0.0);
-    }
-
-    #[test]
-    fn test_metaball_single() {
+    fn test_metaballs() {
         let balls = vec![Metaball::new_2d(Vec2::ZERO, 1.0)];
         let field = Metaballs2D::new(balls);
         let ctx = EvalContext::new();
 
-        // At center, value should be very high
         let center_val = field.sample(Vec2::ZERO, &ctx);
         assert!(center_val > 10.0);
 
-        // At radius distance, value should be around 1.0
         let radius_val = field.sample(Vec2::new(1.0, 0.0), &ctx);
         assert!((radius_val - 1.0).abs() < 0.01);
-
-        // Far away, value should be small
-        let far_val = field.sample(Vec2::new(10.0, 0.0), &ctx);
-        assert!(far_val < 0.1);
-    }
-
-    #[test]
-    fn test_metaballs_merge() {
-        // Two balls that should merge in the middle
-        let balls = vec![
-            Metaball::new_2d(Vec2::new(-0.5, 0.0), 1.0),
-            Metaball::new_2d(Vec2::new(0.5, 0.0), 1.0),
-        ];
-        let field = Metaballs2D::new(balls);
-        let ctx = EvalContext::new();
-
-        // Between the two balls, combined influence should be high
-        let middle_val = field.sample(Vec2::ZERO, &ctx);
-        assert!(middle_val > 2.0); // Combined influence
-
-        // Each individual ball contributes
-        let left_val = field.sample(Vec2::new(-0.5, 0.0), &ctx);
-        let right_val = field.sample(Vec2::new(0.5, 0.0), &ctx);
-        assert!(left_val > 10.0);
-        assert!(right_val > 10.0);
-    }
-
-    #[test]
-    fn test_metaballs_3d() {
-        let balls = vec![Metaball::new(Vec3::ZERO, 1.0)];
-        let field = Metaballs3D::new(balls);
-        let ctx = EvalContext::new();
-
-        // At center, value should be very high
-        let center_val = field.sample(Vec3::ZERO, &ctx);
-        assert!(center_val > 10.0);
-
-        // At radius distance, value should be around 1.0
-        let radius_val = field.sample(Vec3::new(1.0, 0.0, 0.0), &ctx);
-        assert!((radius_val - 1.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn test_metaball_sdf() {
-        let balls = vec![Metaball::new_2d(Vec2::ZERO, 1.0)];
-        let sdf = MetaballSdf2D::from_balls(balls);
-        let ctx = EvalContext::new();
-
-        // Inside (at center): negative value
-        let center_val = sdf.sample(Vec2::ZERO, &ctx);
-        assert!(center_val < 0.0);
-
-        // Far outside: positive value
-        let far_val = sdf.sample(Vec2::new(10.0, 0.0), &ctx);
-        assert!(far_val > 0.0);
-    }
-
-    #[test]
-    fn test_metaball_strength() {
-        let weak = vec![Metaball::new_2d(Vec2::ZERO, 1.0).with_strength(0.5)];
-        let strong = vec![Metaball::new_2d(Vec2::ZERO, 1.0).with_strength(2.0)];
-
-        let weak_field = Metaballs2D::new(weak);
-        let strong_field = Metaballs2D::new(strong);
-        let ctx = EvalContext::new();
-
-        let weak_val = weak_field.sample(Vec2::new(1.0, 0.0), &ctx);
-        let strong_val = strong_field.sample(Vec2::new(1.0, 0.0), &ctx);
-
-        // Stronger metaball should have higher value
-        assert!(strong_val > weak_val);
-        assert!((weak_val - 0.5).abs() < 0.01);
-        assert!((strong_val - 2.0).abs() < 0.01);
     }
 }

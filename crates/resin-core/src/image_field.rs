@@ -21,9 +21,8 @@ use std::path::Path;
 use glam::{Vec2, Vec4};
 use image::{DynamicImage, GenericImageView, ImageError};
 
-use crate::context::EvalContext;
-use crate::field::Field;
 use resin_color::Rgba;
+use resin_field::{EvalContext, Field};
 
 /// How to handle UV coordinates outside [0, 1].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
