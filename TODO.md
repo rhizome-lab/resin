@@ -3,7 +3,6 @@
 ## Next Up
 
 ## Backlog
-- [ ] Mesh repair (hole filling)
 - [ ] Geodesic distance
 - [ ] Wave function collapse
 - [ ] Space colonization
@@ -11,6 +10,7 @@
 
 ## Done
 
+- [x] Mesh repair (find_boundary_loops, fill_hole_fan, fill_hole_ear_clip, fill_hole_minimum_area)
 - [x] Spring physics (SpringSystem, Verlet integration, create_rope, create_cloth, create_soft_sphere)
 - [x] Reaction-diffusion (ReactionDiffusion, GrayScottPreset, MultiChannelRD, 5-point Laplacian)
 - [x] SVG import/parsing (parse_path_data, M/L/H/V/C/S/Q/T/A/Z commands, arc to cubic conversion)

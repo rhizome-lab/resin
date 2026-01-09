@@ -15,6 +15,7 @@ mod morph;
 mod obj;
 mod ops;
 mod primitives;
+pub mod repair;
 mod subdivision;
 mod uv;
 
