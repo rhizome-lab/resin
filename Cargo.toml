@@ -39,7 +39,6 @@ bevy = { version = "0.15", default-features = false, features = [
 
 # Resin crates
 rhizome-resin-core = { path = "crates/resin-core" }
-rhizome-resin-expr = { path = "crates/resin-expr" }
 rhizome-resin-mesh = { path = "crates/resin-mesh" }
 rhizome-resin-audio = { path = "crates/resin-audio" }
 rhizome-resin-vector = { path = "crates/resin-vector" }

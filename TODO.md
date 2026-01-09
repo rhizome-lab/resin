@@ -4,6 +4,31 @@
 
 ## Backlog
 
+### Procedural / Simulation
+- [ ] Voxels - voxel grids, SDF → voxel conversion, voxel editing, sparse storage
+- [ ] Point clouds - sampling from meshes/SDFs, reconstruction, filtering, normals estimation
+- [ ] Texture baking - render Field → Image at UV coords, lightmap baking
+- [ ] Fluid simulation - SPH, grid-based, 2D/3D
+- [ ] Smoke/gas simulation - density advection, buoyancy
+- [ ] Rigid body physics - collision detection, constraints, stacking
+
+### Audio
+- [ ] Spectral processing - FFT, STFT, spectral filtering, pitch detection
+- [ ] Vocoder - analysis/synthesis, cross-synthesis
+- [ ] Physical modeling (percussion) - membranes, bars, plates
+
+### File Formats
+
+> **Note:** These need serious design consideration. May be better handled by [Cambium](https://github.com/rhizome-lab/cambium) (pipeline orchestrator for data conversion).
+
+- [ ] FBX import - proprietary, complex; may need external lib or Cambium
+- [ ] USD import/export - massive spec; likely needs OpenUSD bindings or Cambium
+- [ ] Alembic import/export - cached geometry/animation; C++ lib with Rust bindings exists
+
+### Export / Rendering
+- [ ] Animation export - image sequences, GIF encoding
+- [ ] Video export - mp4/webm encoding (likely via external tool/ffmpeg)
+
 ## Done
 - [x] 2D rasterization (Rasterizer, scanline algorithm, FillRule, alpha compositing, stroke rasterization)
 

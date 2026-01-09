@@ -59,7 +59,7 @@ Mesh primitives             rhizome-resin-instances (instancing)
 Audio nodes                 rhizome-resin-poly (polyphony)
 Rig primitives              rhizome-resin-autorig (procedural rigging)
 Skeleton/skinning           rhizome-resin-anim (animation blending)
-Expression core             rhizome-resin-expr-opt (constant folding)
+Expressions (dew)           rhizome-resin-expr-field (Field integration)
 ```
 
 **Why plugins:**
@@ -188,19 +188,17 @@ crates/
   rhizome-resin-vector/       # 2D vector art, paths
   rhizome-resin-rig/          # rigging, bones, skinning
 
-  # Expression crates
-  rhizome-resin-expr/         # core AST, interpreter
-  rhizome-resin-expr-macros/  # proc macros for expressions
-  rhizome-resin-expr-parse/   # runtime parser
-  rhizome-resin-expr-wgsl/    # WGSL codegen
-  rhizome-resin-expr-cranelift/ # Cranelift JIT
+  # Expression integration
+  rhizome-resin-expr-field/   # bridges dew expressions to Field system
+
+  # External dependencies
+  # dew (git)                 # expression AST, parsing, eval, backends
 
   # Plugin crates (opt-in)
   rhizome-resin-instances/    # mesh instancing
   rhizome-resin-poly/         # audio polyphony
   rhizome-resin-autorig/      # procedural rigging
   rhizome-resin-anim/         # animation blending
-  rhizome-resin-expr-opt/     # expression optimization
 ```
 
 Each crate should be usable independently.

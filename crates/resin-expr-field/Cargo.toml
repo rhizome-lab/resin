@@ -8,9 +8,7 @@ repository = "https://github.com/rhizome-lab/resin"
 
 [dependencies]
 glam.workspace = true
-rhizome-resin-expr = { path = "../resin-expr" }
+rhizome-dew-core = { git = "https://github.com/rhizome-lab/dew" }
+rhizome-dew-scalar = { git = "https://github.com/rhizome-lab/dew" }
 rhizome-resin-field = { path = "../resin-field" }
 rhizome-resin-noise = { path = "../resin-noise" }
-
-[dev-dependencies]
-rhizome-resin-expr-std = { path = "../resin-expr-std" }

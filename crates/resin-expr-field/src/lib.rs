@@ -6,14 +6,12 @@
 //! # Example
 //!
 //! ```
-//! use rhizome_resin_expr_field::{ExprField, register_noise};
-//! use rhizome_resin_expr::FunctionRegistry;
-//! use rhizome_resin_expr_std::std_registry;
+//! use rhizome_resin_expr_field::{ExprField, register_noise, scalar_registry};
 //! use rhizome_resin_field::{Field, EvalContext};
 //! use glam::Vec2;
 //!
 //! // Create registry with standard math + noise functions
-//! let mut registry = std_registry();
+//! let mut registry = scalar_registry();
 //! register_noise(&mut registry);
 //!
 //! let field = ExprField::parse("sin(x * 3.14159) + noise(x, y)", registry).unwrap();
@@ -22,9 +20,14 @@
 //! ```
 
 use glam::{Vec2, Vec3};
-use rhizome_resin_expr::{EvalError, Expr, ExprFn, FunctionRegistry, ParseError};
+use rhizome_dew_core::{Expr, ParseError};
+use rhizome_dew_scalar::{FunctionRegistry, ScalarFn};
 use rhizome_resin_field::{EvalContext, Field};
 use std::collections::HashMap;
+
+// Re-export dew types for convenience
+pub use rhizome_dew_core::{Ast, BinOp, UnaryOp};
+pub use rhizome_dew_scalar::{Error as EvalError, scalar_registry};
 
 // ============================================================================
 // Noise expression functions
@@ -32,7 +35,7 @@ use std::collections::HashMap;
 
 /// 2D Perlin noise: noise(x, y)
 pub struct Noise;
-impl ExprFn for Noise {
+impl ScalarFn<f32> for Noise {
     fn name(&self) -> &str {
         "noise"
     }
@@ -47,7 +50,7 @@ impl ExprFn for Noise {
 
 /// 2D Perlin noise: perlin(x, y)
 pub struct Perlin;
-impl ExprFn for Perlin {
+impl ScalarFn<f32> for Perlin {
     fn name(&self) -> &str {
         "perlin"
     }
@@ -62,7 +65,7 @@ impl ExprFn for Perlin {
 
 /// 3D Perlin noise: perlin3(x, y, z)
 pub struct Perlin3;
-impl ExprFn for Perlin3 {
+impl ScalarFn<f32> for Perlin3 {
     fn name(&self) -> &str {
         "perlin3"
     }
@@ -77,7 +80,7 @@ impl ExprFn for Perlin3 {
 
 /// 2D Simplex noise: simplex(x, y)
 pub struct Simplex;
-impl ExprFn for Simplex {
+impl ScalarFn<f32> for Simplex {
     fn name(&self) -> &str {
         "simplex"
     }
@@ -92,7 +95,7 @@ impl ExprFn for Simplex {
 
 /// 3D Simplex noise: simplex3(x, y, z)
 pub struct Simplex3;
-impl ExprFn for Simplex3 {
+impl ScalarFn<f32> for Simplex3 {
     fn name(&self) -> &str {
         "simplex3"
     }
@@ -107,7 +110,7 @@ impl ExprFn for Simplex3 {
 
 /// 2D FBM noise: fbm(x, y, octaves)
 pub struct Fbm;
-impl ExprFn for Fbm {
+impl ScalarFn<f32> for Fbm {
     fn name(&self) -> &str {
         "fbm"
     }
@@ -121,7 +124,7 @@ impl ExprFn for Fbm {
 }
 
 /// Registers noise functions into a FunctionRegistry.
-pub fn register_noise(registry: &mut FunctionRegistry) {
+pub fn register_noise(registry: &mut FunctionRegistry<f32>) {
     registry.register(Noise);
     registry.register(Perlin);
     registry.register(Perlin3);
@@ -142,23 +145,23 @@ pub fn register_noise(registry: &mut FunctionRegistry) {
 /// - Mapping EvalContext to the `time` variable
 pub struct ExprField {
     expr: Expr,
-    registry: FunctionRegistry,
+    registry: FunctionRegistry<f32>,
 }
 
 impl ExprField {
     /// Creates a new ExprField with the given registry.
-    pub fn new(expr: Expr, registry: FunctionRegistry) -> Self {
+    pub fn new(expr: Expr, registry: FunctionRegistry<f32>) -> Self {
         Self { expr, registry }
     }
 
     /// Parses an expression and creates an ExprField with the given registry.
-    pub fn parse(input: &str, registry: FunctionRegistry) -> Result<Self, ParseError> {
+    pub fn parse(input: &str, registry: FunctionRegistry<f32>) -> Result<Self, ParseError> {
         Ok(Self::new(Expr::parse(input)?, registry))
     }
 
     /// Evaluates with explicit variable bindings.
     pub fn eval(&self, vars: &HashMap<String, f32>) -> Result<f32, EvalError> {
-        self.expr.eval(vars, &self.registry)
+        rhizome_dew_scalar::eval(self.expr.ast(), vars, &self.registry)
     }
 }
 
@@ -171,7 +174,7 @@ impl Field<Vec2, f32> for ExprField {
             ("t".to_string(), ctx.time),
         ]
         .into();
-        self.expr.eval(&vars, &self.registry).unwrap_or(0.0)
+        rhizome_dew_scalar::eval(self.expr.ast(), &vars, &self.registry).unwrap_or(0.0)
     }
 }
 
@@ -185,7 +188,7 @@ impl Field<Vec3, f32> for ExprField {
             ("t".to_string(), ctx.time),
         ]
         .into();
-        self.expr.eval(&vars, &self.registry).unwrap_or(0.0)
+        rhizome_dew_scalar::eval(self.expr.ast(), &vars, &self.registry).unwrap_or(0.0)
     }
 }
 
@@ -195,7 +198,7 @@ mod tests {
 
     #[test]
     fn test_expr_field_2d() {
-        let registry = FunctionRegistry::new();
+        let registry = FunctionRegistry::<f32>::new();
         let field = ExprField::parse("x + y", registry).unwrap();
         let ctx = EvalContext::new();
         let v: f32 = field.sample(Vec2::new(3.0, 4.0), &ctx);
@@ -204,7 +207,7 @@ mod tests {
 
     #[test]
     fn test_expr_field_3d() {
-        let registry = FunctionRegistry::new();
+        let registry = FunctionRegistry::<f32>::new();
         let field = ExprField::parse("x + y + z", registry).unwrap();
         let ctx = EvalContext::new();
         let v: f32 = field.sample(Vec3::new(1.0, 2.0, 3.0), &ctx);
@@ -213,7 +216,7 @@ mod tests {
 
     #[test]
     fn test_expr_field_time() {
-        let registry = FunctionRegistry::new();
+        let registry = FunctionRegistry::<f32>::new();
         let field = ExprField::parse("time", registry).unwrap();
         let ctx = EvalContext::new().with_time(5.0);
         let v: f32 = field.sample(Vec2::ZERO, &ctx);
@@ -222,20 +225,20 @@ mod tests {
 
     #[test]
     fn test_noise_functions() {
-        let mut registry = FunctionRegistry::new();
+        let mut registry = FunctionRegistry::<f32>::new();
         register_noise(&mut registry);
 
         let expr = Expr::parse("noise(0.5, 0.5)").unwrap();
         let vars = HashMap::new();
-        let v = expr.eval(&vars, &registry).unwrap();
+        let v = rhizome_dew_scalar::eval(expr.ast(), &vars, &registry).unwrap();
         assert!((0.0..=1.0).contains(&v));
 
         let expr = Expr::parse("perlin(0.5, 0.5)").unwrap();
-        let v = expr.eval(&vars, &registry).unwrap();
+        let v = rhizome_dew_scalar::eval(expr.ast(), &vars, &registry).unwrap();
         assert!((0.0..=1.0).contains(&v));
 
         let expr = Expr::parse("simplex(0.5, 0.5)").unwrap();
-        let v = expr.eval(&vars, &registry).unwrap();
+        let v = rhizome_dew_scalar::eval(expr.ast(), &vars, &registry).unwrap();
         assert!((0.0..=1.0).contains(&v));
     }
 }

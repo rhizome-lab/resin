@@ -39,7 +39,7 @@ See [expression-language](./design/expression-language.md) for full design.
 | Expr -> WGSL codegen | ✅ Resolved | String generation from AST. Decomposition-first for plugins. |
 | Expr -> Cranelift codegen | ✅ Resolved | IR generation, external calls for complex functions. |
 | Plugin function API | ✅ Resolved | Core trait + backend extension traits in backend crates. |
-| Constant folding | ✅ Resolved | Separate rhizome-resin-expr-opt crate, AST -> AST transform. |
+| Constant folding | ✅ Resolved | AST -> AST transform (could be in dew or wrapper). |
 
 ## Ops & Serialization
 
@@ -128,7 +128,7 @@ See [expression-language](./design/expression-language.md) for full design.
 - WGSL codegen (string generation, decomposition-first)
 - Cranelift codegen (IR generation, external calls)
 - Plugin function API (core trait + backend extension traits)
-- Constant folding (rhizome-resin-expr-opt crate, AST transform)
+- Constant folding (AST transform in dew or wrapper)
 
 **Ops & Serialization:**
 - Ops as values (derive macro for DynOp impl)

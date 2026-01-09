@@ -2,6 +2,9 @@
 
 Serializable expressions that replace closures for transforms.
 
+> **Implementation:** Expressions are provided by [dew](https://github.com/rhizome-lab/dew), a separate expression library.
+> The `rhizome-resin-expr-field` crate bridges dew to the Field system.
+
 ## The Problem
 
 Closures can't be serialized:
@@ -16,113 +19,145 @@ struct MapVertices {
 }
 ```
 
-## Solution: Expression AST
+## Solution: Expression AST (dew)
 
-Expressions are data structures that represent computations:
+Expressions are data structures that represent computations. We use the `dew` crate:
 
 ```rust
-// Instead of closure:
-mesh.map_vertices(|v| v * 2.0)
+use rhizome_dew_core::Expr;
+use rhizome_dew_scalar::{scalar_registry, eval};
 
-// Expression:
-mesh.map_vertices(Expr::Mul(Expr::Var(Position), Expr::Const(2.0)))
+// Parse an expression
+let expr = Expr::parse("x * 2.0 + y").unwrap();
 
-// With builder sugar:
-mesh.map_vertices(var::position() * 2.0)
+// Evaluate with variable bindings
+let vars = [("x".to_string(), 3.0), ("y".to_string(), 1.0)].into();
+let result = eval(expr.ast(), &vars, &scalar_registry()).unwrap();
+// result = 7.0
+```
+
+### Using with Fields
+
+The `rhizome-resin-expr-field` crate provides `ExprField` which bridges dew to the Field system:
+
+```rust
+use rhizome_resin_expr_field::{ExprField, register_noise, scalar_registry};
+use rhizome_resin_field::{Field, EvalContext};
+use glam::Vec2;
+
+// Create registry with standard math + noise functions
+let mut registry = scalar_registry();
+register_noise(&mut registry);
+
+// Parse and use as a Field
+let field = ExprField::parse("sin(x * 3.14159) + noise(x, y)", registry).unwrap();
+let ctx = EvalContext::new();
+let value: f32 = field.sample(Vec2::new(0.5, 0.5), &ctx);
 ```
 
 ## AST Design
 
-### Core Types
+> **Note:** The dew library provides the actual AST implementation. See the [dew repository](https://github.com/rhizome-lab/dew) for details.
+
+### dew-core AST
 
 ```rust
-/// Scalar or vector value
-#[derive(Clone, Serialize, Deserialize)]
-pub enum Scalar {
-    F32(f32),
-    F64(f64),
-    I32(i32),
-    Bool(bool),
+/// Expression AST node (from dew-core)
+pub enum Ast {
+    Num(f32),                          // Numeric literal
+    Var(String),                       // Variable reference
+    BinOp(BinOp, Box<Ast>, Box<Ast>), // Binary operation (+, -, *, /, ^)
+    UnaryOp(UnaryOp, Box<Ast>),        // Unary operation (-)
+    Call(String, Vec<Ast>),            // Function call
 }
+```
 
-/// Expression AST node
-#[derive(Clone, Serialize, Deserialize)]
-pub enum Expr {
-    // === Literals ===
-    Const(Scalar),
-    Vec2([Box<Expr>; 2]),
-    Vec3([Box<Expr>; 3]),
-    Vec4([Box<Expr>; 4]),
+### Conceptual Extensions
 
-    // === Variables (bound by evaluation context) ===
-    Var(VarId),
+The design below describes potential extensions that could be added to dew or a wrapper layer. These are not currently implemented but inform future direction.
 
-    // === Arithmetic (scalar and vector) ===
-    Add(Box<Expr>, Box<Expr>),
-    Sub(Box<Expr>, Box<Expr>),
-    Mul(Box<Expr>, Box<Expr>),
-    Div(Box<Expr>, Box<Expr>),
-    Neg(Box<Expr>),
-    Mod(Box<Expr>, Box<Expr>),
+```rust
+/// Extended AST (conceptual - not in dew)
+pub enum ExtendedExpr {
+    // === Vector literals ===
+    Vec2([Box<ExtendedExpr>; 2]),
+    Vec3([Box<ExtendedExpr>; 3]),
+    Vec4([Box<ExtendedExpr>; 4]),
 
     // === Comparison ===
-    Eq(Box<Expr>, Box<Expr>),
-    Ne(Box<Expr>, Box<Expr>),
-    Lt(Box<Expr>, Box<Expr>),
-    Le(Box<Expr>, Box<Expr>),
-    Gt(Box<Expr>, Box<Expr>),
-    Ge(Box<Expr>, Box<Expr>),
-
-    // === Boolean ===
-    And(Box<Expr>, Box<Expr>),
-    Or(Box<Expr>, Box<Expr>),
-    Not(Box<Expr>),
+    Eq(Box<ExtendedExpr>, Box<ExtendedExpr>),
+    Lt(Box<ExtendedExpr>, Box<ExtendedExpr>),
+    // ...
 
     // === Control flow ===
-    If(Box<Expr>, Box<Expr>, Box<Expr>),  // cond, then, else
+    If(Box<ExtendedExpr>, Box<ExtendedExpr>, Box<ExtendedExpr>),
 
     // === Let binding ===
-    Let(VarId, Box<Expr>, Box<Expr>),  // let var = value in body
-
-    // === Function calls (resolved by name at eval time) ===
-    Call(String, Vec<Expr>),
+    Let(String, Box<ExtendedExpr>, Box<ExtendedExpr>),
 
     // === Vector ops ===
-    Swizzle(Box<Expr>, Swizzle),  // v.xy, v.zyx, etc.
-    Index(Box<Expr>, usize),      // v[0]
+    Swizzle(Box<ExtendedExpr>, Swizzle),
+    Index(Box<ExtendedExpr>, usize),
 }
-
-/// Swizzle pattern (up to 4 components)
-#[derive(Clone, Serialize, Deserialize)]
-pub struct Swizzle(pub Vec<Component>);
-
-#[derive(Clone, Copy, Serialize, Deserialize)]
-pub enum Component { X, Y, Z, W }
 ```
 
 ## Functions
 
-All functions (including `sin`, `cos`, etc.) are registered via `ExprFn` trait. No hardcoded function enum - everything is a plugin.
+All functions are registered via a function registry. In dew, this is `ScalarFn<T>`:
 
-### ExprFn Trait
+### ScalarFn Trait (from dew-scalar)
 
 ```rust
-/// Expression function - all functions implement this
-pub trait ExprFn: Send + Sync {
-    /// Unique function name (e.g., "sin", "rhizome_resin_noise::perlin")
+/// Scalar function trait (from dew-scalar)
+pub trait ScalarFn<T>: Send + Sync {
     fn name(&self) -> &str;
-
-    /// Function signature for type checking
-    fn signature(&self) -> FnSignature;
-
-    /// Express as simpler expressions (enables automatic backend support)
-    /// If this returns Some, backends can compile without knowing about this function.
-    fn decompose(&self, args: &[Expr]) -> Option<Expr> { None }
-
-    /// CPU interpretation (required - universal fallback)
-    fn interpret(&self, args: &[Value]) -> Result<Value>;
+    fn arg_count(&self) -> usize;
+    fn call(&self, args: &[T]) -> T;
 }
 ```
+
+### Resin Noise Functions
+
+The `rhizome-resin-expr-field` crate provides noise functions:
+
+```rust
+use rhizome_resin_expr_field::{register_noise, scalar_registry};
+
+let mut registry = scalar_registry();  // Standard math (sin, cos, etc.)
+register_noise(&mut registry);         // Adds: noise, perlin, perlin3, simplex, simplex3, fbm
+
+// Available functions:
+// - noise(x, y)      - 2D Perlin noise
+// - perlin(x, y)     - 2D Perlin noise (alias)
+// - perlin3(x, y, z) - 3D Perlin noise
+// - simplex(x, y)    - 2D Simplex noise
+// - simplex3(x, y, z)- 3D Simplex noise
+// - fbm(x, y, octaves) - 2D FBM noise
+```
+
+### Custom Functions
+
+```rust
+use rhizome_dew_scalar::{ScalarFn, FunctionRegistry};
+
+struct MyFunction;
+impl ScalarFn<f32> for MyFunction {
+    fn name(&self) -> &str { "my_func" }
+    fn arg_count(&self) -> usize { 2 }
+    fn call(&self, args: &[f32]) -> f32 {
+        args[0] * args[1] + 1.0
+    }
+}
+
+let mut registry = FunctionRegistry::new();
+registry.register(MyFunction);
+```
+
+---
+
+## Future: Backend Extensions
+
+> **Note:** The sections below describe potential future architecture for multi-backend compilation (WGSL, Cranelift, Lua). dew already has some of this infrastructure - see its `cranelift`, `wgsl`, and `lua` modules.
 
 ### Backend Extension Traits
 
@@ -751,55 +786,41 @@ Expressions are pure. No assignment, no side effects.
 
 ## Crate Structure
 
-```
-rhizome-resin-expr/           # Core: AST, types, registry, interpreter loop
-rhizome-resin-expr-std/       # Standard functions (sin, cos, etc.)
-rhizome-resin-expr-macros/    # Proc macro: expr!()
-rhizome-resin-expr-parse/     # Runtime parser
-rhizome-resin-expr-wgsl/      # WGSL codegen + WGSL impls for std functions
-rhizome-resin-expr-cranelift/ # Cranelift JIT codegen + native impls
-rhizome-resin-expr-lua/       # Lua codegen (potential)
-```
+### Current Implementation
 
-**Why this split:**
-
-| Crate | Reason for separation |
-|-------|----------------------|
-| `rhizome-resin-expr-std` | Standard functions, optional (users can provide their own) |
-| `rhizome-resin-expr-macros` | Required - proc macros must be own crate |
-| `rhizome-resin-expr-parse` | Optional - not needed for hardcoded expressions |
-| `rhizome-resin-expr-wgsl` | Optional - not needed for CPU-only |
-| `rhizome-resin-expr-cranelift` | Optional - very heavy dep (~50 crates) |
-| `rhizome-resin-expr-lua` | Optional - for Lua scripting integration |
-
-**Core crate includes interpreter loop:**
-
-The interpreter loop lives in core, not a separate crate. Reasons:
-
-1. **Universal fallback** - Any code using expressions can always evaluate them
-2. **Function development** - Authors need `interpret()` for testing without backends
-3. **Small footprint** - ~100 LOC, just the AST walker
-4. **Required by trait** - `ExprFn::interpret()` is mandatory
-
-The interpreter loop just walks the AST and calls `registry.get(name)?.interpret(args)` for function calls.
-
-**Dependency flow:**
+Expressions are now provided by the `dew` library:
 
 ```
-rhizome-resin-expr-std ──────┐
-                     │
-rhizome-resin-expr-macros ───┼──▶ rhizome-resin-expr (core)
-                     │
-rhizome-resin-expr-parse ────┤
-                     │
-rhizome-resin-expr-wgsl ─────┼──▶ rhizome-resin-expr-std (for WgslExprFn impls)
-                     │
-rhizome-resin-expr-cranelift─┤
-                     │
-rhizome-resin-expr-lua ──────┘
+dew (external git dependency):
+├── dew-core/      # AST, parsing
+├── dew-scalar/    # Scalar functions, registry, eval
+├── dew-linalg/    # Linear algebra (future)
+├── dew-complex/   # Complex numbers (future)
+├── dew-quaternion/# Quaternions (future)
+├── cranelift.rs   # Cranelift JIT codegen
+├── wgsl.rs        # WGSL shader codegen
+└── lua.rs         # Lua codegen
+
+resin:
+└── rhizome-resin-expr-field/  # Bridge: dew + Field + noise functions
 ```
 
-Backend crates depend on both core (for traits) and std (for backend-specific impls of std functions).
+### Resin Expression Crate
+
+**rhizome-resin-expr-field** provides:
+- `ExprField`: evaluates expressions as spatial fields (implements `Field<Vec2, f32>` and `Field<Vec3, f32>`)
+- Noise functions: `noise`, `perlin`, `perlin3`, `simplex`, `simplex3`, `fbm`
+- Re-exports of key dew types for convenience
+
+**Dependencies:**
+
+```
+rhizome-resin-expr-field
+├── rhizome-dew-core      # Parsing, AST
+├── rhizome-dew-scalar    # FunctionRegistry, eval, scalar_registry
+├── rhizome-resin-field   # Field trait, EvalContext
+└── rhizome-resin-noise   # Noise implementations
+```
 
 ## Decisions
 
@@ -821,12 +842,12 @@ Backend crates depend on both core (for traits) and std (for backend-specific im
 
 | Aspect | Decision |
 |--------|----------|
-| AST scope | Math + conditionals + let bindings |
+| Implementation | [dew](https://github.com/rhizome-lab/dew) library (external) |
+| AST scope | Math + function calls (via dew-core) |
 | Loops | No (use graph recurrence) |
-| Functions | All functions are `ExprFn` plugins, no hardcoded set |
-| Standard library | `rhizome-resin-expr-std` crate, optional |
-| Backends | WGSL, Cranelift, Lua (potential) via extension traits |
-| Fallback strategy | `decompose()` -> backend impl -> `interpret()` |
-| Type system | Inference from operations |
-| Construction | Builders, proc macro, runtime parser |
-| Crate structure | Core + std + macros + parse + backends |
+| Functions | All functions are `ScalarFn<T>` plugins |
+| Standard library | `dew-scalar::scalar_registry()` provides math functions |
+| Noise functions | `rhizome-resin-expr-field::register_noise()` |
+| Backends | WGSL, Cranelift, Lua (in dew crate) |
+| Field integration | `ExprField` in `rhizome-resin-expr-field` |
+| Type system | Generic over float type via `ScalarFn<T>` |
