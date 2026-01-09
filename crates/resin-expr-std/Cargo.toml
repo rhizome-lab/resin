@@ -6,4 +6,5 @@ description = "Standard function library for resin expressions"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-resin-core = { path = "../resin-core" }
+resin-expr = { path = "../resin-expr" }
+resin-core = { path = "../resin-core" }  # For noise functions

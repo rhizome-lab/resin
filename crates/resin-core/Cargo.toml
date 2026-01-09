@@ -10,3 +10,4 @@ glam.workspace = true
 thiserror.workspace = true
 image.workspace = true
 resin-macros = { path = "../resin-macros" }
+resin-expr = { path = "../resin-expr" }

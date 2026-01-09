@@ -1,21 +1,24 @@
 //! Standard function library for resin expressions.
 //!
-//! Provides common math functions (sin, cos, sqrt, etc.) that can be registered
-//! with an expression `FunctionRegistry`.
+//! Provides common math functions (sin, cos, sqrt, etc.) and constants (pi, e)
+//! that can be registered with an expression `FunctionRegistry`.
 //!
 //! # Usage
 //!
-//! ```ignore
-//! use resin_core::expr::{Expr, FunctionRegistry};
+//! ```
+//! use resin_expr::{Expr, FunctionRegistry};
 //! use resin_expr_std::register_std;
+//! use std::collections::HashMap;
 //!
 //! let mut registry = FunctionRegistry::new();
 //! register_std(&mut registry);
 //!
-//! let expr = Expr::parse("sin(x) + cos(y)").unwrap();
+//! let expr = Expr::parse("sin(x) + pi()").unwrap();
+//! let vars: HashMap<String, f32> = [("x".to_string(), 0.0)].into();
+//! let value = expr.eval(&vars, &registry).unwrap();
 //! ```
 
-use resin_core::expr::{Ast, ExprFn, FunctionRegistry};
+use resin_expr::{Ast, ExprFn, FunctionRegistry};
 
 // ============================================================================
 // Macro for simple functions
@@ -28,12 +31,58 @@ macro_rules! define_fn {
         impl ExprFn for $name {
             fn name(&self) -> &str { $str_name }
             fn arg_count(&self) -> usize { $args }
-            fn interpret(&self, args: &[f32]) -> f32 {
+            fn call(&self, args: &[f32]) -> f32 {
                 let [$($arg),*] = args else { return 0.0 };
                 $body
             }
         }
     };
+}
+
+// ============================================================================
+// Constants (0-arg functions)
+// ============================================================================
+
+/// Pi constant: pi() = 3.14159...
+pub struct Pi;
+impl ExprFn for Pi {
+    fn name(&self) -> &str {
+        "pi"
+    }
+    fn arg_count(&self) -> usize {
+        0
+    }
+    fn call(&self, _args: &[f32]) -> f32 {
+        std::f32::consts::PI
+    }
+}
+
+/// Euler's number: e() = 2.71828...
+pub struct E;
+impl ExprFn for E {
+    fn name(&self) -> &str {
+        "e"
+    }
+    fn arg_count(&self) -> usize {
+        0
+    }
+    fn call(&self, _args: &[f32]) -> f32 {
+        std::f32::consts::E
+    }
+}
+
+/// Tau constant: tau() = 2*pi = 6.28318...
+pub struct Tau;
+impl ExprFn for Tau {
+    fn name(&self) -> &str {
+        "tau"
+    }
+    fn arg_count(&self) -> usize {
+        0
+    }
+    fn call(&self, _args: &[f32]) -> f32 {
+        std::f32::consts::TAU
+    }
 }
 
 // ============================================================================
@@ -94,7 +143,7 @@ impl ExprFn for Lerp {
     fn arg_count(&self) -> usize {
         3
     }
-    fn interpret(&self, args: &[f32]) -> f32 {
+    fn call(&self, args: &[f32]) -> f32 {
         let [a, b, t] = args else { return 0.0 };
         a + (b - a) * t
     }
@@ -109,7 +158,7 @@ impl ExprFn for Mix {
     fn arg_count(&self) -> usize {
         3
     }
-    fn interpret(&self, args: &[f32]) -> f32 {
+    fn call(&self, args: &[f32]) -> f32 {
         let [a, b, t] = args else { return 0.0 };
         a + (b - a) * t
     }
@@ -124,7 +173,7 @@ impl ExprFn for Step {
     fn arg_count(&self) -> usize {
         2
     }
-    fn interpret(&self, args: &[f32]) -> f32 {
+    fn call(&self, args: &[f32]) -> f32 {
         let [edge, x] = args else { return 0.0 };
         if x < edge { 0.0 } else { 1.0 }
     }
@@ -139,7 +188,7 @@ impl ExprFn for Smoothstep {
     fn arg_count(&self) -> usize {
         3
     }
-    fn interpret(&self, args: &[f32]) -> f32 {
+    fn call(&self, args: &[f32]) -> f32 {
         let [edge0, edge1, x] = args else { return 0.0 };
         let t = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
         t * t * (3.0 - 2.0 * t)
@@ -159,7 +208,7 @@ impl ExprFn for InverseLerp {
     fn arg_count(&self) -> usize {
         3
     }
-    fn interpret(&self, args: &[f32]) -> f32 {
+    fn call(&self, args: &[f32]) -> f32 {
         let [a, b, v] = args else { return 0.0 };
         (v - a) / (b - a)
     }
@@ -172,14 +221,14 @@ impl ExprFn for InverseLerp {
         let v = &args[2];
         // (v - a) / (b - a)
         Some(Ast::BinOp(
-            resin_core::expr::BinOp::Div,
+            resin_expr::BinOp::Div,
             Box::new(Ast::BinOp(
-                resin_core::expr::BinOp::Sub,
+                resin_expr::BinOp::Sub,
                 Box::new(v.clone()),
                 Box::new(a.clone()),
             )),
             Box::new(Ast::BinOp(
-                resin_core::expr::BinOp::Sub,
+                resin_expr::BinOp::Sub,
                 Box::new(b.clone()),
                 Box::new(a.clone()),
             )),
@@ -196,7 +245,7 @@ impl ExprFn for Remap {
     fn arg_count(&self) -> usize {
         5
     }
-    fn interpret(&self, args: &[f32]) -> f32 {
+    fn call(&self, args: &[f32]) -> f32 {
         let [x, in_lo, in_hi, out_lo, out_hi] = args else {
             return 0.0;
         };
@@ -218,7 +267,7 @@ impl ExprFn for Noise {
     fn arg_count(&self) -> usize {
         2
     }
-    fn interpret(&self, args: &[f32]) -> f32 {
+    fn call(&self, args: &[f32]) -> f32 {
         let [x, y] = args else { return 0.0 };
         resin_core::noise::perlin2(*x, *y)
     }
@@ -233,7 +282,7 @@ impl ExprFn for Perlin {
     fn arg_count(&self) -> usize {
         2
     }
-    fn interpret(&self, args: &[f32]) -> f32 {
+    fn call(&self, args: &[f32]) -> f32 {
         let [x, y] = args else { return 0.0 };
         resin_core::noise::perlin2(*x, *y)
     }
@@ -248,7 +297,7 @@ impl ExprFn for Simplex {
     fn arg_count(&self) -> usize {
         2
     }
-    fn interpret(&self, args: &[f32]) -> f32 {
+    fn call(&self, args: &[f32]) -> f32 {
         let [x, y] = args else { return 0.0 };
         resin_core::noise::simplex2(*x, *y)
     }
@@ -260,6 +309,11 @@ impl ExprFn for Simplex {
 
 /// Registers all standard functions into the given registry.
 pub fn register_std(registry: &mut FunctionRegistry) {
+    // Constants
+    registry.register(Pi);
+    registry.register(E);
+    registry.register(Tau);
+
     // Trigonometric
     registry.register(Sin);
     registry.register(Cos);
@@ -320,66 +374,78 @@ pub fn std_registry() -> FunctionRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use resin_core::EvalContext;
-    use resin_core::expr::Expr;
-    use resin_core::glam::Vec2;
+    use resin_expr::Expr;
+    use std::collections::HashMap;
 
-    fn eval(expr: &str, x: f32, y: f32) -> f32 {
+    fn eval(expr: &str, vars: &[(&str, f32)]) -> f32 {
         let registry = std_registry();
         let expr = Expr::parse(expr).unwrap();
-        let ctx = EvalContext::new();
-        expr.eval(Vec2::new(x, y), &ctx, &registry).unwrap()
+        let var_map: HashMap<String, f32> = vars.iter().map(|(k, v)| (k.to_string(), *v)).collect();
+        expr.eval(&var_map, &registry).unwrap()
+    }
+
+    #[test]
+    fn test_constants() {
+        assert!((eval("pi()", &[]) - std::f32::consts::PI).abs() < 0.001);
+        assert!((eval("e()", &[]) - std::f32::consts::E).abs() < 0.001);
+        assert!((eval("tau()", &[]) - std::f32::consts::TAU).abs() < 0.001);
     }
 
     #[test]
     fn test_trig() {
-        assert!(eval("sin(0)", 0.0, 0.0).abs() < 0.001);
-        assert!((eval("cos(0)", 0.0, 0.0) - 1.0).abs() < 0.001);
+        assert!(eval("sin(0)", &[]).abs() < 0.001);
+        assert!((eval("cos(0)", &[]) - 1.0).abs() < 0.001);
     }
 
     #[test]
     fn test_exp_log() {
-        assert!((eval("exp(0)", 0.0, 0.0) - 1.0).abs() < 0.001);
-        assert!((eval("ln(1)", 0.0, 0.0) - 0.0).abs() < 0.001);
-        assert!((eval("sqrt(16)", 0.0, 0.0) - 4.0).abs() < 0.001);
+        assert!((eval("exp(0)", &[]) - 1.0).abs() < 0.001);
+        assert!((eval("ln(1)", &[]) - 0.0).abs() < 0.001);
+        assert!((eval("sqrt(16)", &[]) - 4.0).abs() < 0.001);
     }
 
     #[test]
     fn test_common() {
-        assert_eq!(eval("abs(-5)", 0.0, 0.0), 5.0);
-        assert_eq!(eval("floor(3.7)", 0.0, 0.0), 3.0);
-        assert_eq!(eval("ceil(3.2)", 0.0, 0.0), 4.0);
-        assert_eq!(eval("min(3, 7)", 0.0, 0.0), 3.0);
-        assert_eq!(eval("max(3, 7)", 0.0, 0.0), 7.0);
-        assert_eq!(eval("clamp(5, 0, 3)", 0.0, 0.0), 3.0);
-        assert_eq!(eval("saturate(1.5)", 0.0, 0.0), 1.0);
+        assert_eq!(eval("abs(-5)", &[]), 5.0);
+        assert_eq!(eval("floor(3.7)", &[]), 3.0);
+        assert_eq!(eval("ceil(3.2)", &[]), 4.0);
+        assert_eq!(eval("min(3, 7)", &[]), 3.0);
+        assert_eq!(eval("max(3, 7)", &[]), 7.0);
+        assert_eq!(eval("clamp(5, 0, 3)", &[]), 3.0);
+        assert_eq!(eval("saturate(1.5)", &[]), 1.0);
     }
 
     #[test]
     fn test_interpolation() {
-        assert_eq!(eval("lerp(0, 10, 0.5)", 0.0, 0.0), 5.0);
-        assert_eq!(eval("mix(0, 10, 0.5)", 0.0, 0.0), 5.0);
-        assert_eq!(eval("step(0.5, 0.3)", 0.0, 0.0), 0.0);
-        assert_eq!(eval("step(0.5, 0.7)", 0.0, 0.0), 1.0);
-        assert!((eval("smoothstep(0, 1, 0.5)", 0.0, 0.0) - 0.5).abs() < 0.1);
-        assert_eq!(eval("inverse_lerp(0, 10, 5)", 0.0, 0.0), 0.5);
+        assert_eq!(eval("lerp(0, 10, 0.5)", &[]), 5.0);
+        assert_eq!(eval("mix(0, 10, 0.5)", &[]), 5.0);
+        assert_eq!(eval("step(0.5, 0.3)", &[]), 0.0);
+        assert_eq!(eval("step(0.5, 0.7)", &[]), 1.0);
+        assert!((eval("smoothstep(0, 1, 0.5)", &[]) - 0.5).abs() < 0.1);
+        assert_eq!(eval("inverse_lerp(0, 10, 5)", &[]), 0.5);
     }
 
     #[test]
     fn test_noise() {
-        let v = eval("noise(x, y)", 0.5, 0.5);
+        let v = eval("noise(x, y)", &[("x", 0.5), ("y", 0.5)]);
         assert!((0.0..=1.0).contains(&v));
 
-        let v = eval("perlin(x, y)", 0.5, 0.5);
+        let v = eval("perlin(x, y)", &[("x", 0.5), ("y", 0.5)]);
         assert!((0.0..=1.0).contains(&v));
 
-        let v = eval("simplex(x, y)", 0.5, 0.5);
+        let v = eval("simplex(x, y)", &[("x", 0.5), ("y", 0.5)]);
         assert!((0.0..=1.0).contains(&v));
     }
 
     #[test]
     fn test_remap() {
-        // remap 5 from [0,10] to [0,100] = 50
-        assert_eq!(eval("remap(5, 0, 10, 0, 100)", 0.0, 0.0), 50.0);
+        assert_eq!(eval("remap(5, 0, 10, 0, 100)", &[]), 50.0);
+    }
+
+    #[test]
+    fn test_with_variables() {
+        // sin(x * pi()) where x = 0.5 should be sin(pi/2) = 1
+        let v = eval("sin(x * pi())", &[("x", 0.5)]);
+        assert!((v - 1.0).abs() < 0.001);
     }
 }
