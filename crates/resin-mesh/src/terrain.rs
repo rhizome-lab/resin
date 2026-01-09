@@ -9,7 +9,7 @@
 //! # Example
 //!
 //! ```
-//! use rhizome_resin_mesh::terrain::{Heightfield, HydraulicErosion, ThermalErosion};
+//! use rhizome_resin_mesh::{Heightfield, HydraulicErosion, ThermalErosion};
 //!
 //! // Create a heightfield
 //! let mut heightfield = Heightfield::new(64, 64);
