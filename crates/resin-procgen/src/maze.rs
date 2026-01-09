@@ -162,10 +162,11 @@ impl Maze {
 }
 
 /// Available maze generation algorithms.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum MazeAlgorithm {
     /// Depth-first search with backtracking.
     /// Creates long, winding passages.
+    #[default]
     RecursiveBacktracker,
     /// Randomized Prim's algorithm.
     /// Creates many short dead ends.
@@ -176,6 +177,12 @@ pub enum MazeAlgorithm {
     /// Eller's row-by-row algorithm.
     /// Memory efficient, generates row by row.
     Eller,
+    /// Binary tree algorithm.
+    /// Simple and fast, but has diagonal bias.
+    BinaryTree,
+    /// Sidewinder algorithm.
+    /// Similar to binary tree but with horizontal bias.
+    Sidewinder,
 }
 
 /// Generates a maze using the specified algorithm.
@@ -185,6 +192,8 @@ pub fn generate_maze(width: usize, height: usize, algorithm: MazeAlgorithm, seed
         MazeAlgorithm::Prim => prim(width, height, seed),
         MazeAlgorithm::Kruskal => kruskal(width, height, seed),
         MazeAlgorithm::Eller => eller(width, height, seed),
+        MazeAlgorithm::BinaryTree => binary_tree(width, height, seed),
+        MazeAlgorithm::Sidewinder => sidewinder(width, height, seed),
     }
 }
 
@@ -475,6 +484,76 @@ pub fn eller(width: usize, height: usize, seed: u64) -> Maze {
             }
 
             row_sets = next_row_sets;
+        }
+    }
+
+    maze
+}
+
+/// Generates a maze using binary tree algorithm.
+///
+/// Simple and fast, but produces mazes with diagonal bias
+/// (passages tend toward north-west corner).
+fn binary_tree(width: usize, height: usize, seed: u64) -> Maze {
+    let mut maze = Maze::new(width, height);
+    let mut rng = Rng::new(seed);
+
+    for y in 0..height {
+        for x in 0..width {
+            maze.carve(x, y);
+
+            // Choose to carve north or west (if possible)
+            let can_north = y > 0;
+            let can_west = x > 0;
+
+            if can_north && can_west {
+                if rng.coin_flip() {
+                    maze.carve_wall(x, y, x, y - 1);
+                } else {
+                    maze.carve_wall(x, y, x - 1, y);
+                }
+            } else if can_north {
+                maze.carve_wall(x, y, x, y - 1);
+            } else if can_west {
+                maze.carve_wall(x, y, x - 1, y);
+            }
+        }
+    }
+
+    maze
+}
+
+/// Generates a maze using sidewinder algorithm.
+///
+/// Similar to binary tree but with horizontal runs.
+/// Produces mazes with horizontal bias.
+fn sidewinder(width: usize, height: usize, seed: u64) -> Maze {
+    let mut maze = Maze::new(width, height);
+    let mut rng = Rng::new(seed);
+
+    for y in 0..height {
+        let mut run_start = 0;
+
+        for x in 0..width {
+            maze.carve(x, y);
+
+            let at_east_boundary = x == width - 1;
+            let at_north_boundary = y == 0;
+
+            let should_close = at_east_boundary || (!at_north_boundary && rng.coin_flip());
+
+            if should_close {
+                if !at_north_boundary {
+                    // Carve north from a random cell in the run
+                    let run_length = x - run_start + 1;
+                    let carve_x = run_start + (rng.next() as usize % run_length);
+                    maze.carve_wall(carve_x, y, carve_x, y - 1);
+                }
+                run_start = x + 1;
+            } else {
+                // Carve east
+                maze.carve_wall(x, y, x + 1, y);
+            }
         }
     }
 
