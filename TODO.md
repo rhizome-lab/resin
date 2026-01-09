@@ -3,7 +3,6 @@
 ## Next Up
 
 ## Backlog
-- [ ] Granular synthesis
 - [ ] WAV import/export
 - [ ] SVG import (parsing)
 - [ ] Reaction-diffusion
@@ -17,6 +16,7 @@
 
 ## Done
 
+- [x] Granular synthesis (GrainCloud, GrainConfig, GrainScheduler, Hann envelope)
 - [x] Hatching patterns (HatchConfig, hatch_rect, cross_hatch_rect, hatch_polygon)
 - [x] Metaballs 2D/3D (Metaball, Metaballs2D, Metaballs3D, MetaballSdf2D/3D)
 - [x] Voronoi/Delaunay diagrams (Bowyer-Watson algorithm, VoronoiDiagram, VoronoiCell)

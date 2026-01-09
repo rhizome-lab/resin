@@ -5,6 +5,7 @@
 pub mod effects;
 pub mod envelope;
 pub mod filter;
+pub mod granular;
 pub mod graph;
 pub mod midi;
 pub mod osc;
@@ -15,6 +16,9 @@ pub use envelope::{Adsr, AdsrState, Ar, Lfo, LfoWaveform};
 pub use filter::{
     Biquad, BiquadCoeffs, Delay, FeedbackDelay, HighPass, LowPass, highpass_coeff, highpass_sample,
     lowpass_coeff, lowpass_sample,
+};
+pub use granular::{
+    GrainCloud, GrainConfig, GrainScheduler, noise_grain_buffer, sine_grain_buffer,
 };
 pub use graph::{
     AdsrNode, ArNode, AudioContext, AudioNode, BiquadNode, Chain, Clip, Constant, DelayNode,
