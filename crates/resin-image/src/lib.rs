@@ -559,6 +559,229 @@ pub fn export_png<P: AsRef<Path>>(image: &ImageField, path: P) -> Result<(), Ima
     Ok(())
 }
 
+// ============================================================================
+// Animation export - image sequences and GIF
+// ============================================================================
+
+/// Configuration for animation rendering.
+#[derive(Debug, Clone)]
+pub struct AnimationConfig {
+    /// Output width in pixels.
+    pub width: u32,
+    /// Output height in pixels.
+    pub height: u32,
+    /// Number of frames.
+    pub num_frames: usize,
+    /// Frame duration in seconds.
+    pub frame_duration: f32,
+    /// Anti-aliasing samples (1 = no AA).
+    pub samples: u32,
+}
+
+impl Default for AnimationConfig {
+    fn default() -> Self {
+        Self {
+            width: 256,
+            height: 256,
+            num_frames: 60,
+            frame_duration: 1.0 / 30.0,
+            samples: 1,
+        }
+    }
+}
+
+impl AnimationConfig {
+    /// Creates a new animation config.
+    pub fn new(width: u32, height: u32, num_frames: usize) -> Self {
+        Self {
+            width,
+            height,
+            num_frames,
+            ..Default::default()
+        }
+    }
+
+    /// Sets the frame rate.
+    pub fn with_fps(mut self, fps: f32) -> Self {
+        self.frame_duration = 1.0 / fps;
+        self
+    }
+
+    /// Sets the anti-aliasing samples.
+    pub fn with_samples(mut self, samples: u32) -> Self {
+        self.samples = samples.max(1);
+        self
+    }
+
+    /// Returns the total animation duration in seconds.
+    pub fn duration(&self) -> f32 {
+        self.num_frames as f32 * self.frame_duration
+    }
+}
+
+/// Renders an animation from a time-varying field to a sequence of images.
+///
+/// The field receives a Vec3 where xy are UV coordinates and z is time (0 to duration).
+///
+/// # Example
+///
+/// ```ignore
+/// use rhizome_resin_image::{render_animation, AnimationConfig};
+///
+/// let config = AnimationConfig::new(256, 256, 60).with_fps(30.0);
+/// let frames = render_animation(&my_field, &config);
+/// ```
+pub fn render_animation<F: Field<glam::Vec3, Rgba>>(
+    field: &F,
+    config: &AnimationConfig,
+) -> Vec<ImageField> {
+    let ctx = EvalContext::new();
+    let bake_config = BakeConfig {
+        width: config.width,
+        height: config.height,
+        samples: config.samples,
+    };
+
+    (0..config.num_frames)
+        .map(|frame| {
+            let t = frame as f32 * config.frame_duration;
+
+            // Create a wrapper field that adds time to the input
+            let frame_field = TimeSliceField {
+                inner: field,
+                time: t,
+            };
+
+            bake_rgba(&frame_field, &bake_config, &ctx)
+        })
+        .collect()
+}
+
+/// Helper struct to slice a 3D field at a specific time.
+struct TimeSliceField<'a, F> {
+    inner: &'a F,
+    time: f32,
+}
+
+impl<'a, F: Field<glam::Vec3, Rgba>> Field<Vec2, Rgba> for TimeSliceField<'a, F> {
+    fn sample(&self, input: Vec2, ctx: &EvalContext) -> Rgba {
+        self.inner
+            .sample(glam::Vec3::new(input.x, input.y, self.time), ctx)
+    }
+}
+
+/// Exports animation frames as a numbered image sequence.
+///
+/// Files are named `{prefix}_{frame:04}.png`.
+pub fn export_image_sequence<P: AsRef<Path>>(
+    frames: &[ImageField],
+    directory: P,
+    prefix: &str,
+) -> Result<(), ImageFieldError> {
+    let dir = directory.as_ref();
+    std::fs::create_dir_all(dir)?;
+
+    for (i, frame) in frames.iter().enumerate() {
+        let filename = format!("{}_{:04}.png", prefix, i);
+        let path = dir.join(filename);
+        export_png(frame, path)?;
+    }
+
+    Ok(())
+}
+
+/// Exports animation frames as an animated GIF.
+///
+/// # Arguments
+/// * `frames` - The frames to export
+/// * `path` - Output file path
+/// * `frame_delay_ms` - Delay between frames in milliseconds
+pub fn export_gif<P: AsRef<Path>>(
+    frames: &[ImageField],
+    path: P,
+    frame_delay_ms: u16,
+) -> Result<(), ImageFieldError> {
+    use image::codecs::gif::{GifEncoder, Repeat};
+    use image::{Delay, Frame};
+    use std::fs::File;
+
+    if frames.is_empty() {
+        return Ok(());
+    }
+
+    let file = File::create(path)?;
+    let mut encoder = GifEncoder::new(file);
+    encoder.set_repeat(Repeat::Infinite)?;
+
+    for img_field in frames {
+        let (width, height) = img_field.dimensions();
+        let mut rgba_buf = image::RgbaImage::new(width, height);
+
+        for y in 0..height {
+            for x in 0..width {
+                let u = (x as f32 + 0.5) / width as f32;
+                let v = (y as f32 + 0.5) / height as f32;
+                let color = img_field.sample_uv(u, v);
+
+                rgba_buf.put_pixel(
+                    x,
+                    y,
+                    image::Rgba([
+                        (color.r * 255.0) as u8,
+                        (color.g * 255.0) as u8,
+                        (color.b * 255.0) as u8,
+                        (color.a * 255.0) as u8,
+                    ]),
+                );
+            }
+        }
+
+        let delay = Delay::from_numer_denom_ms(frame_delay_ms as u32, 1);
+        let frame = Frame::from_parts(rgba_buf, 0, 0, delay);
+        encoder.encode_frame(frame)?;
+    }
+
+    Ok(())
+}
+
+/// Renders a scalar field animation (grayscale).
+pub fn render_animation_scalar<F: Field<glam::Vec3, f32>>(
+    field: &F,
+    config: &AnimationConfig,
+) -> Vec<ImageField> {
+    let ctx = EvalContext::new();
+    let bake_config = BakeConfig {
+        width: config.width,
+        height: config.height,
+        samples: config.samples,
+    };
+
+    (0..config.num_frames)
+        .map(|frame| {
+            let t = frame as f32 * config.frame_duration;
+
+            let frame_field = TimeSliceFieldScalar {
+                inner: field,
+                time: t,
+            };
+
+            bake_scalar(&frame_field, &bake_config, &ctx)
+        })
+        .collect()
+}
+
+struct TimeSliceFieldScalar<'a, F> {
+    inner: &'a F,
+    time: f32,
+}
+
+impl<'a, F: Field<glam::Vec3, f32>> Field<Vec2, f32> for TimeSliceFieldScalar<'a, F> {
+    fn sample(&self, input: Vec2, ctx: &EvalContext) -> f32 {
+        self.inner
+            .sample(glam::Vec3::new(input.x, input.y, self.time), ctx)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -693,5 +916,69 @@ mod tests {
         assert_eq!(config.width, 256);
         assert_eq!(config.height, 256);
         assert_eq!(config.samples, 1);
+    }
+
+    // Animation tests
+
+    /// A time-varying color field for animation testing.
+    struct AnimatedField;
+
+    impl Field<glam::Vec3, Rgba> for AnimatedField {
+        fn sample(&self, input: glam::Vec3, _ctx: &EvalContext) -> Rgba {
+            // Color changes with time (z coordinate)
+            let r = (input.x + input.z) % 1.0;
+            let g = input.y;
+            let b = input.z;
+            Rgba::new(r, g, b, 1.0)
+        }
+    }
+
+    /// A time-varying scalar field.
+    struct AnimatedScalarField;
+
+    impl Field<glam::Vec3, f32> for AnimatedScalarField {
+        fn sample(&self, input: glam::Vec3, _ctx: &EvalContext) -> f32 {
+            // Value oscillates with time
+            ((input.x + input.z * 10.0) * std::f32::consts::PI).sin() * 0.5 + 0.5
+        }
+    }
+
+    #[test]
+    fn test_animation_config() {
+        let config = AnimationConfig::new(128, 128, 30).with_fps(60.0);
+        assert_eq!(config.width, 128);
+        assert_eq!(config.height, 128);
+        assert_eq!(config.num_frames, 30);
+        assert!((config.frame_duration - 1.0 / 60.0).abs() < 0.0001);
+        assert!((config.duration() - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_render_animation() {
+        let field = AnimatedField;
+        let config = AnimationConfig::new(4, 4, 5).with_fps(10.0);
+
+        let frames = render_animation(&field, &config);
+        assert_eq!(frames.len(), 5);
+
+        // Each frame should have the correct dimensions
+        for frame in &frames {
+            assert_eq!(frame.dimensions(), (4, 4));
+        }
+
+        // Frames should be different (animation is happening)
+        let first = frames[0].sample_uv(0.5, 0.5);
+        let last = frames[4].sample_uv(0.5, 0.5);
+        // Blue channel changes with time
+        assert!((first.b - last.b).abs() > 0.001);
+    }
+
+    #[test]
+    fn test_render_animation_scalar() {
+        let field = AnimatedScalarField;
+        let config = AnimationConfig::new(4, 4, 3);
+
+        let frames = render_animation_scalar(&field, &config);
+        assert_eq!(frames.len(), 3);
     }
 }

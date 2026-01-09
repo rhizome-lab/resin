@@ -16,7 +16,7 @@ glam = "0.29"
 thiserror = "2"
 
 # Image loading
-image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif"] }
 
 # Float ordering for priority queues
 ordered-float = "4"

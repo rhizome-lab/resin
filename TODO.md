@@ -10,7 +10,7 @@
 - [ ] Rigid body physics - collision detection, constraints, stacking
 
 ### Audio
-- [ ] Physical modeling (percussion) - membranes, bars, plates
+(all done!)
 
 ### File Formats
 
@@ -25,6 +25,7 @@
 - [ ] Video export - mp4/webm encoding (likely via external tool/ffmpeg)
 
 ## Done
+- [x] Physical modeling percussion (Membrane, Bar, Plate, modal synthesis, drum/cymbal/bell presets)
 - [x] Vocoder (Vocoder, FilterbankVocoder, spectral cross-synthesis, envelope follower)
 - [x] Spectral processing (FFT, IFFT, STFT, ISTFT, window functions, pitch detection, spectral analysis)
 - [x] Voxels (VoxelGrid, SparseVoxels, sdf_to_voxels, editing, dilate/erode, mesh generation)

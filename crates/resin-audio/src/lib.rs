@@ -9,6 +9,7 @@ pub mod granular;
 pub mod graph;
 pub mod midi;
 pub mod osc;
+pub mod percussion;
 pub mod physical;
 pub mod spectral;
 pub mod vocoder;
@@ -39,6 +40,7 @@ pub use osc::{
     additive_wavetable, fm_presets, freq_to_phase, pulse, sample_to_phase, saw, saw_blep, saw_rev,
     sine, square, square_blep, supersaw_wavetable, triangle,
 };
+pub use percussion::{Bar, BarConfig, Membrane, MembraneConfig, Plate, PlateConfig, noise_burst};
 pub use physical::{ExtendedKarplusStrong, KarplusStrong, PluckConfig, PolyStrings};
 pub use spectral::{
     Complex, StftConfig, StftResult, blackman_window, estimate_pitch, fft, fft_complex,
