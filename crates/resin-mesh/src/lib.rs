@@ -8,6 +8,7 @@ mod curve_mesh;
 mod decimate;
 pub mod geodesic;
 mod halfedge;
+mod lattice;
 mod loft;
 mod loops;
 mod marching_cubes;
@@ -29,6 +30,10 @@ pub use curve_mesh::{
 pub use decimate::{DecimateConfig, decimate};
 pub use halfedge::{
     Face, FaceId, HalfEdge, HalfEdgeId, HalfEdgeMesh, Vertex as HEVertex, VertexId,
+};
+pub use lattice::{
+    Lattice, LatticeDeformConfig, bend_lattice, lattice_deform, lattice_deform_point,
+    lattice_deform_points, lattice_deform_with_config, scale_lattice, taper_lattice, twist_lattice,
 };
 pub use loft::{LoftConfig, circle_profile, loft, loft_along_path, rect_profile, star_profile};
 pub use loops::{
