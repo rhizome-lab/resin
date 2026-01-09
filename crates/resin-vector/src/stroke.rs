@@ -818,6 +818,402 @@ fn sample_path_at_distance(points: &[Vec2], distance: f32) -> Option<Vec2> {
     points.last().copied()
 }
 
+// ===========================================================================
+// Pressure Curves (Variable Stroke Width)
+// ===========================================================================
+
+/// A point with associated pressure value.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PressurePoint {
+    /// 2D position.
+    pub position: Vec2,
+    /// Pressure value (0.0 to 1.0).
+    pub pressure: f32,
+}
+
+impl PressurePoint {
+    /// Creates a new pressure point.
+    pub fn new(position: Vec2, pressure: f32) -> Self {
+        Self {
+            position,
+            pressure: pressure.clamp(0.0, 1.0),
+        }
+    }
+
+    /// Creates a pressure point with full pressure.
+    pub fn full(position: Vec2) -> Self {
+        Self::new(position, 1.0)
+    }
+}
+
+/// A stroke with variable width based on pressure.
+#[derive(Debug, Clone)]
+pub struct PressureStroke {
+    /// Points with pressure values.
+    pub points: Vec<PressurePoint>,
+}
+
+impl PressureStroke {
+    /// Creates a new empty pressure stroke.
+    pub fn new() -> Self {
+        Self { points: Vec::new() }
+    }
+
+    /// Creates a pressure stroke from points with uniform pressure.
+    pub fn from_points(points: &[Vec2], pressure: f32) -> Self {
+        Self {
+            points: points
+                .iter()
+                .map(|&p| PressurePoint::new(p, pressure))
+                .collect(),
+        }
+    }
+
+    /// Creates a pressure stroke from a path with uniform pressure.
+    pub fn from_path(path: &Path, pressure: f32) -> Self {
+        let points = path_to_points(path);
+        Self::from_points(&points, pressure)
+    }
+
+    /// Adds a point to the stroke.
+    pub fn add_point(&mut self, position: Vec2, pressure: f32) {
+        self.points.push(PressurePoint::new(position, pressure));
+    }
+
+    /// Returns the number of points.
+    pub fn len(&self) -> usize {
+        self.points.len()
+    }
+
+    /// Returns true if the stroke is empty.
+    pub fn is_empty(&self) -> bool {
+        self.points.is_empty()
+    }
+
+    /// Applies a taper to the start of the stroke.
+    ///
+    /// `length` is the distance over which to taper (0.0 to 1.0 as fraction of total length).
+    pub fn taper_start(mut self, length: f32) -> Self {
+        if self.points.len() < 2 {
+            return self;
+        }
+
+        let total_len = self.total_length();
+        let taper_dist = total_len * length.clamp(0.0, 1.0);
+
+        let mut dist = 0.0;
+        for i in 0..self.points.len() {
+            if dist < taper_dist {
+                let t = dist / taper_dist;
+                self.points[i].pressure *= t;
+            }
+
+            if i < self.points.len() - 1 {
+                dist += (self.points[i + 1].position - self.points[i].position).length();
+            }
+        }
+
+        self
+    }
+
+    /// Applies a taper to the end of the stroke.
+    ///
+    /// `length` is the distance over which to taper (0.0 to 1.0 as fraction of total length).
+    pub fn taper_end(mut self, length: f32) -> Self {
+        if self.points.len() < 2 {
+            return self;
+        }
+
+        let total_len = self.total_length();
+        let taper_dist = total_len * length.clamp(0.0, 1.0);
+
+        // Calculate distances from end
+        let mut dists = vec![0.0; self.points.len()];
+        let mut dist = 0.0;
+        for i in (0..self.points.len() - 1).rev() {
+            dist += (self.points[i + 1].position - self.points[i].position).length();
+            dists[i] = dist;
+        }
+
+        for (i, &d) in dists.iter().enumerate() {
+            if d < taper_dist {
+                let t = d / taper_dist;
+                self.points[i].pressure *= t;
+            }
+        }
+
+        self
+    }
+
+    /// Applies smoothing to the pressure values.
+    pub fn smooth_pressure(mut self, iterations: usize) -> Self {
+        for _ in 0..iterations {
+            let mut new_pressures = Vec::with_capacity(self.points.len());
+
+            for i in 0..self.points.len() {
+                let prev = if i > 0 {
+                    self.points[i - 1].pressure
+                } else {
+                    self.points[i].pressure
+                };
+                let curr = self.points[i].pressure;
+                let next = if i < self.points.len() - 1 {
+                    self.points[i + 1].pressure
+                } else {
+                    self.points[i].pressure
+                };
+
+                new_pressures.push((prev + curr * 2.0 + next) / 4.0);
+            }
+
+            for (i, p) in new_pressures.into_iter().enumerate() {
+                self.points[i].pressure = p;
+            }
+        }
+
+        self
+    }
+
+    /// Calculates total length of the stroke.
+    fn total_length(&self) -> f32 {
+        let mut len = 0.0;
+        for i in 0..self.points.len().saturating_sub(1) {
+            len += (self.points[i + 1].position - self.points[i].position).length();
+        }
+        len
+    }
+}
+
+impl Default for PressureStroke {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Configuration for pressure-sensitive stroke rendering.
+#[derive(Debug, Clone)]
+pub struct PressureStrokeConfig {
+    /// Minimum stroke width (at pressure 0).
+    pub min_width: f32,
+    /// Maximum stroke width (at pressure 1).
+    pub max_width: f32,
+    /// Cap style for stroke ends.
+    pub cap: CapStyle,
+    /// Join style for corners.
+    pub join: JoinStyle,
+    /// Miter limit.
+    pub miter_limit: f32,
+}
+
+impl Default for PressureStrokeConfig {
+    fn default() -> Self {
+        Self {
+            min_width: 0.5,
+            max_width: 5.0,
+            cap: CapStyle::Round,
+            join: JoinStyle::Round,
+            miter_limit: 4.0,
+        }
+    }
+}
+
+impl PressureStrokeConfig {
+    /// Creates a new pressure stroke config.
+    pub fn new(min_width: f32, max_width: f32) -> Self {
+        Self {
+            min_width,
+            max_width,
+            ..Default::default()
+        }
+    }
+
+    /// Sets the cap style.
+    pub fn with_cap(mut self, cap: CapStyle) -> Self {
+        self.cap = cap;
+        self
+    }
+
+    /// Sets the join style.
+    pub fn with_join(mut self, join: JoinStyle) -> Self {
+        self.join = join;
+        self
+    }
+
+    /// Calculates width for a given pressure.
+    pub fn width_for_pressure(&self, pressure: f32) -> f32 {
+        self.min_width + (self.max_width - self.min_width) * pressure.clamp(0.0, 1.0)
+    }
+}
+
+/// Converts a pressure stroke to a filled path outline.
+///
+/// Creates a path that represents the variable-width stroke as a filled shape.
+///
+/// # Example
+///
+/// ```
+/// use rhizome_resin_vector::stroke::{PressureStroke, PressureStrokeConfig, pressure_stroke_to_path};
+/// use glam::Vec2;
+///
+/// let mut stroke = PressureStroke::new();
+/// stroke.add_point(Vec2::new(0.0, 0.0), 0.5);
+/// stroke.add_point(Vec2::new(50.0, 0.0), 1.0);
+/// stroke.add_point(Vec2::new(100.0, 0.0), 0.2);
+///
+/// let config = PressureStrokeConfig::new(1.0, 10.0);
+/// let outline = pressure_stroke_to_path(&stroke, &config);
+/// ```
+pub fn pressure_stroke_to_path(stroke: &PressureStroke, config: &PressureStrokeConfig) -> Path {
+    if stroke.len() < 2 {
+        return Path::new();
+    }
+
+    let points = &stroke.points;
+    let mut left_points = Vec::with_capacity(points.len());
+    let mut right_points = Vec::with_capacity(points.len());
+
+    for i in 0..points.len() {
+        let curr = points[i].position;
+        let half_width = config.width_for_pressure(points[i].pressure) * 0.5;
+
+        // Get edge directions
+        let (prev_dir, next_dir) = if i == 0 {
+            let dir = (points[i + 1].position - curr).normalize_or_zero();
+            (dir, dir)
+        } else if i == points.len() - 1 {
+            let dir = (curr - points[i - 1].position).normalize_or_zero();
+            (dir, dir)
+        } else {
+            let prev = points[i - 1].position;
+            let next = points[i + 1].position;
+            (
+                (curr - prev).normalize_or_zero(),
+                (next - curr).normalize_or_zero(),
+            )
+        };
+
+        // Compute normals
+        let normal_prev = Vec2::new(-prev_dir.y, prev_dir.x);
+        let normal_next = Vec2::new(-next_dir.y, next_dir.x);
+        let avg_normal = (normal_prev + normal_next).normalize_or_zero();
+
+        // Compute offset factor for mitered join
+        let dot = prev_dir.dot(next_dir);
+        let offset_factor = if dot < 0.0 {
+            let cos_half = ((1.0 + dot) / 2.0).sqrt().max(0.1);
+            1.0 / cos_half
+        } else {
+            1.0
+        };
+
+        // Apply miter limit
+        let limited_factor = offset_factor.min(config.miter_limit);
+
+        left_points.push(curr + avg_normal * half_width * limited_factor);
+        right_points.push(curr - avg_normal * half_width * limited_factor);
+    }
+
+    // Build the outline path
+    let mut builder = PathBuilder::new();
+
+    // Left side (forward)
+    if !left_points.is_empty() {
+        builder = builder.move_to(left_points[0]);
+        for &p in &left_points[1..] {
+            builder = builder.line_to(p);
+        }
+    }
+
+    // End cap
+    if !right_points.is_empty() {
+        let end_width = config.width_for_pressure(points.last().unwrap().pressure) * 0.5;
+        builder = add_cap(
+            builder,
+            points.last().unwrap().position,
+            *left_points.last().unwrap(),
+            *right_points.last().unwrap(),
+            config.cap,
+            end_width,
+            true,
+        );
+    }
+
+    // Right side (backward)
+    for &p in right_points.iter().rev() {
+        builder = builder.line_to(p);
+    }
+
+    // Start cap
+    if !right_points.is_empty() {
+        let start_width = config.width_for_pressure(points[0].pressure) * 0.5;
+        builder = add_cap(
+            builder,
+            points[0].position,
+            right_points[0],
+            left_points[0],
+            config.cap,
+            start_width,
+            false,
+        );
+    }
+
+    builder = builder.close();
+    builder.build()
+}
+
+/// Simulates pen pressure along a path based on velocity.
+///
+/// Faster movement results in lighter pressure (thinner strokes).
+///
+/// # Arguments
+/// * `path` - The input path
+/// * `speed_factor` - How much velocity affects pressure (0.0 = no effect, 1.0 = strong effect)
+pub fn simulate_velocity_pressure(path: &Path, speed_factor: f32) -> PressureStroke {
+    let points = path_to_points(path);
+    if points.len() < 2 {
+        return PressureStroke::from_points(&points, 1.0);
+    }
+
+    // Calculate velocities (using segment lengths as proxy)
+    let mut velocities = Vec::with_capacity(points.len());
+    for i in 0..points.len() {
+        let vel = if i == 0 {
+            (points[1] - points[0]).length()
+        } else if i == points.len() - 1 {
+            (points[i] - points[i - 1]).length()
+        } else {
+            ((points[i + 1] - points[i]).length() + (points[i] - points[i - 1]).length()) * 0.5
+        };
+        velocities.push(vel);
+    }
+
+    // Find max velocity for normalization
+    let max_vel = velocities.iter().cloned().fold(0.0f32, f32::max).max(0.001);
+
+    // Convert velocity to pressure (inverse relationship)
+    let pressure_points: Vec<PressurePoint> = points
+        .iter()
+        .zip(velocities.iter())
+        .map(|(&pos, &vel)| {
+            let normalized_vel = vel / max_vel;
+            let pressure = 1.0 - normalized_vel * speed_factor.clamp(0.0, 1.0);
+            PressurePoint::new(pos, pressure)
+        })
+        .collect();
+
+    PressureStroke {
+        points: pressure_points,
+    }
+}
+
+/// Simulates pressure with acceleration at stroke start/end.
+///
+/// Creates natural-looking pen strokes with gradual buildup and release.
+pub fn simulate_natural_pressure(path: &Path, taper_start: f32, taper_end: f32) -> PressureStroke {
+    let stroke = PressureStroke::from_path(path, 1.0);
+    stroke.taper_start(taper_start).taper_end(taper_end)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1024,5 +1420,170 @@ mod tests {
         let point_on = Vec2::new(5.0, 0.0);
         let dist_on = perpendicular_distance(point_on, start, end);
         assert!(dist_on < 0.001);
+    }
+
+    // Pressure stroke tests
+
+    #[test]
+    fn test_pressure_point() {
+        let p = PressurePoint::new(Vec2::new(10.0, 20.0), 0.5);
+        assert_eq!(p.position, Vec2::new(10.0, 20.0));
+        assert_eq!(p.pressure, 0.5);
+
+        // Pressure should be clamped
+        let p_clamped = PressurePoint::new(Vec2::ZERO, 1.5);
+        assert_eq!(p_clamped.pressure, 1.0);
+    }
+
+    #[test]
+    fn test_pressure_stroke_basic() {
+        let mut stroke = PressureStroke::new();
+        assert!(stroke.is_empty());
+
+        stroke.add_point(Vec2::ZERO, 0.5);
+        stroke.add_point(Vec2::new(10.0, 0.0), 1.0);
+        assert_eq!(stroke.len(), 2);
+    }
+
+    #[test]
+    fn test_pressure_stroke_from_points() {
+        let points = vec![Vec2::ZERO, Vec2::new(10.0, 0.0), Vec2::new(20.0, 0.0)];
+        let stroke = PressureStroke::from_points(&points, 0.7);
+
+        assert_eq!(stroke.len(), 3);
+        for p in &stroke.points {
+            assert!((p.pressure - 0.7).abs() < 0.001);
+        }
+    }
+
+    #[test]
+    fn test_pressure_stroke_taper_start() {
+        let points = vec![
+            Vec2::new(0.0, 0.0),
+            Vec2::new(25.0, 0.0),
+            Vec2::new(50.0, 0.0),
+            Vec2::new(75.0, 0.0),
+            Vec2::new(100.0, 0.0),
+        ];
+        let stroke = PressureStroke::from_points(&points, 1.0).taper_start(0.5);
+
+        // First point should have low pressure
+        assert!(stroke.points[0].pressure < 0.1);
+
+        // Last point should still have full pressure
+        assert!(stroke.points[4].pressure > 0.9);
+    }
+
+    #[test]
+    fn test_pressure_stroke_taper_end() {
+        let points = vec![
+            Vec2::new(0.0, 0.0),
+            Vec2::new(25.0, 0.0),
+            Vec2::new(50.0, 0.0),
+            Vec2::new(75.0, 0.0),
+            Vec2::new(100.0, 0.0),
+        ];
+        let stroke = PressureStroke::from_points(&points, 1.0).taper_end(0.5);
+
+        // First point should still have full pressure
+        assert!(stroke.points[0].pressure > 0.9);
+
+        // Last point should have low pressure
+        assert!(stroke.points[4].pressure < 0.1);
+    }
+
+    #[test]
+    fn test_pressure_stroke_smooth() {
+        let mut stroke = PressureStroke::new();
+        stroke.add_point(Vec2::new(0.0, 0.0), 0.0);
+        stroke.add_point(Vec2::new(10.0, 0.0), 1.0);
+        stroke.add_point(Vec2::new(20.0, 0.0), 0.0);
+
+        let smoothed = stroke.smooth_pressure(1);
+
+        // Middle point should be smoothed toward neighbors
+        assert!(smoothed.points[1].pressure < 1.0);
+    }
+
+    #[test]
+    fn test_pressure_stroke_config() {
+        let config = PressureStrokeConfig::new(1.0, 10.0);
+        assert_eq!(config.min_width, 1.0);
+        assert_eq!(config.max_width, 10.0);
+
+        // Test width calculation
+        assert_eq!(config.width_for_pressure(0.0), 1.0);
+        assert_eq!(config.width_for_pressure(1.0), 10.0);
+        assert_eq!(config.width_for_pressure(0.5), 5.5);
+    }
+
+    #[test]
+    fn test_pressure_stroke_to_path() {
+        let mut stroke = PressureStroke::new();
+        stroke.add_point(Vec2::new(0.0, 0.0), 0.5);
+        stroke.add_point(Vec2::new(50.0, 0.0), 1.0);
+        stroke.add_point(Vec2::new(100.0, 0.0), 0.2);
+
+        let config = PressureStrokeConfig::new(2.0, 10.0);
+        let outline = pressure_stroke_to_path(&stroke, &config);
+
+        // Should produce a valid closed path
+        assert!(!outline.is_empty());
+    }
+
+    #[test]
+    fn test_pressure_stroke_to_path_varying_width() {
+        let mut stroke = PressureStroke::new();
+        stroke.add_point(Vec2::new(0.0, 0.0), 0.0);
+        stroke.add_point(Vec2::new(100.0, 0.0), 1.0);
+
+        let config = PressureStrokeConfig::new(1.0, 20.0);
+        let outline = pressure_stroke_to_path(&stroke, &config);
+
+        // Should produce a wedge-shaped outline
+        assert!(!outline.is_empty());
+    }
+
+    #[test]
+    fn test_simulate_velocity_pressure() {
+        // Create a path with varying segment lengths
+        let path = PathBuilder::new()
+            .move_to(Vec2::new(0.0, 0.0))
+            .line_to(Vec2::new(10.0, 0.0)) // Short segment
+            .line_to(Vec2::new(60.0, 0.0)) // Long segment (fast movement)
+            .line_to(Vec2::new(70.0, 0.0)) // Short segment (slow movement)
+            .build();
+
+        let stroke = simulate_velocity_pressure(&path, 0.8);
+
+        // All points should have valid pressure
+        for p in &stroke.points {
+            assert!(p.pressure >= 0.0 && p.pressure <= 1.0);
+        }
+    }
+
+    #[test]
+    fn test_simulate_natural_pressure() {
+        // Use a path with multiple points for proper taper testing
+        let path = PathBuilder::new()
+            .move_to(Vec2::new(0.0, 0.0))
+            .line_to(Vec2::new(25.0, 0.0))
+            .line_to(Vec2::new(50.0, 0.0))
+            .line_to(Vec2::new(75.0, 0.0))
+            .line_to(Vec2::new(100.0, 0.0))
+            .build();
+
+        let stroke = simulate_natural_pressure(&path, 0.3, 0.3);
+
+        // Should have 5 points
+        assert_eq!(stroke.len(), 5);
+
+        // First and last points should have lower pressure than middle
+        let first_pressure = stroke.points[0].pressure;
+        let middle_pressure = stroke.points[2].pressure;
+        let last_pressure = stroke.points[4].pressure;
+
+        assert!(first_pressure < middle_pressure);
+        assert!(last_pressure < middle_pressure);
     }
 }
