@@ -255,55 +255,6 @@ impl ExprFn for Remap {
 }
 
 // ============================================================================
-// Noise functions
-// ============================================================================
-
-/// 2D Perlin noise
-pub struct Noise;
-impl ExprFn for Noise {
-    fn name(&self) -> &str {
-        "noise"
-    }
-    fn arg_count(&self) -> usize {
-        2
-    }
-    fn call(&self, args: &[f32]) -> f32 {
-        let [x, y] = args else { return 0.0 };
-        resin_core::noise::perlin2(*x, *y)
-    }
-}
-
-/// Alias for noise
-pub struct Perlin;
-impl ExprFn for Perlin {
-    fn name(&self) -> &str {
-        "perlin"
-    }
-    fn arg_count(&self) -> usize {
-        2
-    }
-    fn call(&self, args: &[f32]) -> f32 {
-        let [x, y] = args else { return 0.0 };
-        resin_core::noise::perlin2(*x, *y)
-    }
-}
-
-/// 2D Simplex noise
-pub struct Simplex;
-impl ExprFn for Simplex {
-    fn name(&self) -> &str {
-        "simplex"
-    }
-    fn arg_count(&self) -> usize {
-        2
-    }
-    fn call(&self, args: &[f32]) -> f32 {
-        let [x, y] = args else { return 0.0 };
-        resin_core::noise::simplex2(*x, *y)
-    }
-}
-
-// ============================================================================
 // Registry
 // ============================================================================
 
@@ -357,11 +308,6 @@ pub fn register_std(registry: &mut FunctionRegistry) {
     registry.register(Smoothstep);
     registry.register(InverseLerp);
     registry.register(Remap);
-
-    // Noise
-    registry.register(Noise);
-    registry.register(Perlin);
-    registry.register(Simplex);
 }
 
 /// Creates a new registry with all standard functions.
@@ -423,18 +369,6 @@ mod tests {
         assert_eq!(eval("step(0.5, 0.7)", &[]), 1.0);
         assert!((eval("smoothstep(0, 1, 0.5)", &[]) - 0.5).abs() < 0.1);
         assert_eq!(eval("inverse_lerp(0, 10, 5)", &[]), 0.5);
-    }
-
-    #[test]
-    fn test_noise() {
-        let v = eval("noise(x, y)", &[("x", 0.5), ("y", 0.5)]);
-        assert!((0.0..=1.0).contains(&v));
-
-        let v = eval("perlin(x, y)", &[("x", 0.5), ("y", 0.5)]);
-        assert!((0.0..=1.0).contains(&v));
-
-        let v = eval("simplex(x, y)", &[("x", 0.5), ("y", 0.5)]);
-        assert!((0.0..=1.0).contains(&v));
     }
 
     #[test]

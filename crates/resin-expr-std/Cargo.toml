@@ -7,4 +7,3 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 resin-expr = { path = "../resin-expr" }
-resin-core = { path = "../resin-core" }  # For noise functions
