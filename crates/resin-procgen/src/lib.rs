@@ -1,8 +1,9 @@
-//! Wave Function Collapse and maze generation algorithms.
+//! Procedural generation algorithms.
 //!
 //! Provides procedural generation algorithms including:
 //! - Wave Function Collapse for tile-based generation
 //! - Classic maze algorithms (recursive backtracker, Prim's, Kruskal's, Eller's)
+//! - Road and river network generation
 //!
 //! # Example
 //!
@@ -32,6 +33,7 @@
 //! ```
 
 pub mod maze;
+pub mod network;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 

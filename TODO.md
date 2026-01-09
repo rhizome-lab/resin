@@ -11,7 +11,7 @@
 
 ### Geometry / Mesh
 
-- [ ] Terrain generation - heightfield, hydraulic/thermal erosion
+- [x] Terrain generation - heightfield, hydraulic/thermal erosion (Heightfield, HydraulicErosion, ThermalErosion)
 - [x] Remeshing/retopology - uniform triangle distribution (isotropic_remesh, quadify)
 - [x] Lattice deformation - FFD (free-form deformation) - already implemented
 - [x] SDF from mesh - mesh → distance field conversion (mesh_to_sdf, mesh_to_sdf_fast)
@@ -26,13 +26,13 @@
 ### Procedural
 
 - [x] Procedural architecture - buildings, rooms, floor plans (Building, generate_building, generate_stairs)
-- [ ] Road/river networks - graph-based path generation
-- [ ] Terrain erosion - hydraulic, thermal simulation
-- [x] Maze generation - recursive backtracker, Prim's, Kruskal's, Eller's (maze module)
+- [x] Road/river networks - graph-based path generation (RoadNetwork, RiverNetwork, resin-procgen)
+- [x] Terrain erosion - hydraulic, thermal simulation (part of Heightfield)
+- [x] Maze generation - recursive backtracker, Prim's, Kruskal's, Eller's (resin-procgen)
 
 ### Animation
 
-- [ ] Procedural walk cycles - parametric locomotion
+- [x] Procedural walk cycles - parametric locomotion (ProceduralWalk, WalkAnimator, GaitPattern)
 - [x] Secondary motion - jiggle physics, follow-through, overlap (JiggleBone, JiggleChain, FollowThrough)
 - [x] Motion matching - animation database lookup (MotionDatabase, MotionMatcher, find_best_match)
 
@@ -44,9 +44,9 @@
 
 ### Audio
 
-- [ ] Convolution reverb - load and apply impulse responses
-- [ ] Room acoustics simulation - ray-traced early reflections
-- [ ] Synthesizer patch system - preset save/load, modulation routing
+- [x] Convolution reverb - load and apply impulse responses (ConvolutionReverb, generate_room_ir)
+- [x] Room acoustics simulation - image-source early reflections (RoomAcoustics, calculate_early_reflections, generate_ir)
+- [x] Synthesizer patch system - preset save/load, modulation routing (SynthPatch, PatchBank, ModRouting)
 
 ### 2D Vector
 
@@ -85,7 +85,7 @@
 - [x] 2D rasterization (Rasterizer, scanline algorithm, FillRule, alpha compositing, stroke rasterization)
 
 - [x] Space colonization (SpaceColonization, BranchNode, generate_tree, generate_lightning, pipe model radii)
-- [x] Wave function collapse (WfcSolver, TileSet, constraint propagation, platformer/maze presets)
+- [x] Wave function collapse (WfcSolver, TileSet, constraint propagation, resin-procgen)
 - [x] Geodesic distance (Dijkstra, fast marching, geodesic_path, find_mesh_center, iso_distance)
 - [x] Mesh repair (find_boundary_loops, fill_hole_fan, fill_hole_ear_clip, fill_hole_minimum_area)
 - [x] Spring physics (SpringSystem, Verlet integration, create_rope, create_cloth, create_soft_sphere)
