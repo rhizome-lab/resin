@@ -44,6 +44,7 @@ Index of resin's crates organized by domain. See individual crate docs in `docs/
 |-------|-------------|
 | **resin-rig** | Skeleton/bones, animation clips, blending/layers, IK (FABRIK, CCD), motion matching, procedural walk, secondary motion (jiggle, follow-through), skinning |
 | **resin-easing** | Animation easing functions |
+| **resin-motion-fn** | Motion functions: Spring, Oscillate, Wiggle, Eased, Lerp; dew expression integration |
 
 ## Physics
 

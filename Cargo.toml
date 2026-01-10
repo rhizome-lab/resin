@@ -61,6 +61,7 @@ rhizome-resin-image = { path = "crates/resin-image" }
 rhizome-resin-lsystem = { path = "crates/resin-lsystem" }
 rhizome-resin-op = { path = "crates/resin-op" }
 rhizome-resin-op-macros = { path = "crates/resin-op-macros" }
+rhizome-resin-motion-fn = { path = "crates/resin-motion-fn" }
 
 [package]
 name = "rhizome-resin-examples"

@@ -133,6 +133,58 @@
 - [x] Architecture review - evaluate patterns, identify inconsistencies (see docs/architecture-review.md)
 - [x] Refactoring - HIGH: tuple returns → named structs, panics → Option; MEDIUM: collision dedup, missing traits, step() split
 
+### Motion Graphics
+
+> **Status:** In progress
+
+**Goal:** After Effects-style 2D motion graphics with vector-first approach.
+
+**Crates:**
+- `resin-motion-fn` - Motion functions: Spring, Oscillate, Wiggle, Eased, Lerp (✅ implemented)
+- `resin-motion` - Scene graph: Transform2D, Layer, hierarchy, blend modes (planned)
+
+**Features needed:**
+- [ ] Transform2D with anchor point (pivot for rotation/scale)
+- [ ] Layer hierarchy with parent-child transforms
+- [ ] Path trim (animate stroke reveal 0-100%)
+- [ ] Stagger/offset timing for instances
+- [ ] Drop shadow, glow effects
+
+**Typed Expression AST:**
+- [ ] MotionExpr enum - typed variants for motion functions
+- [ ] FieldExpr enum - typed variants for field functions
+- [ ] Dew AST ↔ our AST conversion (bidirectional)
+
+Design: use dew for parsing/compiling, our own typed enums for working representation.
+
+```rust
+// Motion: t → f32 (typed variants, not Call(String, Vec))
+pub enum MotionExpr {
+    Constant(f32),
+    Var(String),
+    Add(Box<MotionExpr>, Box<MotionExpr>),
+    Spring { from: Box<MotionExpr>, to: Box<MotionExpr>, stiffness: f32, damping: f32 },
+    Oscillate { center: Box<MotionExpr>, amplitude: Box<MotionExpr>, frequency: f32, phase: f32 },
+    // ...
+}
+
+// Field: (x,y,z) → f32
+pub enum FieldExpr {
+    Constant(f32),
+    Var(String),
+    Add(Box<FieldExpr>, Box<FieldExpr>),
+    Perlin { frequency: Box<FieldExpr> },
+    // ...
+}
+```
+
+Benefits:
+- UI introspection (pattern match → render controls)
+- JSON serialization (struct tree, not string)
+- GPU compilation (convert back to dew AST → WGSL/Cranelift)
+
+Extensibility story TBD - can refactor later.
+
 ## Done
 - [x] Rigid body physics (RigidBody, Collider shapes, PhysicsWorld, impulse-based collision resolution)
 - [x] Fluid simulation (FluidGrid2D/3D stable fluids, Sph2D/3D particle hydrodynamics)
