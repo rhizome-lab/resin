@@ -90,6 +90,12 @@ Index of resin's crates organized by domain. See individual crate docs in `docs/
 |-------|-------------|
 | **resin-spatial** | Quadtree, octree, BVH, spatial hash, R-tree for efficient spatial queries |
 
+## Cross-Domain
+
+| Crate | Description | Docs |
+|-------|-------------|------|
+| **[resin-crossdomain](crates/resin-crossdomain.md)** | Buffer reinterpretation, image↔audio conversion, noise-as-anything adapters | [docs](crates/resin-crossdomain.md) |
+
 ---
 
 ## Summary
@@ -105,5 +111,6 @@ Index of resin's crates organized by domain. See individual crate docs in `docs/
 | Physics | 4 | Rigid body, soft body, cloth, springs, particles, fluids |
 | Procedural | 6 | Noise, automata, WFC, L-systems, reaction-diffusion |
 | Spatial | 1 | Quadtree, octree, BVH, spatial hash, R-tree |
+| Cross-Domain | 1 | Image↔audio, buffer reinterpretation, noise-as-anything |
 | Fields | 2 | Lazy evaluation, expression language |
 | GPU | 1 | wgpu compute for noise/textures |

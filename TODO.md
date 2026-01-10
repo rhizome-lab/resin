@@ -72,9 +72,9 @@
 
 > Inspired by MetaSynth, glitch art - structure is transferable between domains.
 
-- [ ] Image↔Audio - spectral painting, sonification, audio-to-image
-- [ ] Buffer reinterpretation - treat any `&[f32]` as audio/vertices/pixels
-- [ ] Noise-as-anything - same noise field as texture, audio modulation, displacement
+- [x] Image↔Audio - spectral painting, sonification, audio-to-image (image_to_audio, audio_to_image)
+- [x] Buffer reinterpretation - treat any `&[f32]` as audio/vertices/pixels (AudioView, Vertices2DView, Vertices3DView, PixelView)
+- [x] Noise-as-anything - same noise field as texture, audio modulation, displacement (field_to_audio, field_to_image, field_to_vertices_*)
 
 ### File Formats
 
