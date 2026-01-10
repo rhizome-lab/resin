@@ -78,12 +78,21 @@
 
 ### File Formats
 
-> **Note:** These need serious design consideration. May be better handled by [Cambium](https://github.com/rhizome-lab/cambium) (pipeline orchestrator for data conversion).
+> **Out of scope.** Complex file formats (FBX, USD, Alembic, video) are [Cambium](https://github.com/rhizome-lab/cambium)'s responsibility. Resin focuses on generation and manipulation, not I/O for proprietary formats.
 
-- [ ] FBX import - proprietary, complex; may need external lib or Cambium
-- [ ] USD import/export - massive spec; likely needs OpenUSD bindings or Cambium
-- [ ] Alembic import/export - cached geometry/animation; C++ lib with Rust bindings exists
-- [ ] Video export - mp4/webm encoding; Cambium responsibility
+### Polish
+
+- [ ] Examples - usage examples for key crates
+- [ ] Benchmarks - performance baselines for critical paths
+- [ ] Integration tests - cross-crate workflows
+
+### Graph Serialization
+
+> **Status: Not implemented.** The graph system (`resin-core`) and audio chain (`resin-audio`) use trait objects (`Box<dyn DynNode>`, `Box<dyn AudioNode>`) which can't be directly serialized. Full serialization would require:
+> - Serde derives on `Value`, `ValueType`, `Edge`
+> - Node registry mapping `type_name()` → constructor
+> - Parameter extraction from nodes
+> - Complete `Value` enum (currently missing Image, Mesh, Field, etc.)
 
 ### Post-Features
 
