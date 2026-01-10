@@ -68,6 +68,15 @@ version.workspace = true
 edition.workspace = true
 publish = false
 
+[features]
+default = []
+dynop = [
+    "rhizome-resin-mesh/dynop",
+    "rhizome-resin-audio/dynop",
+    "dep:rhizome-resin-op",
+    "dep:serde_json",
+]
+
 [dependencies]
 bevy = { workspace = true }
 rhizome-resin-core = { workspace = true }
@@ -79,7 +88,9 @@ rhizome-resin-noise = { workspace = true }
 rhizome-resin-field = { workspace = true }
 rhizome-resin-image = { workspace = true }
 rhizome-resin-lsystem = { workspace = true }
+rhizome-resin-op = { workspace = true, optional = true }
 glam = { workspace = true }
+serde_json = { version = "1", optional = true }
 
 [[example]]
 name = "bevy_mesh_demo"
@@ -100,3 +111,8 @@ path = "examples/procgen_lsystem.rs"
 [[example]]
 name = "noise_texture"
 path = "examples/noise_texture.rs"
+
+[[example]]
+name = "pipeline_roundtrip"
+path = "examples/pipeline_roundtrip.rs"
+required-features = ["dynop"]

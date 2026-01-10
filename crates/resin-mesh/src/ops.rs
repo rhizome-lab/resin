@@ -978,3 +978,119 @@ mod tests {
         }
     }
 }
+
+#[cfg(all(test, feature = "dynop"))]
+mod dynop_tests {
+    use super::*;
+    use crate::box_mesh;
+    use rhizome_resin_op::{DynOp, OpRegistry, OpType, OpValue};
+
+    #[test]
+    fn test_smooth_dynop_roundtrip() {
+        // Create an op
+        let op = Smooth::new(0.5, 3);
+
+        // Serialize to JSON
+        let params = op.params();
+        let type_name = op.type_name();
+
+        // Deserialize via registry
+        let mut registry = OpRegistry::new();
+        crate::register_ops(&mut registry);
+
+        let deserialized = registry.deserialize(type_name, params).unwrap();
+        assert_eq!(deserialized.type_name(), "resin::Smooth");
+
+        // Execute both and compare
+        let cube = box_mesh();
+        let direct_result = op.apply(&cube);
+
+        let input = OpValue::new(OpType::of::<Mesh>("Mesh"), cube);
+        let dyn_result = deserialized.apply_dyn(input).unwrap();
+        let dyn_mesh: Mesh = dyn_result.downcast().unwrap();
+
+        assert_eq!(direct_result.positions.len(), dyn_mesh.positions.len());
+        assert_eq!(direct_result.indices.len(), dyn_mesh.indices.len());
+    }
+
+    #[test]
+    fn test_extrude_dynop_roundtrip() {
+        let op = Extrude::new(0.2);
+        let params = op.params();
+
+        let mut registry = OpRegistry::new();
+        crate::register_ops(&mut registry);
+
+        let deserialized = registry.deserialize("resin::Extrude", params).unwrap();
+
+        let cube = box_mesh();
+        let direct_result = op.apply(&cube);
+
+        let input = OpValue::new(OpType::of::<Mesh>("Mesh"), cube);
+        let dyn_result = deserialized.apply_dyn(input).unwrap();
+        let dyn_mesh: Mesh = dyn_result.downcast().unwrap();
+
+        assert_eq!(direct_result.positions.len(), dyn_mesh.positions.len());
+    }
+
+    #[test]
+    fn test_inset_dynop_roundtrip() {
+        let op = Inset::new(0.3);
+        let params = op.params();
+
+        let mut registry = OpRegistry::new();
+        crate::register_ops(&mut registry);
+
+        let deserialized = registry.deserialize("resin::Inset", params).unwrap();
+
+        let cube = box_mesh();
+        let direct_result = op.apply(&cube);
+
+        let input = OpValue::new(OpType::of::<Mesh>("Mesh"), cube);
+        let dyn_result = deserialized.apply_dyn(input).unwrap();
+        let dyn_mesh: Mesh = dyn_result.downcast().unwrap();
+
+        assert_eq!(direct_result.positions.len(), dyn_mesh.positions.len());
+    }
+
+    #[test]
+    fn test_op_type_info() {
+        let smooth = Smooth::new(0.5, 3);
+        assert_eq!(smooth.type_name(), "resin::Smooth");
+        assert_eq!(smooth.input_type().name, "Mesh");
+        assert_eq!(smooth.output_type().name, "Mesh");
+
+        let extrude = Extrude::new(0.2);
+        assert_eq!(extrude.type_name(), "resin::Extrude");
+        assert_eq!(extrude.input_type().name, "Mesh");
+        assert_eq!(extrude.output_type().name, "Mesh");
+    }
+
+    #[test]
+    fn test_pipeline_execution() {
+        use rhizome_resin_op::Pipeline;
+
+        let mut registry = OpRegistry::new();
+        crate::register_ops(&mut registry);
+
+        // Build a pipeline
+        let mut pipeline = Pipeline::new();
+        pipeline.push(&Smooth::new(0.3, 2));
+        pipeline.push(&Extrude::new(0.1));
+
+        // Validate
+        let (input_type, output_type) = pipeline.validate(&registry).unwrap();
+        assert_eq!(input_type.name, "Mesh");
+        assert_eq!(output_type.name, "Mesh");
+
+        // Execute
+        let cube = box_mesh();
+        let input = OpValue::new(OpType::of::<Mesh>("Mesh"), cube.clone());
+        let output = pipeline.execute(input, &registry).unwrap();
+        let result: Mesh = output.downcast().unwrap();
+
+        // Compare with direct execution
+        let direct = Extrude::new(0.1).apply(&Smooth::new(0.3, 2).apply(&cube));
+        assert_eq!(result.positions.len(), direct.positions.len());
+    }
+}
