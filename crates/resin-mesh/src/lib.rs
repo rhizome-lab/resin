@@ -12,6 +12,7 @@ mod decimate;
 pub mod geodesic;
 mod halfedge;
 mod lattice;
+mod lod;
 mod loft;
 mod loops;
 mod marching_cubes;
@@ -53,6 +54,10 @@ pub use halfedge::{
 pub use lattice::{
     Lattice, LatticeDeformConfig, bend_lattice, lattice_deform, lattice_deform_point,
     lattice_deform_points, lattice_deform_with_config, scale_lattice, taper_lattice, twist_lattice,
+};
+pub use lod::{
+    LodChain, LodConfig, LodLevel, estimate_bounding_radius, generate_lod_chain,
+    generate_lod_chain_with_targets,
 };
 pub use loft::{LoftConfig, circle_profile, loft, loft_along_path, rect_profile, star_profile};
 pub use loops::{

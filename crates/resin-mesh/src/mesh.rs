@@ -55,6 +55,15 @@ impl Mesh {
         self.uvs.len() == self.positions.len()
     }
 
+    /// Estimates the memory usage of this mesh in bytes.
+    pub fn memory_estimate(&self) -> usize {
+        use std::mem::size_of;
+        self.positions.len() * size_of::<Vec3>()
+            + self.normals.len() * size_of::<Vec3>()
+            + self.uvs.len() * size_of::<Vec2>()
+            + self.indices.len() * size_of::<u32>()
+    }
+
     /// Computes flat normals from triangle geometry.
     ///
     /// Each vertex gets the normal of its triangle. Vertices shared
