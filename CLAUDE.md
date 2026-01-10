@@ -61,6 +61,17 @@ Do not:
 - Parameters > presets
 - Composition > inheritance
 
+**Operations as values.** Operations are serializable structs, methods are sugar:
+```rust
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Subdivide { pub levels: u32 }
+impl Subdivide { fn apply(&self, mesh: &Mesh) -> Mesh { ... } }
+
+// Method is sugar for the op struct
+impl Mesh { fn subdivide(&self, levels: u32) -> Mesh { Subdivide { levels }.apply(self) } }
+```
+This makes history/serialization natural - just collect the ops. See `docs/design/ops-as-values.md`.
+
 ## Conventions
 
 ### Rust

@@ -10,6 +10,7 @@ Everything in Resin should be describable procedurally:
 - **Expressions over constants** - values can be computed, animated, or data-driven
 - **Node graphs over imperative code** - composition of operations, not sequences of mutations
 - **Lazy evaluation** - build descriptions, evaluate on demand
+- **Operations as values** - ops are serializable structs, methods are sugar (see [ops-as-values](./design/ops-as-values.md))
 
 ## Unify, Don't Multiply
 
