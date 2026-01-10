@@ -56,6 +56,18 @@ let pyramid = ImagePyramid::gaussian(&image, 4);
 let result = pyramid.reconstruct_laplacian();
 ```
 
+### Inpainting
+Fill masked regions using diffusion or patch-based methods:
+```rust
+// Simple diffusion for small holes
+let mask = create_color_key_mask(&image, magenta, 0.1);
+let repaired = inpaint_diffusion(&image, &mask, &InpaintConfig::new(100));
+
+// PatchMatch for texture synthesis
+let config = PatchMatchConfig::new(7).with_pyramid_levels(4);
+let filled = inpaint_patchmatch(&image, &mask, &config);
+```
+
 ## Compositions
 
 ### With resin-noise
