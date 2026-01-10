@@ -8,3 +8,10 @@ repository = "https://github.com/rhizome-lab/resin"
 
 [dependencies]
 glam.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+
+[[bench]]
+name = "noise_benches"
+harness = false
