@@ -41,6 +41,7 @@ pub use network::{
     Edge, EdgeHandle, EdgeId, EdgeType, HandleStyle, Node, NodeId, Region, VectorNetwork,
 };
 pub use path::{
+    CornerRadii,
     Path,
     PathBuilder,
     PathCommand,
@@ -48,12 +49,17 @@ pub use path::{
     circle,
     ellipse,
     line,
+    pill,
     polygon,
     polyline,
     rect,
     rect_centered,
     regular_polygon,
     rounded_rect,
+    rounded_rect_corners,
+    squircle,
+    squircle_uniform,
+    squircle_with_segments,
     star,
 };
 pub use stroke::{
