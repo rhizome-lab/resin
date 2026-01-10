@@ -6,6 +6,9 @@
 - [x] Test coverage audit - 750+ tests passing, all crates covered
   - Well-tested: resin-mesh (153), resin-audio (123), resin-vector (117)
   - Improved: resin-core (29), resin-noise (17), resin-surface (25)
+- [ ] Polish pass - examples, benchmarks, integration tests
+- [ ] Graph serialization - evaluate and implement (see Backlog for details)
+- [ ] Identify new features - survey gaps, prioritize additions
 
 ## Backlog
 
@@ -80,19 +83,28 @@
 
 > **Out of scope.** Complex file formats (FBX, USD, Alembic, video) are [Cambium](https://github.com/rhizome-lab/cambium)'s responsibility. Resin focuses on generation and manipulation, not I/O for proprietary formats.
 
-### Polish
-
-- [ ] Examples - usage examples for key crates
-- [ ] Benchmarks - performance baselines for critical paths
-- [ ] Integration tests - cross-crate workflows
-
 ### Graph Serialization
 
-> **Status: Not implemented.** The graph system (`resin-core`) and audio chain (`resin-audio`) use trait objects (`Box<dyn DynNode>`, `Box<dyn AudioNode>`) which can't be directly serialized. Full serialization would require:
-> - Serde derives on `Value`, `ValueType`, `Edge`
-> - Node registry mapping `type_name()` → constructor
-> - Parameter extraction from nodes
-> - Complete `Value` enum (currently missing Image, Mesh, Field, etc.)
+> **Current findings:** Not implemented. Trait objects block direct serialization.
+
+**What exists:**
+- `Graph` struct with `DynNode` trait, `Value` enum, topological execution
+- `DynNodeDerive` proc macro for node implementations
+- `Chain` in resin-audio with same pattern (`Box<dyn AudioNode>`)
+- `type_name()` on nodes returns static str (intended for serialization)
+
+**What's missing:**
+- No serde derives on `Value`, `ValueType`, `Edge`
+- No node registry (`type_name()` → constructor mapping)
+- No parameter extraction from node instances
+- `Value` enum incomplete (only primitives, no Image/Mesh/Field/Audio)
+- No defined serialization format
+
+**Options:**
+1. **Registry approach** - runtime registry maps type names to constructors
+2. **Enum approach** - replace trait objects with enum of all node types (loses extensibility)
+3. **Hybrid** - core nodes as enum, plugin nodes via registry
+4. **Skip it** - graphs are code-only, no persistence needed
 
 ### Post-Features
 
