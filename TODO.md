@@ -45,7 +45,7 @@
 - [x] Chromatic aberration - RGB channel offset (radial from center) (chromatic_aberration, ChromaticAberrationConfig)
 - [x] Distortion effects - barrel, pincushion, wave, displacement map (lens_distortion, wave_distortion, displace, swirl, spherize)
 - [ ] Inpainting - diffusion-based fill, multi-scale PatchMatch
-- [ ] Image pyramid - downsample/upsample, coarse-to-fine processing
+- [x] Image pyramid - downsample/upsample, coarse-to-fine processing (downsample, upsample, ImagePyramid, resize)
 - [x] Color adjustments - levels, curves, hue/saturation, color balance (adjust_levels, adjust_brightness_contrast, adjust_hsl, grayscale, invert, posterize, threshold)
 
 ### Audio
