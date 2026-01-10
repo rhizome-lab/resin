@@ -24,7 +24,7 @@ Index of resin's crates organized by domain. See individual crate docs in `docs/
 
 | Crate | Description |
 |-------|-------------|
-| **resin-vector** | 2D paths, boolean ops, stroke/offset, triangulation, vector networks, gradient meshes, text-to-path, hatching, SVG import/export |
+| **resin-vector** | 2D paths, boolean ops, stroke/offset, path trim, triangulation, vector networks, gradient meshes, text-to-path, hatching, SVG import/export |
 
 ## Image & Texture
 
@@ -78,7 +78,7 @@ Index of resin's crates organized by domain. See individual crate docs in `docs/
 
 | Crate | Description |
 |-------|-------------|
-| **resin-scatter** | Instance placement: random, grid, Poisson disk sampling |
+| **resin-scatter** | Instance placement: random, grid, Poisson disk sampling; stagger timing for animations |
 
 ## GPU Acceleration
 
