@@ -1,0 +1,10 @@
+[package]
+name = "rhizome-resin-spatial"
+version = "0.1.0"
+edition = "2024"
+description = "Spatial data structures for efficient queries and collision detection"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rhizome-lab/resin"
+
+[dependencies]
+glam = { workspace = true }

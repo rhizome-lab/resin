@@ -62,11 +62,11 @@
 
 ### Spatial (new crate: resin-spatial)
 
-- [ ] Quadtree - 2D spatial partitioning, point/region queries
-- [ ] Octree - 3D spatial partitioning, point/region queries
-- [ ] BVH - bounding volume hierarchy for ray/intersection queries
-- [ ] Spatial hash - grid-based broad phase collision detection
-- [ ] R-tree - rectangle/AABB queries
+- [x] Quadtree - 2D spatial partitioning, point/region queries
+- [x] Octree - 3D spatial partitioning, point/region queries
+- [x] BVH - bounding volume hierarchy for ray/intersection queries
+- [x] Spatial hash - grid-based broad phase collision detection
+- [x] R-tree - rectangle/AABB queries
 
 ### Cross-Domain
 

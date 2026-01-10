@@ -84,6 +84,12 @@ Index of resin's crates organized by domain. See individual crate docs in `docs/
 |-------|-------------|
 | **resin-gpu** | wgpu compute backend for noise/texture generation |
 
+## Spatial Data Structures
+
+| Crate | Description |
+|-------|-------------|
+| **resin-spatial** | Quadtree, octree, BVH, spatial hash, R-tree for efficient spatial queries |
+
 ---
 
 ## Summary
@@ -98,5 +104,6 @@ Index of resin's crates organized by domain. See individual crate docs in `docs/
 | Animation | 2 | Skeleton, IK, motion matching, secondary motion, easing |
 | Physics | 4 | Rigid body, soft body, cloth, springs, particles, fluids |
 | Procedural | 6 | Noise, automata, WFC, L-systems, reaction-diffusion |
+| Spatial | 1 | Quadtree, octree, BVH, spatial hash, R-tree |
 | Fields | 2 | Lazy evaluation, expression language |
 | GPU | 1 | wgpu compute for noise/textures |
