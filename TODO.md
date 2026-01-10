@@ -107,31 +107,17 @@
 
 ### Graph Serialization
 
-> **Status:** Not implemented. Trait objects block direct serialization.
+> **Status:** ✅ Implemented in `resin-serde` and `resin-history`
 
-**Current architecture:**
-- `Graph` holds `HashMap<NodeId, Box<dyn DynNode>>` + `Vec<Edge>`
-- `DynNode` trait has `type_name()` → &'static str (designed for serialization)
-- `Value` enum is primitives only (F32, I32, Bool, Vec2/3/4) - no Image/Mesh/Field
-- `Edge` is a simple struct (from_node, from_port, to_node, to_port)
+**Crates:**
+- `resin-serde` - SerialGraph format, NodeRegistry, JSON/bincode formats
+- `resin-history` - SnapshotHistory (full snapshots), EventHistory (event sourcing)
 
-**Recommended approach: Registry pattern**
-
-1. Add serde derives to `Edge`, `Value`, `ValueType`
-2. Add `params(&self) -> serde_json::Value` to DynNode trait
-3. Add `from_params(params: serde_json::Value) -> Box<dyn DynNode>` factory
-4. Create `NodeRegistry` mapping type_name → factory function
-5. Serialize graph as: `{ nodes: [(id, type_name, params)], edges: [...] }`
-
-**Why registry over enum:**
-- Extensibility: users can register custom nodes
-- Matches existing `type_name()` infrastructure
-- No breaking changes to existing code
-
-**Blockers before implementing:**
-- Decide if `Value` needs Image/Mesh/Field types (big scope change)
-- Decide on serialization format (JSON, MessagePack, custom)
-- Consider if this is actually needed (graphs can be code)
+**How it works:**
+1. `SerialGraph` stores nodes as `(id, type_name, params_json)` + edges
+2. `NodeRegistry` maps type_name → deserializer factory function
+3. Supports JSON (human-readable) and bincode (compact binary)
+4. History: snapshots for simple undo/redo, events for fine-grained tracking
 
 ### Post-Features
 

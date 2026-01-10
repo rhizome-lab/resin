@@ -97,6 +97,14 @@ Index of resin's crates organized by domain. See individual crate docs in `docs/
 | **[resin-bytes](crates/resin-bytes.md)** | Raw byte casting between numeric types (bytemuck) | [docs](crates/resin-bytes.md) |
 | **[resin-crossdomain](crates/resin-crossdomain.md)** | Image↔audio conversion, noise-as-anything adapters | [docs](crates/resin-crossdomain.md) |
 
+## Core & Serialization
+
+| Crate | Description |
+|-------|-------------|
+| **resin-core** | Graph container, DynNode trait, Value enum, node derive macro |
+| **resin-serde** | Graph serialization: SerialGraph format, NodeRegistry, JSON/bincode |
+| **resin-history** | History tracking: snapshots (undo/redo), event sourcing (fine-grained) |
+
 ---
 
 ## Summary
@@ -115,3 +123,4 @@ Index of resin's crates organized by domain. See individual crate docs in `docs/
 | Cross-Domain | 2 | Raw byte casting, image↔audio, noise-as-anything |
 | Fields | 2 | Lazy evaluation, expression language |
 | GPU | 1 | wgpu compute for noise/textures |
+| Core | 3 | Graph system, serialization, history tracking |
