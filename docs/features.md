@@ -44,7 +44,8 @@ Index of resin's crates organized by domain. See individual crate docs in `docs/
 |-------|-------------|
 | **resin-rig** | Skeleton/bones, animation clips, blending/layers, IK (FABRIK, CCD), motion matching, procedural walk, secondary motion (jiggle, follow-through), skinning |
 | **resin-easing** | Animation easing functions |
-| **resin-motion-fn** | Motion functions: Spring, Oscillate, Wiggle, Eased, Lerp; dew expression integration |
+| **resin-motion-fn** | Motion functions: Spring, Oscillate, Wiggle, Eased, Lerp; typed MotionExpr AST; dew expression integration |
+| **resin-motion** | 2D motion graphics scene graph: Transform2D with anchor point, Layer hierarchy, blend modes, opacity |
 
 ## Physics
 
@@ -118,7 +119,7 @@ Index of resin's crates organized by domain. See individual crate docs in `docs/
 | 2D Vector | 1 | Paths, booleans, networks, gradients, text, SVG |
 | Image | 1 | Convolution, color adjust, distortion, pyramids |
 | Color | 1 | Color spaces, gradients, blend modes |
-| Animation | 2 | Skeleton, IK, motion matching, secondary motion, easing |
+| Animation | 4 | Skeleton, IK, motion matching, easing, motion functions, 2D scene graph |
 | Physics | 4 | Rigid body, soft body, cloth, springs, particles, fluids |
 | Procedural | 6 | Noise, automata, WFC, L-systems, reaction-diffusion |
 | Spatial | 1 | Quadtree, octree, BVH, spatial hash, R-tree |

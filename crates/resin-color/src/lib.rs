@@ -4,8 +4,12 @@
 
 use glam::Vec3;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// Linear RGB color (0-1 range, not gamma corrected).
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct LinearRgb {
     /// Red channel (0-1).
     pub r: f32,
@@ -151,6 +155,7 @@ impl LinearRgb {
 
 /// HSL (Hue, Saturation, Lightness) color space.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Hsl {
     /// Hue (0-1, wraps around).
     pub h: f32,
@@ -206,6 +211,7 @@ impl Hsl {
 
 /// HSV (Hue, Saturation, Value) color space.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Hsv {
     /// Hue (0-1, wraps around).
     pub h: f32,
@@ -264,6 +270,7 @@ impl Hsv {
 
 /// RGBA color with alpha channel.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Rgba {
     /// Red channel (0-1).
     pub r: f32,
@@ -334,6 +341,7 @@ impl Rgba {
 
 /// A color stop in a gradient.
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ColorStop {
     /// Position in the gradient (0-1).
     pub position: f32,
@@ -355,6 +363,7 @@ impl ColorStop {
 
 /// A linear gradient with multiple color stops.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Gradient {
     /// Color stops (should be sorted by position).
     stops: Vec<ColorStop>,
@@ -532,9 +541,11 @@ pub mod presets {
 // ============================================================================
 
 /// Color blend modes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum BlendMode {
     /// Normal alpha blending.
+    #[default]
     Normal,
     /// Multiply colors.
     Multiply,
