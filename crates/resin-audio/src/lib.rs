@@ -13,6 +13,7 @@ pub mod patch;
 pub mod percussion;
 pub mod physical;
 pub mod room;
+pub mod spatial;
 pub mod spectral;
 pub mod vocoder;
 pub mod wav;
@@ -55,6 +56,10 @@ pub use room::{
     EarlyReflection, RoomAcoustics, RoomGeometry, RoomMaterial, RoomMode, RoomModes, RoomSurfaces,
     calculate_early_reflections, calculate_room_modes, calculate_rt60_eyring,
     calculate_rt60_sabine,
+};
+pub use spatial::{
+    DistanceModel, HrtfMode, SpatialListener, SpatialSource, Spatializer, SpatializerConfig,
+    StereoMix, Vec3 as SpatialVec3, doppler_factor,
 };
 pub use spectral::{
     Complex, StftConfig, StftResult, TimeStretchConfig, blackman_window, estimate_pitch, fft,
