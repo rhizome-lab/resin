@@ -83,9 +83,13 @@ Proactively add features, ideas, patterns, technical debt.
 ### Documenting New Features
 
 When adding a new feature or module:
-1. **Document immediately** - write doc comments as you implement
-2. **Update `docs/features.md`** - add the feature to the catalog under the appropriate crate section
-3. **Include API signatures** - list public types and functions with brief descriptions
+1. **Document immediately** - write doc comments as you implement (rustdoc handles API details)
+2. **Update `docs/features.md`** - add/update the crate's one-line summary in the index
+3. **Update `docs/crates/<crate>.md`** - add conceptual docs:
+   - What the crate is for (not API listings)
+   - Related crates
+   - Example use cases
+   - Example compositions with other crates
 
 ### Working Style
 
