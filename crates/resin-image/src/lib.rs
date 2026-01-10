@@ -1368,6 +1368,368 @@ pub fn chromatic_aberration_simple(image: &ImageField, strength: f32) -> ImageFi
 }
 
 // ============================================================================
+// Color adjustments
+// ============================================================================
+
+/// Configuration for levels adjustment.
+#[derive(Debug, Clone, Copy)]
+pub struct LevelsConfig {
+    /// Input black point (values below this become 0). Range: 0-1.
+    pub input_black: f32,
+    /// Input white point (values above this become 1). Range: 0-1.
+    pub input_white: f32,
+    /// Gamma correction (1.0 = linear, <1 = brighten, >1 = darken).
+    pub gamma: f32,
+    /// Output black point. Range: 0-1.
+    pub output_black: f32,
+    /// Output white point. Range: 0-1.
+    pub output_white: f32,
+}
+
+impl Default for LevelsConfig {
+    fn default() -> Self {
+        Self {
+            input_black: 0.0,
+            input_white: 1.0,
+            gamma: 1.0,
+            output_black: 0.0,
+            output_white: 1.0,
+        }
+    }
+}
+
+impl LevelsConfig {
+    /// Creates a new levels config with only gamma adjustment.
+    pub fn gamma(gamma: f32) -> Self {
+        Self {
+            gamma,
+            ..Default::default()
+        }
+    }
+
+    /// Creates a levels config that remaps black/white points.
+    pub fn remap(input_black: f32, input_white: f32) -> Self {
+        Self {
+            input_black,
+            input_white,
+            ..Default::default()
+        }
+    }
+
+    /// Sets the gamma value.
+    pub fn with_gamma(mut self, gamma: f32) -> Self {
+        self.gamma = gamma;
+        self
+    }
+
+    /// Sets the output range.
+    pub fn with_output(mut self, black: f32, white: f32) -> Self {
+        self.output_black = black;
+        self.output_white = white;
+        self
+    }
+}
+
+/// Applies levels adjustment to an image.
+///
+/// This is similar to Photoshop's Levels adjustment:
+/// 1. Remap input range [input_black, input_white] to [0, 1]
+/// 2. Apply gamma correction
+/// 3. Remap [0, 1] to [output_black, output_white]
+///
+/// # Example
+///
+/// ```
+/// use rhizome_resin_image::{ImageField, adjust_levels, LevelsConfig};
+///
+/// let data = vec![[0.3, 0.5, 0.7, 1.0]; 4];
+/// let img = ImageField::from_raw(data, 2, 2);
+///
+/// // Increase contrast by pulling in black/white points
+/// let config = LevelsConfig::remap(0.2, 0.8);
+/// let result = adjust_levels(&img, &config);
+/// ```
+pub fn adjust_levels(image: &ImageField, config: &LevelsConfig) -> ImageField {
+    let (width, height) = image.dimensions();
+    let mut data = Vec::with_capacity((width * height) as usize);
+
+    let input_range = (config.input_white - config.input_black).max(0.001);
+    let output_range = config.output_white - config.output_black;
+    // Gamma < 1 brightens (raises values), gamma > 1 darkens (lowers values)
+    let gamma = config.gamma.max(0.001);
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = image.get_pixel(x, y);
+
+            let adjust = |v: f32| -> f32 {
+                // Remap input
+                let normalized = ((v - config.input_black) / input_range).clamp(0.0, 1.0);
+                // Apply gamma (gamma < 1 brightens, gamma > 1 darkens)
+                let gamma_corrected = normalized.powf(gamma);
+                // Remap output
+                (gamma_corrected * output_range + config.output_black).clamp(0.0, 1.0)
+            };
+
+            data.push([
+                adjust(pixel[0]),
+                adjust(pixel[1]),
+                adjust(pixel[2]),
+                pixel[3],
+            ]);
+        }
+    }
+
+    ImageField::from_raw(data, width, height)
+        .with_wrap_mode(image.wrap_mode)
+        .with_filter_mode(image.filter_mode)
+}
+
+/// Adjusts brightness and contrast of an image.
+///
+/// # Arguments
+/// * `brightness` - Brightness adjustment (-1 to 1, 0 = no change)
+/// * `contrast` - Contrast adjustment (-1 to 1, 0 = no change)
+///
+/// # Example
+///
+/// ```
+/// use rhizome_resin_image::{ImageField, adjust_brightness_contrast};
+///
+/// let data = vec![[0.5, 0.5, 0.5, 1.0]; 4];
+/// let img = ImageField::from_raw(data, 2, 2);
+///
+/// let result = adjust_brightness_contrast(&img, 0.1, 0.2);
+/// ```
+pub fn adjust_brightness_contrast(
+    image: &ImageField,
+    brightness: f32,
+    contrast: f32,
+) -> ImageField {
+    let (width, height) = image.dimensions();
+    let mut data = Vec::with_capacity((width * height) as usize);
+
+    // Convert contrast to multiplier: 0 = 1x, 1 = 2x, -1 = 0x
+    let contrast_factor = (1.0 + contrast).max(0.0);
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = image.get_pixel(x, y);
+
+            let adjust = |v: f32| -> f32 {
+                // Apply contrast around midpoint, then brightness
+                let contrasted = (v - 0.5) * contrast_factor + 0.5;
+                (contrasted + brightness).clamp(0.0, 1.0)
+            };
+
+            data.push([
+                adjust(pixel[0]),
+                adjust(pixel[1]),
+                adjust(pixel[2]),
+                pixel[3],
+            ]);
+        }
+    }
+
+    ImageField::from_raw(data, width, height)
+        .with_wrap_mode(image.wrap_mode)
+        .with_filter_mode(image.filter_mode)
+}
+
+/// Configuration for HSL adjustments.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct HslAdjustment {
+    /// Hue shift (-0.5 to 0.5, wraps around the color wheel).
+    pub hue_shift: f32,
+    /// Saturation adjustment (-1 = grayscale, 0 = no change, 1 = double saturation).
+    pub saturation: f32,
+    /// Lightness adjustment (-1 = black, 0 = no change, 1 = white).
+    pub lightness: f32,
+}
+
+impl HslAdjustment {
+    /// Creates a hue shift adjustment.
+    pub fn hue(shift: f32) -> Self {
+        Self {
+            hue_shift: shift,
+            saturation: 0.0,
+            lightness: 0.0,
+        }
+    }
+
+    /// Creates a saturation adjustment.
+    pub fn saturation(amount: f32) -> Self {
+        Self {
+            hue_shift: 0.0,
+            saturation: amount,
+            lightness: 0.0,
+        }
+    }
+
+    /// Creates a lightness adjustment.
+    pub fn lightness(amount: f32) -> Self {
+        Self {
+            hue_shift: 0.0,
+            saturation: 0.0,
+            lightness: amount,
+        }
+    }
+
+    /// Sets the hue shift.
+    pub fn with_hue(mut self, shift: f32) -> Self {
+        self.hue_shift = shift;
+        self
+    }
+
+    /// Sets the saturation adjustment.
+    pub fn with_saturation(mut self, amount: f32) -> Self {
+        self.saturation = amount;
+        self
+    }
+
+    /// Sets the lightness adjustment.
+    pub fn with_lightness(mut self, amount: f32) -> Self {
+        self.lightness = amount;
+        self
+    }
+}
+
+/// Adjusts hue, saturation, and lightness of an image.
+///
+/// # Example
+///
+/// ```
+/// use rhizome_resin_image::{ImageField, adjust_hsl, HslAdjustment};
+///
+/// let data = vec![[1.0, 0.5, 0.0, 1.0]; 4]; // Orange
+/// let img = ImageField::from_raw(data, 2, 2);
+///
+/// // Shift hue by 180 degrees (complement)
+/// let result = adjust_hsl(&img, &HslAdjustment::hue(0.5));
+/// ```
+pub fn adjust_hsl(image: &ImageField, adjustment: &HslAdjustment) -> ImageField {
+    use rhizome_resin_color::{Hsl, LinearRgb};
+
+    let (width, height) = image.dimensions();
+    let mut data = Vec::with_capacity((width * height) as usize);
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = image.get_pixel(x, y);
+
+            // Convert to HSL
+            let rgb = LinearRgb::new(pixel[0], pixel[1], pixel[2]);
+            let hsl = rgb.to_hsl();
+
+            // Apply adjustments
+            let new_h = (hsl.h + adjustment.hue_shift).rem_euclid(1.0);
+            let new_s = (hsl.s * (1.0 + adjustment.saturation)).clamp(0.0, 1.0);
+            let new_l = (hsl.l + adjustment.lightness).clamp(0.0, 1.0);
+
+            // Convert back
+            let new_rgb = Hsl::new(new_h, new_s, new_l).to_rgb();
+
+            data.push([new_rgb.r, new_rgb.g, new_rgb.b, pixel[3]]);
+        }
+    }
+
+    ImageField::from_raw(data, width, height)
+        .with_wrap_mode(image.wrap_mode)
+        .with_filter_mode(image.filter_mode)
+}
+
+/// Converts an image to grayscale using luminance.
+///
+/// Uses ITU-R BT.709 coefficients: 0.2126 R + 0.7152 G + 0.0722 B
+pub fn grayscale(image: &ImageField) -> ImageField {
+    let (width, height) = image.dimensions();
+    let mut data = Vec::with_capacity((width * height) as usize);
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = image.get_pixel(x, y);
+            let lum = 0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2];
+            data.push([lum, lum, lum, pixel[3]]);
+        }
+    }
+
+    ImageField::from_raw(data, width, height)
+        .with_wrap_mode(image.wrap_mode)
+        .with_filter_mode(image.filter_mode)
+}
+
+/// Inverts the colors of an image.
+///
+/// Each RGB channel is inverted (1 - value). Alpha is preserved.
+pub fn invert(image: &ImageField) -> ImageField {
+    let (width, height) = image.dimensions();
+    let mut data = Vec::with_capacity((width * height) as usize);
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = image.get_pixel(x, y);
+            data.push([1.0 - pixel[0], 1.0 - pixel[1], 1.0 - pixel[2], pixel[3]]);
+        }
+    }
+
+    ImageField::from_raw(data, width, height)
+        .with_wrap_mode(image.wrap_mode)
+        .with_filter_mode(image.filter_mode)
+}
+
+/// Applies a posterization effect, reducing the number of color levels.
+///
+/// # Arguments
+/// * `levels` - Number of levels per channel (2-256, typically 2-8 for visible effect)
+pub fn posterize(image: &ImageField, levels: u32) -> ImageField {
+    let (width, height) = image.dimensions();
+    let mut data = Vec::with_capacity((width * height) as usize);
+
+    let levels = levels.clamp(2, 256) as f32;
+    let factor = levels - 1.0;
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = image.get_pixel(x, y);
+
+            let quantize = |v: f32| ((v * factor).round() / factor).clamp(0.0, 1.0);
+
+            data.push([
+                quantize(pixel[0]),
+                quantize(pixel[1]),
+                quantize(pixel[2]),
+                pixel[3],
+            ]);
+        }
+    }
+
+    ImageField::from_raw(data, width, height)
+        .with_wrap_mode(image.wrap_mode)
+        .with_filter_mode(image.filter_mode)
+}
+
+/// Applies a threshold effect, converting to black and white.
+///
+/// Pixels with luminance above the threshold become white, below become black.
+pub fn threshold(image: &ImageField, threshold: f32) -> ImageField {
+    let (width, height) = image.dimensions();
+    let mut data = Vec::with_capacity((width * height) as usize);
+
+    for y in 0..height {
+        for x in 0..width {
+            let pixel = image.get_pixel(x, y);
+            let lum = 0.2126 * pixel[0] + 0.7152 * pixel[1] + 0.0722 * pixel[2];
+            let v = if lum > threshold { 1.0 } else { 0.0 };
+            data.push([v, v, v, pixel[3]]);
+        }
+    }
+
+    ImageField::from_raw(data, width, height)
+        .with_wrap_mode(image.wrap_mode)
+        .with_filter_mode(image.filter_mode)
+}
+
+// ============================================================================
 // Normal map generation
 // ============================================================================
 
@@ -2034,5 +2396,166 @@ mod tests {
         assert!((center[0] - 0.5).abs() < 0.1);
         assert!((center[1] - 0.5).abs() < 0.1);
         assert!((center[2] - 0.5).abs() < 0.1);
+    }
+
+    // Color adjustment tests
+
+    #[test]
+    fn test_levels_default() {
+        let data = vec![[0.3, 0.5, 0.7, 1.0]; 4];
+        let img = ImageField::from_raw(data.clone(), 2, 2);
+
+        // Default config should not change the image
+        let result = adjust_levels(&img, &LevelsConfig::default());
+        let pixel = result.get_pixel(0, 0);
+        assert!((pixel[0] - 0.3).abs() < 0.01);
+        assert!((pixel[1] - 0.5).abs() < 0.01);
+        assert!((pixel[2] - 0.7).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_levels_gamma() {
+        let data = vec![[0.5, 0.5, 0.5, 1.0]; 4];
+        let img = ImageField::from_raw(data, 2, 2);
+
+        // Gamma < 1 brightens
+        let brightened = adjust_levels(&img, &LevelsConfig::gamma(0.5));
+        assert!(brightened.get_pixel(0, 0)[0] > 0.5);
+
+        // Gamma > 1 darkens
+        let darkened = adjust_levels(&img, &LevelsConfig::gamma(2.0));
+        assert!(darkened.get_pixel(0, 0)[0] < 0.5);
+    }
+
+    #[test]
+    fn test_levels_remap() {
+        let data = vec![[0.3, 0.5, 0.7, 1.0]; 4];
+        let img = ImageField::from_raw(data, 2, 2);
+
+        // Remap [0.2, 0.8] to [0, 1] - should increase contrast
+        let config = LevelsConfig::remap(0.2, 0.8);
+        let result = adjust_levels(&img, &config);
+
+        // 0.3 should map to ~0.167 (below black point)
+        // 0.5 should map to ~0.5 (middle)
+        // 0.7 should map to ~0.833 (above black point)
+        let pixel = result.get_pixel(0, 0);
+        assert!(pixel[0] < 0.3); // Darker than original
+        assert!((pixel[1] - 0.5).abs() < 0.01); // About the same
+        assert!(pixel[2] > 0.7); // Brighter than original
+    }
+
+    #[test]
+    fn test_brightness_contrast() {
+        let data = vec![[0.5, 0.5, 0.5, 1.0]; 4];
+        let img = ImageField::from_raw(data, 2, 2);
+
+        // Brightness only
+        let brighter = adjust_brightness_contrast(&img, 0.2, 0.0);
+        assert!((brighter.get_pixel(0, 0)[0] - 0.7).abs() < 0.01);
+
+        // Contrast only - midpoint unchanged
+        let contrasted = adjust_brightness_contrast(&img, 0.0, 0.5);
+        assert!((contrasted.get_pixel(0, 0)[0] - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_brightness_contrast_edges() {
+        let data = vec![[0.0, 0.25, 0.75, 1.0]; 4];
+        let img = ImageField::from_raw(data, 2, 2);
+
+        // High contrast should push values toward 0 and 1
+        let contrasted = adjust_brightness_contrast(&img, 0.0, 0.5);
+        let pixel = contrasted.get_pixel(0, 0);
+        assert!(pixel[0] < 0.0 + 0.01); // Should be clamped to 0
+        assert!(pixel[1] < 0.25); // Should be pushed darker
+        assert!(pixel[2] > 0.75); // Should be pushed brighter
+        assert!(pixel[3] > 0.99); // Should be clamped to 1
+    }
+
+    #[test]
+    fn test_hsl_adjustment_hue() {
+        let data = vec![[1.0, 0.0, 0.0, 1.0]; 4]; // Pure red
+        let img = ImageField::from_raw(data, 2, 2);
+
+        // Shift hue by 1/3 (120 degrees) - red -> green
+        let result = adjust_hsl(&img, &HslAdjustment::hue(1.0 / 3.0));
+        let pixel = result.get_pixel(0, 0);
+        assert!(pixel[1] > pixel[0]); // Green should dominate
+        assert!(pixel[1] > pixel[2]); // Green > blue
+    }
+
+    #[test]
+    fn test_hsl_adjustment_saturation() {
+        let data = vec![[1.0, 0.5, 0.5, 1.0]; 4]; // Pinkish
+        let img = ImageField::from_raw(data, 2, 2);
+
+        // Desaturate
+        let desaturated = adjust_hsl(&img, &HslAdjustment::saturation(-0.5));
+        let pixel = desaturated.get_pixel(0, 0);
+        // Should be more gray - channels closer together
+        let range = pixel[0].max(pixel[1]).max(pixel[2]) - pixel[0].min(pixel[1]).min(pixel[2]);
+        assert!(range < 0.5); // Range should be reduced
+    }
+
+    #[test]
+    fn test_grayscale() {
+        let data = vec![[1.0, 0.0, 0.0, 1.0]; 4]; // Red
+        let img = ImageField::from_raw(data, 2, 2);
+
+        let gray = grayscale(&img);
+        let pixel = gray.get_pixel(0, 0);
+
+        // All channels should be equal
+        assert!((pixel[0] - pixel[1]).abs() < 0.001);
+        assert!((pixel[1] - pixel[2]).abs() < 0.001);
+
+        // Should be approximately 0.2126 (red luminance coefficient)
+        assert!((pixel[0] - 0.2126).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_invert() {
+        let data = vec![[0.2, 0.5, 0.8, 0.9]; 4];
+        let img = ImageField::from_raw(data, 2, 2);
+
+        let inverted = invert(&img);
+        let pixel = inverted.get_pixel(0, 0);
+
+        assert!((pixel[0] - 0.8).abs() < 0.001);
+        assert!((pixel[1] - 0.5).abs() < 0.001);
+        assert!((pixel[2] - 0.2).abs() < 0.001);
+        assert!((pixel[3] - 0.9).abs() < 0.001); // Alpha unchanged
+    }
+
+    #[test]
+    fn test_posterize() {
+        let data = vec![[0.33, 0.66, 0.99, 1.0]; 4];
+        let img = ImageField::from_raw(data, 2, 2);
+
+        // 2 levels = only 0 or 1
+        let posterized = posterize(&img, 2);
+        let pixel = posterized.get_pixel(0, 0);
+        assert!(pixel[0] == 0.0 || pixel[0] == 1.0);
+        assert!(pixel[1] == 0.0 || pixel[1] == 1.0);
+        assert!(pixel[2] == 0.0 || pixel[2] == 1.0);
+    }
+
+    #[test]
+    fn test_threshold() {
+        let data = vec![
+            [0.3, 0.3, 0.3, 1.0],
+            [0.7, 0.7, 0.7, 1.0],
+            [0.5, 0.5, 0.5, 1.0],
+            [0.5, 0.5, 0.5, 1.0],
+        ];
+        let img = ImageField::from_raw(data, 2, 2);
+
+        let result = threshold(&img, 0.5);
+
+        // 0.3 luminance < 0.5 -> black
+        assert!(result.get_pixel(0, 0)[0] < 0.01);
+        // 0.7 luminance > 0.5 -> white
+        assert!(result.get_pixel(1, 0)[0] > 0.99);
     }
 }

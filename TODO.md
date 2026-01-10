@@ -46,7 +46,7 @@
 - [ ] Distortion effects - barrel, pincushion, wave, displacement map
 - [ ] Inpainting - diffusion-based fill, multi-scale PatchMatch
 - [ ] Image pyramid - downsample/upsample, coarse-to-fine processing
-- [ ] Color adjustments - levels, curves, hue/saturation, color balance
+- [x] Color adjustments - levels, curves, hue/saturation, color balance (adjust_levels, adjust_brightness_contrast, adjust_hsl, grayscale, invert, posterize, threshold)
 
 ### Audio
 
