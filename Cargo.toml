@@ -49,6 +49,10 @@ rhizome-resin-rig = { path = "crates/resin-rig" }
 rhizome-resin-gltf = { path = "crates/resin-gltf" }
 rhizome-resin-fluid = { path = "crates/resin-fluid" }
 rhizome-resin-physics = { path = "crates/resin-physics" }
+rhizome-resin-noise = { path = "crates/resin-noise" }
+rhizome-resin-field = { path = "crates/resin-field" }
+rhizome-resin-image = { path = "crates/resin-image" }
+rhizome-resin-lsystem = { path = "crates/resin-lsystem" }
 
 [package]
 name = "rhizome-resin-examples"
@@ -63,6 +67,10 @@ rhizome-resin-mesh = { workspace = true }
 rhizome-resin-audio = { workspace = true }
 rhizome-resin-vector = { workspace = true }
 rhizome-resin-rig = { workspace = true }
+rhizome-resin-noise = { workspace = true }
+rhizome-resin-field = { workspace = true }
+rhizome-resin-image = { workspace = true }
+rhizome-resin-lsystem = { workspace = true }
 glam = { workspace = true }
 
 [[example]]
@@ -72,3 +80,15 @@ path = "examples/bevy_mesh_demo.rs"
 [[example]]
 name = "bevy_animation_demo"
 path = "examples/bevy_animation_demo.rs"
+
+[[example]]
+name = "audio_synthesis"
+path = "examples/audio_synthesis.rs"
+
+[[example]]
+name = "procgen_lsystem"
+path = "examples/procgen_lsystem.rs"
+
+[[example]]
+name = "noise_texture"
+path = "examples/noise_texture.rs"
