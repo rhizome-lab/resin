@@ -4,9 +4,14 @@
 //! collision against spheres, planes, and capsules.
 
 use glam::Vec3;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// Configuration for cloth simulation.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = ClothConfig))]
 pub struct ClothConfig {
     /// Number of constraint solver iterations.
     pub iterations: u32,
@@ -35,6 +40,13 @@ impl Default for ClothConfig {
             collision_margin: 0.01,
             friction: 0.3,
         }
+    }
+}
+
+impl ClothConfig {
+    /// Applies this configuration (returns self as a generator op).
+    pub fn apply(&self) -> ClothConfig {
+        self.clone()
     }
 }
 

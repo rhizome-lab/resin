@@ -1,25 +1,40 @@
 //! Marching cubes algorithm for generating meshes from signed distance fields.
 //!
+//! Operations are serializable structs with `apply` methods.
+//! See `docs/design/ops-as-values.md`.
+//!
 //! # Example
 //!
 //! ```ignore
-//! use rhizome_resin_mesh::{marching_cubes, MarchingCubesConfig};
+//! use rhizome_resin_mesh::{marching_cubes, MarchingCubes, SdfGrid};
 //! use glam::Vec3;
 //!
 //! // Define a sphere SDF
 //! let sdf = |p: Vec3| p.length() - 1.0;
 //!
-//! // Generate mesh
-//! let mesh = marching_cubes(&sdf, MarchingCubesConfig::default());
+//! // Generate mesh from closure
+//! let mesh = marching_cubes(&sdf, MarchingCubes::default());
+//!
+//! // Or from an SdfGrid using the op pattern
+//! let grid: SdfGrid = /* ... */;
+//! let mesh = MarchingCubes::default().apply(&grid);
 //! ```
 
 use glam::Vec3;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
-use crate::Mesh;
+use crate::{Mesh, SdfGrid};
 
-/// Configuration for marching cubes.
+/// Extracts a mesh from a signed distance field using marching cubes.
+///
+/// This operation can be applied to an `SdfGrid` directly, or used with
+/// the `marching_cubes` function for closures.
 #[derive(Debug, Clone)]
-pub struct MarchingCubesConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = SdfGrid, output = Mesh))]
+pub struct MarchingCubes {
     /// Bounds of the sampling volume (min corner).
     pub min: Vec3,
     /// Bounds of the sampling volume (max corner).
@@ -30,7 +45,7 @@ pub struct MarchingCubesConfig {
     pub iso_value: f32,
 }
 
-impl Default for MarchingCubesConfig {
+impl Default for MarchingCubes {
     fn default() -> Self {
         Self {
             min: Vec3::splat(-1.0),
@@ -41,7 +56,7 @@ impl Default for MarchingCubesConfig {
     }
 }
 
-impl MarchingCubesConfig {
+impl MarchingCubes {
     /// Creates config with specified bounds.
     pub fn with_bounds(min: Vec3, max: Vec3) -> Self {
         Self {
@@ -62,12 +77,39 @@ impl MarchingCubesConfig {
         self.iso_value = iso_value;
         self
     }
+
+    /// Applies marching cubes to an SdfGrid.
+    pub fn apply(&self, sdf: &SdfGrid) -> Mesh {
+        // Use the SdfGrid's bounds if our bounds are defaults
+        let effective_min = if self.min == Vec3::splat(-1.0) && self.max == Vec3::splat(1.0) {
+            sdf.bounds_min
+        } else {
+            self.min
+        };
+        let effective_max = if self.min == Vec3::splat(-1.0) && self.max == Vec3::splat(1.0) {
+            sdf.bounds_max
+        } else {
+            self.max
+        };
+
+        let config = MarchingCubes {
+            min: effective_min,
+            max: effective_max,
+            resolution: self.resolution,
+            iso_value: self.iso_value,
+        };
+
+        marching_cubes(|p| sdf.sample(p), config)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type MarchingCubesConfig = MarchingCubes;
 
 /// Generates a mesh from a signed distance field using marching cubes.
 ///
 /// The SDF should return negative values inside the surface and positive outside.
-pub fn marching_cubes<F>(sdf: F, config: MarchingCubesConfig) -> Mesh
+pub fn marching_cubes<F>(sdf: F, config: MarchingCubes) -> Mesh
 where
     F: Fn(Vec3) -> f32,
 {

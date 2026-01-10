@@ -3,6 +3,9 @@
 //! Creates natural-looking trees, blood vessels, lightning, and other
 //! branching patterns by growing toward attraction points.
 //!
+//! Operations are serializable structs with `apply` methods.
+//! See `docs/design/ops-as-values.md`.
+//!
 //! # Example
 //!
 //! ```
@@ -33,11 +36,27 @@
 //! ```
 
 use glam::Vec3;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
+/// Registers all space-colonization operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of space-colonization ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<SpaceColonizationParams>("resin::SpaceColonizationParams");
+}
+
 /// Configuration for the space colonization algorithm.
+///
+/// This is an operation struct - use [`SpaceColonizationParams::apply`] to create
+/// a [`SpaceColonization`] instance ready for use.
 #[derive(Debug, Clone)]
-pub struct SpaceColonizationConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = SpaceColonization))]
+pub struct SpaceColonizationParams {
     /// Distance within which an attraction point influences a node.
     pub attraction_distance: f32,
     /// Distance at which an attraction point is removed (colonized).
@@ -54,7 +73,7 @@ pub struct SpaceColonizationConfig {
     pub max_iterations: usize,
 }
 
-impl Default for SpaceColonizationConfig {
+impl Default for SpaceColonizationParams {
     fn default() -> Self {
         Self {
             attraction_distance: 5.0,
@@ -67,6 +86,16 @@ impl Default for SpaceColonizationConfig {
         }
     }
 }
+
+impl SpaceColonizationParams {
+    /// Applies this configuration to create a new [`SpaceColonization`] instance.
+    pub fn apply(&self) -> SpaceColonization {
+        SpaceColonization::new(self.clone())
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type SpaceColonizationConfig = SpaceColonizationParams;
 
 /// A node in the branching structure.
 #[derive(Debug, Clone)]
@@ -94,7 +123,7 @@ pub struct BranchEdge {
 #[derive(Debug, Clone)]
 pub struct SpaceColonization {
     /// Configuration.
-    config: SpaceColonizationConfig,
+    config: SpaceColonizationParams,
     /// Attraction points.
     attraction_points: Vec<Vec3>,
     /// Active attraction points (indices).
@@ -107,7 +136,7 @@ pub struct SpaceColonization {
 
 impl SpaceColonization {
     /// Creates a new space colonization instance.
-    pub fn new(config: SpaceColonizationConfig) -> Self {
+    pub fn new(config: SpaceColonizationParams) -> Self {
         Self {
             config,
             attraction_points: Vec::new(),

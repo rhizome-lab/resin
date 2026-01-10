@@ -22,6 +22,9 @@
 //! let grid = maze.to_grid();
 //! ```
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// A generated maze.
 #[derive(Debug, Clone)]
 pub struct Maze {
@@ -163,6 +166,7 @@ impl Maze {
 
 /// Available maze generation algorithms.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum MazeAlgorithm {
     /// Depth-first search with backtracking.
     /// Creates long, winding passages.
@@ -560,9 +564,14 @@ fn sidewinder(width: usize, height: usize, seed: u64) -> Maze {
     maze
 }
 
-/// Configuration for maze generation.
+/// Operation for maze generation.
+///
+/// Takes a seed (u64) and produces a Maze.
 #[derive(Debug, Clone)]
-pub struct MazeConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = u64, output = Maze))]
+pub struct GenerateMaze {
     /// Width in cells.
     pub width: usize,
     /// Height in cells.
@@ -575,7 +584,7 @@ pub struct MazeConfig {
     pub add_exit: bool,
 }
 
-impl Default for MazeConfig {
+impl Default for GenerateMaze {
     fn default() -> Self {
         Self {
             width: 10,
@@ -587,7 +596,7 @@ impl Default for MazeConfig {
     }
 }
 
-impl MazeConfig {
+impl GenerateMaze {
     /// Creates a new maze config.
     pub fn new(width: usize, height: usize) -> Self {
         Self {
@@ -614,20 +623,28 @@ impl MazeConfig {
         self.add_exit = add;
         self
     }
+
+    /// Applies this operation to generate a maze.
+    pub fn apply(&self, seed: &u64) -> Maze {
+        let mut maze = generate_maze(self.width, self.height, self.algorithm, *seed);
+
+        if self.add_entrance {
+            maze.add_entrance();
+        }
+        if self.add_exit {
+            maze.add_exit();
+        }
+
+        maze
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type MazeConfig = GenerateMaze;
 
 /// Generates a maze using the given configuration.
 pub fn generate_maze_with_config(config: &MazeConfig, seed: u64) -> Maze {
-    let mut maze = generate_maze(config.width, config.height, config.algorithm, seed);
-
-    if config.add_entrance {
-        maze.add_entrance();
-    }
-    if config.add_exit {
-        maze.add_exit();
-    }
-
-    maze
+    config.apply(&seed)
 }
 
 /// Finds a path through the maze using BFS.

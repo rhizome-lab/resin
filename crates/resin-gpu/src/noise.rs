@@ -5,8 +5,12 @@ use crate::error::GpuResult;
 use crate::texture::{GpuTexture, TextureFormat};
 use bytemuck::{Pod, Zeroable};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// Type of noise to generate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum NoiseType {
     /// Classic Perlin noise.
     Perlin,
@@ -19,7 +23,12 @@ pub enum NoiseType {
 }
 
 /// Configuration for noise generation.
+///
+/// See `docs/design/ops-as-values.md`.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = NoiseConfig))]
 pub struct NoiseConfig {
     /// Type of noise.
     pub noise_type: NoiseType,
@@ -80,6 +89,14 @@ impl NoiseConfig {
     pub fn with_seed(mut self, seed: u32) -> Self {
         self.seed = seed;
         self
+    }
+
+    /// Applies this configuration, returning a clone of self.
+    ///
+    /// This is the identity operation for config structs - the config
+    /// is the value itself. Useful for serialization pipelines.
+    pub fn apply(&self) -> NoiseConfig {
+        self.clone()
     }
 }
 

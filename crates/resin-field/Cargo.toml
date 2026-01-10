@@ -6,6 +6,14 @@ description = "Field trait and combinators for procedural graphics"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rhizome-lab/resin"
 
+[features]
+default = []
+serde = ["dep:serde"]
+dynop = ["dep:rhizome-resin-op", "dep:serde_json", "serde"]
+
 [dependencies]
 glam.workspace = true
 rhizome-resin-noise = { path = "../resin-noise" }
+rhizome-resin-op = { path = "../resin-op", optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { version = "1", optional = true }

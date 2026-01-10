@@ -23,9 +23,30 @@
 
 use std::collections::VecDeque;
 
-/// Configuration for grain generation.
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+/// Input for granular synthesis operation.
 #[derive(Debug, Clone)]
-pub struct GrainConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct GranularInput {
+    /// Source audio buffer.
+    pub buffer: Vec<f32>,
+    /// Sample rate in Hz.
+    pub sample_rate: f32,
+    /// Number of samples to generate.
+    pub num_samples: usize,
+}
+
+/// Configuration for grain generation.
+///
+/// Operations on audio buffers use the ops-as-values pattern.
+/// See `docs/design/ops-as-values.md`.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = GranularInput, output = Vec<f32>))]
+pub struct GranularSynth {
     /// Grain size in milliseconds.
     pub size_ms: f32,
     /// Randomization of grain size (0.0 to 1.0).
@@ -46,7 +67,7 @@ pub struct GrainConfig {
     pub pan_jitter: f32,
 }
 
-impl Default for GrainConfig {
+impl Default for GranularSynth {
     fn default() -> Self {
         Self {
             size_ms: 50.0,
@@ -62,7 +83,7 @@ impl Default for GrainConfig {
     }
 }
 
-impl GrainConfig {
+impl GranularSynth {
     /// Creates a new grain configuration with default values.
     pub fn new() -> Self {
         Self::default()
@@ -121,7 +142,19 @@ impl GrainConfig {
         self.pan_jitter = jitter;
         self
     }
+
+    /// Applies this granular synthesis configuration to generate samples.
+    ///
+    /// Takes a source buffer and sample rate, returns synthesized audio.
+    pub fn apply(&self, input: &GranularInput) -> Vec<f32> {
+        let mut cloud = GrainCloud::new(input.buffer.clone(), input.sample_rate);
+        cloud.set_config(self.clone());
+        cloud.generate(input.num_samples)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type GrainConfig = GranularSynth;
 
 /// A single grain of audio.
 #[derive(Debug, Clone)]
@@ -227,7 +260,7 @@ pub struct GrainCloud {
     /// Maximum number of simultaneous grains.
     max_grains: usize,
     /// Grain configuration.
-    config: GrainConfig,
+    config: GranularSynth,
     /// Time until next grain spawn.
     next_grain_time: f32,
     /// Random number generator state.
@@ -244,7 +277,7 @@ impl GrainCloud {
             sample_rate,
             grains: VecDeque::new(),
             max_grains: 64,
-            config: GrainConfig::default(),
+            config: GranularSynth::default(),
             next_grain_time: 0.0,
             rng_state: 12345,
             volume: 1.0,
@@ -252,12 +285,12 @@ impl GrainCloud {
     }
 
     /// Sets the grain configuration.
-    pub fn set_config(&mut self, config: GrainConfig) {
+    pub fn set_config(&mut self, config: GranularSynth) {
         self.config = config;
     }
 
     /// Returns a mutable reference to the configuration.
-    pub fn config_mut(&mut self) -> &mut GrainConfig {
+    pub fn config_mut(&mut self) -> &mut GranularSynth {
         &mut self.config
     }
 
@@ -500,7 +533,7 @@ mod tests {
 
     #[test]
     fn test_grain_config_builder() {
-        let config = GrainConfig::new()
+        let config = GranularSynth::new()
             .with_size(100.0)
             .with_density(20.0)
             .with_pitch(1.5)

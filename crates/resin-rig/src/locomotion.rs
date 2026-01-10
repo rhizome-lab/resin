@@ -4,10 +4,18 @@
 
 use crate::{IkChain, IkConfig, Pose, Skeleton, Transform, solve_fabrik};
 use glam::{Quat, Vec3};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// Configuration for a walking gait.
-#[derive(Debug, Clone)]
-pub struct GaitConfig {
+///
+/// Controls stride, step height, timing, and body motion for procedural
+/// locomotion of bipeds and quadrupeds.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Gait))]
+pub struct Gait {
     /// Length of a single stride.
     pub stride_length: f32,
     /// Maximum height of foot during step.
@@ -24,7 +32,17 @@ pub struct GaitConfig {
     pub lean_amount: f32,
 }
 
-impl Default for GaitConfig {
+/// Backwards-compatible type alias.
+pub type GaitConfig = Gait;
+
+impl Gait {
+    /// Applies this generator, returning the configuration.
+    pub fn apply(&self) -> Gait {
+        *self
+    }
+}
+
+impl Default for Gait {
     fn default() -> Self {
         Self {
             stride_length: 0.6,
@@ -38,7 +56,7 @@ impl Default for GaitConfig {
     }
 }
 
-impl GaitConfig {
+impl Gait {
     /// Quick walking gait.
     pub fn walk() -> Self {
         Self::default()

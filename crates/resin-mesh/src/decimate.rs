@@ -2,24 +2,35 @@
 //!
 //! Reduces triangle count while preserving mesh shape.
 //!
+//! Operations are serializable structs with `apply` methods.
+//! See `docs/design/ops-as-values.md`.
+//!
 //! # Example
 //!
 //! ```ignore
-//! use rhizome_resin_mesh::{sphere, decimate, DecimateConfig};
+//! use rhizome_resin_mesh::{sphere, Decimate};
 //!
 //! let high_poly = sphere(32, 16);
-//! let low_poly = decimate(&high_poly, DecimateConfig::target_triangles(100));
+//! let low_poly = Decimate::target_triangles(100).apply(&high_poly);
 //! ```
 
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
 use glam::Vec3;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use crate::Mesh;
 
-/// Configuration for mesh decimation.
+/// Decimates a mesh using edge collapse.
+///
+/// Uses a greedy approach that collapses the shortest edges first,
+/// reducing triangle count while preserving mesh shape.
 #[derive(Debug, Clone)]
-pub struct DecimateConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Mesh, output = Mesh))]
+pub struct Decimate {
     /// Target number of triangles. Decimation stops when reached.
     pub target_triangles: Option<usize>,
     /// Target reduction ratio (0.0 - 1.0). 0.5 = reduce to half the triangles.
@@ -30,7 +41,7 @@ pub struct DecimateConfig {
     pub preserve_boundary: bool,
 }
 
-impl Default for DecimateConfig {
+impl Default for Decimate {
     fn default() -> Self {
         Self {
             target_triangles: None,
@@ -41,8 +52,8 @@ impl Default for DecimateConfig {
     }
 }
 
-impl DecimateConfig {
-    /// Creates config targeting a specific triangle count.
+impl Decimate {
+    /// Creates a decimation targeting a specific triangle count.
     pub fn target_triangles(count: usize) -> Self {
         Self {
             target_triangles: Some(count),
@@ -51,7 +62,7 @@ impl DecimateConfig {
         }
     }
 
-    /// Creates config targeting a reduction ratio (0.5 = half the triangles).
+    /// Creates a decimation targeting a reduction ratio (0.5 = half the triangles).
     pub fn target_ratio(ratio: f32) -> Self {
         Self {
             target_ratio: Some(ratio.clamp(0.0, 1.0)),
@@ -71,7 +82,15 @@ impl DecimateConfig {
         self.preserve_boundary = preserve;
         self
     }
+
+    /// Applies this decimation operation to a mesh.
+    pub fn apply(&self, mesh: &Mesh) -> Mesh {
+        decimate(mesh, self.clone())
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type DecimateConfig = Decimate;
 
 /// Decimates a mesh using edge collapse.
 ///

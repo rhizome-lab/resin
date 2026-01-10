@@ -26,12 +26,23 @@
 //! ```
 
 use glam::{Vec2, Vec3};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use crate::Mesh;
 
-/// Configuration for extrusion operations.
+/// Extrudes a 2D profile along a direction to create a 3D mesh.
+///
+/// The profile is placed on the XY plane at the origin, then extruded along the given direction.
 #[derive(Debug, Clone)]
-pub struct ExtrudeProfileConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Mesh))]
+pub struct ExtrudeProfile {
+    /// The 2D profile points to extrude.
+    pub profile: Vec<Vec2>,
+    /// Direction and distance to extrude.
+    pub direction: Vec3,
     /// Whether to cap the start of the extrusion.
     pub cap_start: bool,
     /// Whether to cap the end of the extrusion.
@@ -40,9 +51,11 @@ pub struct ExtrudeProfileConfig {
     pub segments: usize,
 }
 
-impl Default for ExtrudeProfileConfig {
+impl Default for ExtrudeProfile {
     fn default() -> Self {
         Self {
+            profile: Vec::new(),
+            direction: Vec3::Z,
             cap_start: true,
             cap_end: true,
             segments: 1,
@@ -50,9 +63,38 @@ impl Default for ExtrudeProfileConfig {
     }
 }
 
-/// Configuration for revolve operations.
+impl ExtrudeProfile {
+    /// Creates a new extrude profile operation.
+    pub fn new(profile: Vec<Vec2>, direction: Vec3) -> Self {
+        Self {
+            profile,
+            direction,
+            ..Default::default()
+        }
+    }
+
+    /// Applies this operation to generate a mesh.
+    pub fn apply(&self) -> Mesh {
+        extrude_profile_impl(&self.profile, self.direction, self)
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type ExtrudeProfileConfig = ExtrudeProfile;
+
+/// Revolves a 2D profile around an axis to create a surface of revolution.
+///
+/// The profile should be in the XY plane with Y being the axis of revolution.
+/// X values represent distance from the axis.
 #[derive(Debug, Clone)]
-pub struct RevolveConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Mesh))]
+pub struct Revolve {
+    /// The 2D profile points to revolve.
+    pub profile: Vec<Vec2>,
+    /// Number of segments around the revolution.
+    pub segments: usize,
     /// Axis to revolve around (default: Y axis).
     pub axis: Vec3,
     /// Angle to revolve in radians (default: full rotation TAU).
@@ -63,9 +105,11 @@ pub struct RevolveConfig {
     pub cap_ends: bool,
 }
 
-impl Default for RevolveConfig {
+impl Default for Revolve {
     fn default() -> Self {
         Self {
+            profile: Vec::new(),
+            segments: 32,
             axis: Vec3::Y,
             angle: std::f32::consts::TAU,
             close: true,
@@ -74,11 +118,30 @@ impl Default for RevolveConfig {
     }
 }
 
+impl Revolve {
+    /// Creates a new revolve operation.
+    pub fn new(profile: Vec<Vec2>, segments: usize) -> Self {
+        Self {
+            profile,
+            segments,
+            ..Default::default()
+        }
+    }
+
+    /// Applies this operation to generate a mesh.
+    pub fn apply(&self) -> Mesh {
+        revolve_profile_impl(&self.profile, self.segments, self)
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type RevolveConfig = Revolve;
+
 /// Extrudes a 2D profile along a direction to create a 3D mesh.
 ///
 /// The profile is placed on the XY plane at the origin, then extruded along the given direction.
 pub fn extrude_profile(profile: &[Vec2], direction: Vec3) -> Mesh {
-    extrude_profile_with_config(profile, direction, ExtrudeProfileConfig::default())
+    extrude_profile_impl(profile, direction, &ExtrudeProfile::default())
 }
 
 /// Extrudes a 2D profile with full configuration.
@@ -87,6 +150,11 @@ pub fn extrude_profile_with_config(
     direction: Vec3,
     config: ExtrudeProfileConfig,
 ) -> Mesh {
+    extrude_profile_impl(profile, direction, &config)
+}
+
+/// Internal implementation for extrude profile.
+fn extrude_profile_impl(profile: &[Vec2], direction: Vec3, config: &ExtrudeProfile) -> Mesh {
     if profile.len() < 3 {
         return Mesh::new();
     }
@@ -154,7 +222,7 @@ pub fn extrude_profile_with_config(
 /// The profile should be in the XY plane with Y being the axis of revolution.
 /// X values represent distance from the axis.
 pub fn revolve_profile(profile: &[Vec2], segments: usize) -> Mesh {
-    revolve_profile_with_config(profile, segments, RevolveConfig::default())
+    revolve_profile_impl(profile, segments, &Revolve::default())
 }
 
 /// Revolves a 2D profile with full configuration.
@@ -163,6 +231,11 @@ pub fn revolve_profile_with_config(
     segments: usize,
     config: RevolveConfig,
 ) -> Mesh {
+    revolve_profile_impl(profile, segments, &config)
+}
+
+/// Internal implementation for revolve profile.
+fn revolve_profile_impl(profile: &[Vec2], segments: usize, config: &Revolve) -> Mesh {
     if profile.len() < 2 || segments < 3 {
         return Mesh::new();
     }
@@ -248,13 +321,17 @@ pub fn revolve_profile_with_config(
 /// Sweeps a 2D profile along a 3D path.
 ///
 /// The profile is oriented perpendicular to the path at each point.
-pub fn sweep_profile(profile: &[Vec2], path: &[Vec3], segments_per_unit: usize) -> Mesh {
-    sweep_profile_with_config(profile, path, segments_per_unit, SweepConfig::default())
-}
-
-/// Configuration for sweep operations.
 #[derive(Debug, Clone)]
-pub struct SweepConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Mesh))]
+pub struct Sweep {
+    /// The 2D profile points to sweep.
+    pub profile: Vec<Vec2>,
+    /// The 3D path to sweep along.
+    pub path: Vec<Vec3>,
+    /// Segments per unit length (currently unused, reserved for future interpolation).
+    pub segments_per_unit: usize,
     /// Whether to cap the start.
     pub cap_start: bool,
     /// Whether to cap the end.
@@ -263,9 +340,12 @@ pub struct SweepConfig {
     pub scale_along_path: f32,
 }
 
-impl Default for SweepConfig {
+impl Default for Sweep {
     fn default() -> Self {
         Self {
+            profile: Vec::new(),
+            path: Vec::new(),
+            segments_per_unit: 10,
             cap_start: true,
             cap_end: true,
             scale_along_path: 1.0,
@@ -273,12 +353,48 @@ impl Default for SweepConfig {
     }
 }
 
+impl Sweep {
+    /// Creates a new sweep operation.
+    pub fn new(profile: Vec<Vec2>, path: Vec<Vec3>) -> Self {
+        Self {
+            profile,
+            path,
+            ..Default::default()
+        }
+    }
+
+    /// Applies this operation to generate a mesh.
+    pub fn apply(&self) -> Mesh {
+        sweep_profile_impl(&self.profile, &self.path, self.segments_per_unit, self)
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type SweepConfig = Sweep;
+
+/// Sweeps a 2D profile along a 3D path.
+///
+/// The profile is oriented perpendicular to the path at each point.
+pub fn sweep_profile(profile: &[Vec2], path: &[Vec3], segments_per_unit: usize) -> Mesh {
+    sweep_profile_impl(profile, path, segments_per_unit, &Sweep::default())
+}
+
 /// Sweeps a 2D profile along a path with configuration.
 pub fn sweep_profile_with_config(
     profile: &[Vec2],
     path: &[Vec3],
-    _segments_per_unit: usize,
+    segments_per_unit: usize,
     config: SweepConfig,
+) -> Mesh {
+    sweep_profile_impl(profile, path, segments_per_unit, &config)
+}
+
+/// Internal implementation for sweep profile.
+fn sweep_profile_impl(
+    profile: &[Vec2],
+    path: &[Vec3],
+    _segments_per_unit: usize,
+    config: &Sweep,
 ) -> Mesh {
     if profile.len() < 3 || path.len() < 2 {
         return Mesh::new();
@@ -465,10 +581,11 @@ mod tests {
     #[test]
     fn test_extrude_no_caps() {
         let profile = square_profile();
-        let config = ExtrudeProfileConfig {
+        let config = ExtrudeProfile {
             cap_start: false,
             cap_end: false,
             segments: 1,
+            ..Default::default()
         };
         let mesh = extrude_profile_with_config(&profile, Vec3::Z * 2.0, config);
 

@@ -21,6 +21,9 @@
 //! assert!(grid.get(16, 16, 16));
 //! ```
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 use glam::{IVec3, UVec3, Vec3};
 use rhizome_resin_field::{EvalContext, Field};
 use rhizome_resin_mesh::{Mesh, MeshBuilder};
@@ -310,6 +313,41 @@ pub fn sdf_to_density<F: Field<Vec3, f32>>(
 // Voxel editing operations
 // ============================================================================
 
+/// Operation to fill a sphere in a binary voxel grid.
+///
+/// Uses the ops-as-values pattern for serialization and history tracking.
+/// See `docs/design/ops-as-values.md`.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = BinaryVoxelGrid, output = BinaryVoxelGrid))]
+pub struct FillSphere {
+    /// Center of the sphere in voxel coordinates.
+    pub center: Vec3,
+    /// Radius of the sphere in voxel units.
+    pub radius: f32,
+    /// Value to fill with (true = solid, false = empty).
+    pub value: bool,
+}
+
+impl FillSphere {
+    /// Creates a new FillSphere operation.
+    pub fn new(center: Vec3, radius: f32, value: bool) -> Self {
+        Self {
+            center,
+            radius,
+            value,
+        }
+    }
+
+    /// Applies the operation to a voxel grid.
+    pub fn apply(&self, grid: &BinaryVoxelGrid) -> BinaryVoxelGrid {
+        let mut result = grid.clone();
+        fill_sphere(&mut result, self.center, self.radius, self.value);
+        result
+    }
+}
+
 /// Fills a sphere in a binary voxel grid.
 pub fn fill_sphere(grid: &mut BinaryVoxelGrid, center: Vec3, radius: f32, value: bool) {
     let size = grid.size();
@@ -324,6 +362,37 @@ pub fn fill_sphere(grid: &mut BinaryVoxelGrid, center: Vec3, radius: f32, value:
                 }
             }
         }
+    }
+}
+
+/// Operation to fill a box region in a binary voxel grid.
+///
+/// Uses the ops-as-values pattern for serialization and history tracking.
+/// See `docs/design/ops-as-values.md`.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = BinaryVoxelGrid, output = BinaryVoxelGrid))]
+pub struct FillBox {
+    /// Minimum corner of the box (inclusive).
+    pub min: UVec3,
+    /// Maximum corner of the box (exclusive).
+    pub max: UVec3,
+    /// Value to fill with (true = solid, false = empty).
+    pub value: bool,
+}
+
+impl FillBox {
+    /// Creates a new FillBox operation.
+    pub fn new(min: UVec3, max: UVec3, value: bool) -> Self {
+        Self { min, max, value }
+    }
+
+    /// Applies the operation to a voxel grid.
+    pub fn apply(&self, grid: &BinaryVoxelGrid) -> BinaryVoxelGrid {
+        let mut result = grid.clone();
+        fill_box(&mut result, self.min, self.max, self.value);
+        result
     }
 }
 
@@ -367,6 +436,41 @@ pub fn fill_sphere_sparse(voxels: &mut SparseBinaryVoxels, center: Vec3, radius:
     }
 }
 
+/// Operation to dilate a binary voxel grid (grows solid regions).
+///
+/// Morphological dilation expands solid regions by one voxel in all 6-connected
+/// directions. Uses the ops-as-values pattern for serialization and history tracking.
+/// See `docs/design/ops-as-values.md`.
+#[derive(Debug, Clone, Copy, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = BinaryVoxelGrid, output = BinaryVoxelGrid))]
+pub struct Dilate {
+    /// Number of dilation iterations.
+    pub iterations: u32,
+}
+
+impl Dilate {
+    /// Creates a new Dilate operation with a single iteration.
+    pub fn new() -> Self {
+        Self { iterations: 1 }
+    }
+
+    /// Creates a Dilate operation with the specified number of iterations.
+    pub fn with_iterations(iterations: u32) -> Self {
+        Self { iterations }
+    }
+
+    /// Applies the dilation operation to a voxel grid.
+    pub fn apply(&self, grid: &BinaryVoxelGrid) -> BinaryVoxelGrid {
+        let mut result = grid.clone();
+        for _ in 0..self.iterations {
+            result = dilate(&result);
+        }
+        result
+    }
+}
+
 /// Dilates a binary voxel grid (grows solid regions).
 pub fn dilate(grid: &BinaryVoxelGrid) -> BinaryVoxelGrid {
     let size = grid.size();
@@ -394,6 +498,41 @@ pub fn dilate(grid: &BinaryVoxelGrid) -> BinaryVoxelGrid {
     }
 
     result
+}
+
+/// Operation to erode a binary voxel grid (shrinks solid regions).
+///
+/// Morphological erosion shrinks solid regions by one voxel in all 6-connected
+/// directions. Uses the ops-as-values pattern for serialization and history tracking.
+/// See `docs/design/ops-as-values.md`.
+#[derive(Debug, Clone, Copy, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = BinaryVoxelGrid, output = BinaryVoxelGrid))]
+pub struct Erode {
+    /// Number of erosion iterations.
+    pub iterations: u32,
+}
+
+impl Erode {
+    /// Creates a new Erode operation with a single iteration.
+    pub fn new() -> Self {
+        Self { iterations: 1 }
+    }
+
+    /// Creates an Erode operation with the specified number of iterations.
+    pub fn with_iterations(iterations: u32) -> Self {
+        Self { iterations }
+    }
+
+    /// Applies the erosion operation to a voxel grid.
+    pub fn apply(&self, grid: &BinaryVoxelGrid) -> BinaryVoxelGrid {
+        let mut result = grid.clone();
+        for _ in 0..self.iterations {
+            result = erode(&result);
+        }
+        result
+    }
 }
 
 /// Erodes a binary voxel grid (shrinks solid regions).
@@ -444,6 +583,38 @@ const NEIGHBORS_6: [(i32, i32, i32); 6] = [
 // ============================================================================
 // Mesh generation
 // ============================================================================
+
+/// Operation to generate a simple blocky mesh from a binary voxel grid.
+///
+/// Each solid voxel becomes a cube, with faces only on boundaries.
+/// Uses the ops-as-values pattern for serialization and history tracking.
+/// See `docs/design/ops-as-values.md`.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = BinaryVoxelGrid, output = Mesh))]
+pub struct VoxelsToMesh {
+    /// Size of each voxel in world units.
+    pub voxel_size: f32,
+}
+
+impl VoxelsToMesh {
+    /// Creates a new VoxelsToMesh operation with the specified voxel size.
+    pub fn new(voxel_size: f32) -> Self {
+        Self { voxel_size }
+    }
+
+    /// Applies the operation to a voxel grid.
+    pub fn apply(&self, grid: &BinaryVoxelGrid) -> Mesh {
+        voxels_to_mesh(grid, self.voxel_size)
+    }
+}
+
+impl Default for VoxelsToMesh {
+    fn default() -> Self {
+        Self { voxel_size: 1.0 }
+    }
+}
 
 /// Generates a simple blocky mesh from a binary voxel grid.
 ///
@@ -548,6 +719,37 @@ fn add_quad(builder: &mut MeshBuilder, v0: Vec3, v1: Vec3, v2: Vec3, v3: Vec3, n
     builder.quad(i0, i1, i2, i3);
 }
 
+/// Operation to generate a mesh from sparse voxels.
+///
+/// Uses the ops-as-values pattern for serialization and history tracking.
+/// See `docs/design/ops-as-values.md`.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = SparseBinaryVoxels, output = Mesh))]
+pub struct SparseVoxelsToMesh {
+    /// Size of each voxel in world units.
+    pub voxel_size: f32,
+}
+
+impl SparseVoxelsToMesh {
+    /// Creates a new SparseVoxelsToMesh operation with the specified voxel size.
+    pub fn new(voxel_size: f32) -> Self {
+        Self { voxel_size }
+    }
+
+    /// Applies the operation to sparse voxels.
+    pub fn apply(&self, voxels: &SparseBinaryVoxels) -> Mesh {
+        sparse_voxels_to_mesh(voxels, self.voxel_size)
+    }
+}
+
+impl Default for SparseVoxelsToMesh {
+    fn default() -> Self {
+        Self { voxel_size: 1.0 }
+    }
+}
+
 /// Generates a mesh from sparse voxels.
 pub fn sparse_voxels_to_mesh(voxels: &SparseBinaryVoxels, voxel_size: f32) -> Mesh {
     let mut builder = MeshBuilder::new();
@@ -632,6 +834,19 @@ fn add_face(builder: &mut MeshBuilder, center: Vec3, half: f32, normal: Vec3) {
 /// Counts the number of solid voxels in a binary grid.
 pub fn count_solid(grid: &BinaryVoxelGrid) -> usize {
     grid.iter().filter(|&(_, v)| *v).count()
+}
+
+/// Registers all voxel operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of voxel ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<Dilate>("resin::Dilate");
+    registry.register_type::<Erode>("resin::Erode");
+    registry.register_type::<FillBox>("resin::FillBox");
+    registry.register_type::<FillSphere>("resin::FillSphere");
+    registry.register_type::<SparseVoxelsToMesh>("resin::SparseVoxelsToMesh");
+    registry.register_type::<VoxelsToMesh>("resin::VoxelsToMesh");
 }
 
 #[cfg(test)]

@@ -20,8 +20,8 @@ pub mod vocoder;
 pub mod wav;
 
 pub use effects::{
-    Chorus, ConvolutionConfig, ConvolutionReverb, Distortion, DistortionMode, Flanger, Phaser,
-    Reverb, Tremolo, convolution_reverb, generate_room_ir,
+    Chorus, Convolution, ConvolutionConfig, ConvolutionReverb, Distortion, DistortionMode, Flanger,
+    Phaser, Reverb, Tremolo, convolution_reverb, generate_room_ir,
 };
 pub use envelope::{Adsr, AdsrState, Ar, Lfo, LfoWaveform};
 pub use filter::{
@@ -29,7 +29,7 @@ pub use filter::{
     lowpass_coeff, lowpass_sample,
 };
 pub use granular::{
-    GrainCloud, GrainConfig, GrainScheduler, noise_grain_buffer, sine_grain_buffer,
+    GrainCloud, GrainConfig, GrainScheduler, GranularSynth, noise_grain_buffer, sine_grain_buffer,
 };
 pub use graph::{
     AdsrNode, ArNode, AudioContext, AudioNode, BiquadNode, Chain, Clip, Constant, DelayNode,
@@ -55,24 +55,44 @@ pub use pattern::{
     Event, Pattern, TimeArc as PatternArc, cat, chop, degrade, euclid, every, fast, jux, ply, rev,
     shift, slow, stack,
 };
-pub use percussion::{Bar, BarConfig, Membrane, MembraneConfig, Plate, PlateConfig, noise_burst};
-pub use physical::{ExtendedKarplusStrong, KarplusStrong, PluckConfig, PolyStrings};
+pub use percussion::{
+    Bar, BarConfig, BarSynth, Membrane, MembraneConfig, MembraneSynth, Plate, PlateConfig,
+    PlateSynth, noise_burst,
+};
+pub use physical::{ExtendedKarplusStrong, KarplusStrong, PluckConfig, PluckSynth, PolyStrings};
 pub use room::{
     EarlyReflection, RoomAcoustics, RoomGeometry, RoomMaterial, RoomMode, RoomModes, RoomSurfaces,
     calculate_early_reflections, calculate_room_modes, calculate_rt60_eyring,
     calculate_rt60_sabine,
 };
 pub use spatial::{
-    DistanceModel, HrtfMode, SpatialListener, SpatialSource, Spatializer, SpatializerConfig,
-    StereoMix, Vec3 as SpatialVec3, doppler_factor,
+    DistanceModel, HrtfMode, SpatialListener, SpatialSource, Spatialize, Spatializer,
+    SpatializerConfig, StereoMix, Vec3 as SpatialVec3, doppler_factor,
 };
 pub use spectral::{
-    Complex, StftConfig, StftResult, TimeStretchConfig, blackman_window, estimate_pitch, fft,
-    fft_complex, find_peak_frequency, hamming_window, hann_window, ifft, ifft_complex, istft,
-    pitch_shift, rect_window, spectral_centroid, spectral_flatness, stft, stft_with_sample_rate,
-    time_stretch, time_stretch_granular,
+    Complex, Stft, StftConfig, StftResult, TimeStretch, TimeStretchConfig, blackman_window,
+    estimate_pitch, fft, fft_complex, find_peak_frequency, hamming_window, hann_window, ifft,
+    ifft_complex, istft, pitch_shift, rect_window, spectral_centroid, spectral_flatness, stft,
+    stft_with_sample_rate, time_stretch, time_stretch_granular,
 };
-pub use vocoder::{FilterbankVocoder, Vocoder, VocoderConfig};
+pub use vocoder::{FilterbankVocoder, VocodeSynth, Vocoder, VocoderConfig};
 pub use wav::{
     WavError, WavFile, WavFormat, WavResult, from_bytes as wav_from_bytes, to_bytes as wav_to_bytes,
 };
+
+/// Registers all audio operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of audio ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<Convolution>("resin::Convolution");
+    registry.register_type::<GranularSynth>("resin::GranularSynth");
+    registry.register_type::<PluckSynth>("resin::PluckSynth");
+    registry.register_type::<MembraneSynth>("resin::MembraneSynth");
+    registry.register_type::<BarSynth>("resin::BarSynth");
+    registry.register_type::<PlateSynth>("resin::PlateSynth");
+    registry.register_type::<Stft>("resin::Stft");
+    registry.register_type::<TimeStretch>("resin::TimeStretch");
+    registry.register_type::<VocodeSynth>("resin::VocodeSynth");
+    registry.register_type::<Spatialize>("resin::Spatialize");
+}

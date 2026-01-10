@@ -4,9 +4,14 @@
 //! for volumetric deformation.
 
 use glam::{Mat3, Vec3};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// Configuration for soft body simulation.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = SoftBodyConfig))]
 pub struct SoftBodyConfig {
     /// Young's modulus (stiffness).
     pub youngs_modulus: f32,
@@ -67,6 +72,11 @@ impl SoftBodyConfig {
             damping: 0.05,
             ..Default::default()
         }
+    }
+
+    /// Applies this configuration (returns self as a generator op).
+    pub fn apply(&self) -> SoftBodyConfig {
+        self.clone()
     }
 
     /// Computes Lamé parameters from Young's modulus and Poisson's ratio.

@@ -26,3 +26,11 @@ pub use context::GpuContext;
 pub use error::GpuError;
 pub use noise::{NoiseConfig, NoiseType, generate_noise_texture, noise_texture};
 pub use texture::{GpuTexture, TextureFormat};
+
+/// Registers all GPU operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of GPU ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<NoiseConfig>("resin::NoiseConfig");
+}

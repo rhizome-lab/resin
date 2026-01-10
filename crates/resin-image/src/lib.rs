@@ -24,6 +24,8 @@ use image::{DynamicImage, GenericImageView, ImageError};
 
 use rhizome_resin_color::Rgba;
 use rhizome_resin_field::{EvalContext, Field};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// How to handle UV coordinates outside [0, 1].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -320,6 +322,9 @@ impl Field<Vec2, f32> for ImageField {
 
 /// Configuration for texture baking.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = BakeConfig))]
 pub struct BakeConfig {
     /// Output width in pixels.
     pub width: u32,
@@ -353,6 +358,11 @@ impl BakeConfig {
     pub fn with_samples(mut self, samples: u32) -> Self {
         self.samples = samples.max(1);
         self
+    }
+
+    /// Applies this configuration (returns self as a generator op).
+    pub fn apply(&self) -> BakeConfig {
+        self.clone()
     }
 }
 
@@ -565,6 +575,9 @@ pub fn export_png<P: AsRef<Path>>(image: &ImageField, path: P) -> Result<(), Ima
 
 /// Configuration for animation rendering.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = AnimationConfig))]
 pub struct AnimationConfig {
     /// Output width in pixels.
     pub width: u32,
@@ -616,6 +629,11 @@ impl AnimationConfig {
     /// Returns the total animation duration in seconds.
     pub fn duration(&self) -> f32 {
         self.num_frames as f32 * self.frame_duration
+    }
+
+    /// Applies this configuration (returns self as a generator op).
+    pub fn apply(&self) -> AnimationConfig {
+        self.clone()
     }
 }
 
@@ -1250,9 +1268,16 @@ pub fn swap_channels(image: &ImageField, a: Channel, b: Channel) -> ImageField {
 // Chromatic aberration
 // ============================================================================
 
-/// Configuration for chromatic aberration effect.
+/// Applies chromatic aberration effect to an image.
+///
+/// This simulates lens chromatic aberration by offsetting each color channel
+/// radially from the center point. Positive offsets push the channel outward,
+/// negative offsets push inward.
 #[derive(Debug, Clone, Copy)]
-pub struct ChromaticAberrationConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = ImageField, output = ImageField))]
+pub struct ChromaticAberration {
     /// Offset amount for red channel (negative = inward, positive = outward).
     pub red_offset: f32,
     /// Offset amount for green channel.
@@ -1263,7 +1288,7 @@ pub struct ChromaticAberrationConfig {
     pub center: (f32, f32),
 }
 
-impl Default for ChromaticAberrationConfig {
+impl Default for ChromaticAberration {
     fn default() -> Self {
         Self {
             red_offset: 0.005,
@@ -1274,7 +1299,7 @@ impl Default for ChromaticAberrationConfig {
     }
 }
 
-impl ChromaticAberrationConfig {
+impl ChromaticAberration {
     /// Creates a new config with symmetric red/blue offset.
     ///
     /// Red is pushed outward, blue inward (typical lens aberration).
@@ -1300,7 +1325,15 @@ impl ChromaticAberrationConfig {
         self.blue_offset = blue;
         self
     }
+
+    /// Applies this operation to an image.
+    pub fn apply(&self, image: &ImageField) -> ImageField {
+        chromatic_aberration(image, self)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type ChromaticAberrationConfig = ChromaticAberration;
 
 /// Applies chromatic aberration effect to an image.
 ///
@@ -1320,7 +1353,7 @@ impl ChromaticAberrationConfig {
 /// let config = ChromaticAberrationConfig::new(0.01);
 /// let result = chromatic_aberration(&img, &config);
 /// ```
-pub fn chromatic_aberration(image: &ImageField, config: &ChromaticAberrationConfig) -> ImageField {
+pub fn chromatic_aberration(image: &ImageField, config: &ChromaticAberration) -> ImageField {
     let (width, height) = image.dimensions();
     let mut data = Vec::with_capacity((width * height) as usize);
 
@@ -1371,9 +1404,17 @@ pub fn chromatic_aberration_simple(image: &ImageField, strength: f32) -> ImageFi
 // Color adjustments
 // ============================================================================
 
-/// Configuration for levels adjustment.
+/// Applies levels adjustment to an image.
+///
+/// This is similar to Photoshop's Levels adjustment:
+/// 1. Remap input range [input_black, input_white] to [0, 1]
+/// 2. Apply gamma correction
+/// 3. Remap [0, 1] to [output_black, output_white]
 #[derive(Debug, Clone, Copy)]
-pub struct LevelsConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = ImageField, output = ImageField))]
+pub struct Levels {
     /// Input black point (values below this become 0). Range: 0-1.
     pub input_black: f32,
     /// Input white point (values above this become 1). Range: 0-1.
@@ -1386,7 +1427,7 @@ pub struct LevelsConfig {
     pub output_white: f32,
 }
 
-impl Default for LevelsConfig {
+impl Default for Levels {
     fn default() -> Self {
         Self {
             input_black: 0.0,
@@ -1398,7 +1439,7 @@ impl Default for LevelsConfig {
     }
 }
 
-impl LevelsConfig {
+impl Levels {
     /// Creates a new levels config with only gamma adjustment.
     pub fn gamma(gamma: f32) -> Self {
         Self {
@@ -1428,7 +1469,15 @@ impl LevelsConfig {
         self.output_white = white;
         self
     }
+
+    /// Applies this operation to an image.
+    pub fn apply(&self, image: &ImageField) -> ImageField {
+        adjust_levels(image, self)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type LevelsConfig = Levels;
 
 /// Applies levels adjustment to an image.
 ///
@@ -1449,7 +1498,7 @@ impl LevelsConfig {
 /// let config = LevelsConfig::remap(0.2, 0.8);
 /// let result = adjust_levels(&img, &config);
 /// ```
-pub fn adjust_levels(image: &ImageField, config: &LevelsConfig) -> ImageField {
+pub fn adjust_levels(image: &ImageField, config: &Levels) -> ImageField {
     let (width, height) = image.dimensions();
     let mut data = Vec::with_capacity((width * height) as usize);
 
@@ -1733,16 +1782,22 @@ pub fn threshold(image: &ImageField, threshold: f32) -> ImageField {
 // Distortion effects
 // ============================================================================
 
-/// Configuration for radial lens distortion.
+/// Applies radial lens distortion (barrel or pincushion).
+///
+/// Barrel distortion (positive strength) makes the image bulge outward.
+/// Pincushion distortion (negative strength) makes it pinch inward.
 #[derive(Debug, Clone, Copy)]
-pub struct LensDistortionConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = ImageField, output = ImageField))]
+pub struct LensDistortion {
     /// Distortion strength. Positive = barrel, negative = pincushion.
     pub strength: f32,
     /// Center point for distortion (normalized coordinates).
     pub center: (f32, f32),
 }
 
-impl Default for LensDistortionConfig {
+impl Default for LensDistortion {
     fn default() -> Self {
         Self {
             strength: 0.0,
@@ -1751,7 +1806,7 @@ impl Default for LensDistortionConfig {
     }
 }
 
-impl LensDistortionConfig {
+impl LensDistortion {
     /// Creates barrel distortion (bulging outward).
     pub fn barrel(strength: f32) -> Self {
         Self {
@@ -1773,7 +1828,15 @@ impl LensDistortionConfig {
         self.center = (x, y);
         self
     }
+
+    /// Applies this operation to an image.
+    pub fn apply(&self, image: &ImageField) -> ImageField {
+        lens_distortion(image, self)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type LensDistortionConfig = LensDistortion;
 
 /// Applies radial lens distortion (barrel or pincushion).
 ///
@@ -1791,7 +1854,7 @@ impl LensDistortionConfig {
 /// let barrel = lens_distortion(&img, &LensDistortionConfig::barrel(0.3));
 /// let pincushion = lens_distortion(&img, &LensDistortionConfig::pincushion(0.3));
 /// ```
-pub fn lens_distortion(image: &ImageField, config: &LensDistortionConfig) -> ImageField {
+pub fn lens_distortion(image: &ImageField, config: &LensDistortion) -> ImageField {
     let (width, height) = image.dimensions();
     let mut data = Vec::with_capacity((width * height) as usize);
 
@@ -1824,9 +1887,12 @@ pub fn lens_distortion(image: &ImageField, config: &LensDistortionConfig) -> Ima
         .with_filter_mode(image.filter_mode)
 }
 
-/// Configuration for wave distortion.
+/// Applies wave distortion to an image.
 #[derive(Debug, Clone, Copy)]
-pub struct WaveDistortionConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = ImageField, output = ImageField))]
+pub struct WaveDistortion {
     /// Amplitude in X direction (as fraction of image size).
     pub amplitude_x: f32,
     /// Amplitude in Y direction.
@@ -1839,7 +1905,7 @@ pub struct WaveDistortionConfig {
     pub phase: f32,
 }
 
-impl Default for WaveDistortionConfig {
+impl Default for WaveDistortion {
     fn default() -> Self {
         Self {
             amplitude_x: 0.02,
@@ -1851,7 +1917,7 @@ impl Default for WaveDistortionConfig {
     }
 }
 
-impl WaveDistortionConfig {
+impl WaveDistortion {
     /// Creates a horizontal wave distortion.
     pub fn horizontal(amplitude: f32, frequency: f32) -> Self {
         Self {
@@ -1879,7 +1945,15 @@ impl WaveDistortionConfig {
         self.phase = phase;
         self
     }
+
+    /// Applies this operation to an image.
+    pub fn apply(&self, image: &ImageField) -> ImageField {
+        wave_distortion(image, self)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type WaveDistortionConfig = WaveDistortion;
 
 /// Applies wave distortion to an image.
 ///
@@ -1893,7 +1967,7 @@ impl WaveDistortionConfig {
 ///
 /// let wavy = wave_distortion(&img, &WaveDistortionConfig::horizontal(0.05, 3.0));
 /// ```
-pub fn wave_distortion(image: &ImageField, config: &WaveDistortionConfig) -> ImageField {
+pub fn wave_distortion(image: &ImageField, config: &WaveDistortion) -> ImageField {
     let (width, height) = image.dimensions();
     let mut data = Vec::with_capacity((width * height) as usize);
 
@@ -2462,16 +2536,20 @@ pub fn field_to_normal_map<F: Field<Vec2, f32>>(
 // Inpainting
 // ============================================================================
 
-/// Configuration for inpainting operations.
+/// Configuration for diffusion-based inpainting operations.
+///
+/// Note: Inpainting takes two images (source + mask), so this is not a simple
+/// Image -> Image op and does not derive Op.
 #[derive(Debug, Clone)]
-pub struct InpaintConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct Inpaint {
     /// Number of iterations for diffusion-based inpainting.
     pub iterations: u32,
     /// Diffusion rate (0.0-1.0). Higher values spread color faster.
     pub diffusion_rate: f32,
 }
 
-impl Default for InpaintConfig {
+impl Default for Inpaint {
     fn default() -> Self {
         Self {
             iterations: 100,
@@ -2480,7 +2558,7 @@ impl Default for InpaintConfig {
     }
 }
 
-impl InpaintConfig {
+impl Inpaint {
     /// Creates a new inpaint configuration with the specified iterations.
     pub fn new(iterations: u32) -> Self {
         Self {
@@ -2494,7 +2572,15 @@ impl InpaintConfig {
         self.diffusion_rate = rate.clamp(0.0, 1.0);
         self
     }
+
+    /// Applies this inpainting operation to an image with a mask.
+    pub fn apply(&self, image: &ImageField, mask: &ImageField) -> ImageField {
+        inpaint_diffusion(image, mask, self)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type InpaintConfig = Inpaint;
 
 /// Fills masked regions using diffusion-based inpainting.
 ///
@@ -2515,11 +2601,7 @@ impl InpaintConfig {
 /// let config = InpaintConfig::new(200);
 /// let repaired = inpaint_diffusion(&image, &mask, &config);
 /// ```
-pub fn inpaint_diffusion(
-    image: &ImageField,
-    mask: &ImageField,
-    config: &InpaintConfig,
-) -> ImageField {
+pub fn inpaint_diffusion(image: &ImageField, mask: &ImageField, config: &Inpaint) -> ImageField {
     let width = image.width;
     let height = image.height;
 
@@ -2602,8 +2684,12 @@ pub fn inpaint_diffusion(
 }
 
 /// Configuration for PatchMatch-based inpainting.
+///
+/// Note: Inpainting takes two images (source + mask), so this is not a simple
+/// Image -> Image op and does not derive Op.
 #[derive(Debug, Clone)]
-pub struct PatchMatchConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct PatchMatch {
     /// Size of patches to match (must be odd).
     pub patch_size: u32,
     /// Number of pyramid levels for multi-scale processing.
@@ -2612,7 +2698,7 @@ pub struct PatchMatchConfig {
     pub iterations: u32,
 }
 
-impl Default for PatchMatchConfig {
+impl Default for PatchMatch {
     fn default() -> Self {
         Self {
             patch_size: 7,
@@ -2622,7 +2708,7 @@ impl Default for PatchMatchConfig {
     }
 }
 
-impl PatchMatchConfig {
+impl PatchMatch {
     /// Creates a new PatchMatch configuration.
     pub fn new(patch_size: u32) -> Self {
         Self {
@@ -2646,7 +2732,15 @@ impl PatchMatchConfig {
         self.iterations = iterations.max(1);
         self
     }
+
+    /// Applies this PatchMatch inpainting operation to an image with a mask.
+    pub fn apply(&self, image: &ImageField, mask: &ImageField) -> ImageField {
+        inpaint_patchmatch(image, mask, self)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type PatchMatchConfig = PatchMatch;
 
 /// Fills masked regions using multi-scale PatchMatch inpainting.
 ///
@@ -2670,7 +2764,7 @@ impl PatchMatchConfig {
 pub fn inpaint_patchmatch(
     image: &ImageField,
     mask: &ImageField,
-    config: &PatchMatchConfig,
+    config: &PatchMatch,
 ) -> ImageField {
     // Build image pyramid
     let mut image_pyramid = vec![image.clone()];
@@ -2979,6 +3073,19 @@ pub fn dilate_mask(mask: &ImageField, radius: u32) -> ImageField {
         wrap_mode: mask.wrap_mode,
         filter_mode: mask.filter_mode,
     }
+}
+
+/// Registers all image operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of image ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<BakeConfig>("resin::BakeConfig");
+    registry.register_type::<AnimationConfig>("resin::AnimationConfig");
+    registry.register_type::<ChromaticAberration>("resin::ChromaticAberration");
+    registry.register_type::<Levels>("resin::Levels");
+    registry.register_type::<LensDistortion>("resin::LensDistortion");
+    registry.register_type::<WaveDistortion>("resin::WaveDistortion");
 }
 
 #[cfg(test)]

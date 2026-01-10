@@ -4,6 +4,8 @@
 //! including UV atlas packing for combining multiple UV charts efficiently.
 
 use glam::{Mat4, Vec2, Vec3};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 use crate::Mesh;
@@ -28,6 +30,7 @@ pub fn project_planar(mesh: &mut Mesh, transform: Mat4, scale: Vec2) {
 
 /// Projects UVs using planar projection along a specific axis.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum ProjectionAxis {
     /// Project along X axis (use YZ plane).
     X,
@@ -55,6 +58,7 @@ pub fn project_planar_axis(mesh: &mut Mesh, axis: ProjectionAxis, scale: Vec2) {
 
 /// Configuration for cylindrical UV projection.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CylindricalConfig {
     /// Center of the cylinder.
     pub center: Vec3,
@@ -130,6 +134,7 @@ pub fn project_cylindrical(mesh: &mut Mesh, config: &CylindricalConfig) {
 
 /// Configuration for spherical UV projection.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SphericalConfig {
     /// Center of the sphere.
     pub center: Vec3,
@@ -178,6 +183,7 @@ pub fn project_spherical(mesh: &mut Mesh, config: &SphericalConfig) {
 
 /// Configuration for box/triplanar UV projection.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct BoxConfig {
     /// Center of the projection.
     pub center: Vec3,
@@ -414,6 +420,7 @@ impl UvChart {
 
 /// Configuration for UV atlas packing.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct AtlasPackConfig {
     /// Padding between charts in UV space (0.0 to 1.0).
     pub padding: f32,

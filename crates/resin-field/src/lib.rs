@@ -2725,9 +2725,12 @@ impl Heightmap {
     }
 }
 
-/// Configuration for hydraulic erosion simulation.
+/// Hydraulic erosion simulation operation.
 #[derive(Clone, Copy, Debug)]
-pub struct HydraulicErosionConfig {
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Heightmap, output = Heightmap))]
+pub struct HydraulicErosion {
     /// Number of water droplets to simulate.
     pub iterations: usize,
     /// Maximum steps per droplet lifetime.
@@ -2752,9 +2755,11 @@ pub struct HydraulicErosionConfig {
     pub gravity: f32,
     /// Erosion brush radius.
     pub brush_radius: usize,
+    /// Random seed for simulation.
+    pub seed: u64,
 }
 
-impl Default for HydraulicErosionConfig {
+impl Default for HydraulicErosion {
     fn default() -> Self {
         Self {
             iterations: 10000,
@@ -2769,15 +2774,28 @@ impl Default for HydraulicErosionConfig {
             evaporation_rate: 0.01,
             gravity: 4.0,
             brush_radius: 3,
+            seed: 0,
         }
     }
 }
+
+impl HydraulicErosion {
+    /// Applies this erosion operation to a heightmap.
+    pub fn apply(&self, heightmap: &Heightmap) -> Heightmap {
+        let mut result = heightmap.clone();
+        hydraulic_erosion(&mut result, self, self.seed);
+        result
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type HydraulicErosionConfig = HydraulicErosion;
 
 /// Simulates hydraulic erosion on a heightmap.
 ///
 /// Water droplets flow downhill, picking up sediment and depositing it
 /// as they slow down, creating realistic river valleys and gullies.
-pub fn hydraulic_erosion(heightmap: &mut Heightmap, config: &HydraulicErosionConfig, seed: u64) {
+pub fn hydraulic_erosion(heightmap: &mut Heightmap, config: &HydraulicErosion, seed: u64) {
     let mut rng = SimpleRng::new(seed);
     let width = heightmap.width;
     let height = heightmap.height;
@@ -2926,9 +2944,12 @@ fn apply_erosion_brush(
     }
 }
 
-/// Configuration for thermal erosion simulation.
+/// Thermal erosion simulation operation.
 #[derive(Clone, Copy, Debug)]
-pub struct ThermalErosionConfig {
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Heightmap, output = Heightmap))]
+pub struct ThermalErosion {
     /// Number of iterations.
     pub iterations: usize,
     /// Maximum slope angle (as tangent) before material slides.
@@ -2937,7 +2958,7 @@ pub struct ThermalErosionConfig {
     pub transfer_rate: f32,
 }
 
-impl Default for ThermalErosionConfig {
+impl Default for ThermalErosion {
     fn default() -> Self {
         Self {
             iterations: 50,
@@ -2947,11 +2968,23 @@ impl Default for ThermalErosionConfig {
     }
 }
 
+impl ThermalErosion {
+    /// Applies this erosion operation to a heightmap.
+    pub fn apply(&self, heightmap: &Heightmap) -> Heightmap {
+        let mut result = heightmap.clone();
+        thermal_erosion(&mut result, self);
+        result
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type ThermalErosionConfig = ThermalErosion;
+
 /// Simulates thermal erosion (talus slopes).
 ///
 /// Material slides down when slopes exceed the talus angle,
 /// creating realistic scree slopes and smoothing sharp features.
-pub fn thermal_erosion(heightmap: &mut Heightmap, config: &ThermalErosionConfig) {
+pub fn thermal_erosion(heightmap: &mut Heightmap, config: &ThermalErosion) {
     let width = heightmap.width;
     let height = heightmap.height;
 
@@ -3266,9 +3299,12 @@ fn sample_path(path: &[Vec2], segment_length: f32) -> Vec<Vec2> {
     result
 }
 
-/// Configuration for road network generation.
+/// Road network generation operation.
 #[derive(Debug, Clone)]
-pub struct RoadNetworkConfig {
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Network))]
+pub struct RoadNetwork {
     /// Number of cities/intersections.
     pub num_nodes: usize,
     /// Area bounds (min_x, min_y, max_x, max_y).
@@ -3281,9 +3317,11 @@ pub struct RoadNetworkConfig {
     pub relaxation_iterations: usize,
     /// Path curvature amount.
     pub curvature: f32,
+    /// Random seed for generation.
+    pub seed: u64,
 }
 
-impl Default for RoadNetworkConfig {
+impl Default for RoadNetwork {
     fn default() -> Self {
         Self {
             num_nodes: 10,
@@ -3292,12 +3330,23 @@ impl Default for RoadNetworkConfig {
             extra_connectivity: 0.2,
             relaxation_iterations: 3,
             curvature: 0.3,
+            seed: 0,
         }
     }
 }
 
+impl RoadNetwork {
+    /// Applies this operation to generate a road network.
+    pub fn apply(&self) -> Network {
+        generate_road_network(self, self.seed)
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type RoadNetworkConfig = RoadNetwork;
+
 /// Generates a road network using random node placement and MST.
-pub fn generate_road_network(config: &RoadNetworkConfig, seed: u64) -> Network {
+pub fn generate_road_network(config: &RoadNetwork, seed: u64) -> Network {
     let mut rng = SimpleRng::new(seed);
     let mut network = Network::new();
 
@@ -3480,9 +3529,12 @@ fn relax_edge_path(
     }
 }
 
-/// Configuration for river network generation.
+/// River network generation operation.
 #[derive(Debug, Clone)]
-pub struct RiverNetworkConfig {
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Heightmap, output = Network))]
+pub struct RiverNetwork {
     /// Number of river sources.
     pub num_sources: usize,
     /// Minimum height for sources.
@@ -3493,9 +3545,11 @@ pub struct RiverNetworkConfig {
     pub step_size: f32,
     /// Whether to merge rivers that meet.
     pub merge_rivers: bool,
+    /// Random seed for generation.
+    pub seed: u64,
 }
 
-impl Default for RiverNetworkConfig {
+impl Default for RiverNetwork {
     fn default() -> Self {
         Self {
             num_sources: 3,
@@ -3503,16 +3557,23 @@ impl Default for RiverNetworkConfig {
             max_steps: 200,
             step_size: 1.0,
             merge_rivers: true,
+            seed: 0,
         }
     }
 }
 
+impl RiverNetwork {
+    /// Applies this operation to generate a river network from a heightmap.
+    pub fn apply(&self, heightmap: &Heightmap) -> Network {
+        generate_river_network(heightmap, self, self.seed)
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type RiverNetworkConfig = RiverNetwork;
+
 /// Generates a river network by following terrain gradients.
-pub fn generate_river_network(
-    heightmap: &Heightmap,
-    config: &RiverNetworkConfig,
-    seed: u64,
-) -> Network {
+pub fn generate_river_network(heightmap: &Heightmap, config: &RiverNetwork, seed: u64) -> Network {
     let mut rng = SimpleRng::new(seed);
     let mut network = Network::new();
 
@@ -3735,6 +3796,17 @@ pub fn compute_flow_accumulation(heightmap: &Heightmap) -> Heightmap {
     }
 
     flow
+}
+
+/// Registers all field operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of field ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<HydraulicErosion>("resin::HydraulicErosion");
+    registry.register_type::<ThermalErosion>("resin::ThermalErosion");
+    registry.register_type::<RoadNetwork>("resin::RoadNetwork");
+    registry.register_type::<RiverNetwork>("resin::RiverNetwork");
 }
 
 #[cfg(test)]

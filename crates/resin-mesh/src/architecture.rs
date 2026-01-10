@@ -2,12 +2,18 @@
 //!
 //! Provides tools for generating building geometry procedurally,
 //! including walls, floors, roofs, and windows.
+//!
+//! Operations are serializable structs with `apply` methods.
+//! See `docs/design/ops-as-values.md`.
 
 use crate::Mesh;
 use glam::Vec3;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// Configuration for wall generation.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct WallConfig {
     /// Wall height.
     pub height: f32,
@@ -29,6 +35,7 @@ impl Default for WallConfig {
 
 /// Configuration for window placement.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct WindowConfig {
     /// Window width.
     pub width: f32,
@@ -53,6 +60,7 @@ impl Default for WindowConfig {
 
 /// Configuration for door placement.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct DoorConfig {
     /// Door width.
     pub width: f32,
@@ -74,6 +82,7 @@ impl Default for DoorConfig {
 
 /// Configuration for roof generation.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct RoofConfig {
     /// Roof style.
     pub style: RoofStyle,
@@ -98,6 +107,7 @@ impl Default for RoofConfig {
 
 /// Roof style variants.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum RoofStyle {
     /// Flat roof.
     Flat,

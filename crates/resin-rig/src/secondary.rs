@@ -28,10 +28,18 @@
 //! ```
 
 use glam::{Quat, Vec3};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// Configuration for secondary motion effects.
+///
+/// This struct configures jiggle physics parameters for secondary motion
+/// like hair, clothing, and soft body deformation.
 #[derive(Debug, Clone)]
-pub struct SecondaryConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Secondary))]
+pub struct Secondary {
     /// Spring stiffness (higher = snappier return to rest).
     pub stiffness: f32,
     /// Damping coefficient (higher = less oscillation).
@@ -46,7 +54,17 @@ pub struct SecondaryConfig {
     pub enable_collision: bool,
 }
 
-impl Default for SecondaryConfig {
+/// Backwards-compatible type alias.
+pub type SecondaryConfig = Secondary;
+
+impl Secondary {
+    /// Applies this generator, returning the configuration.
+    pub fn apply(&self) -> Secondary {
+        self.clone()
+    }
+}
+
+impl Default for Secondary {
     fn default() -> Self {
         Self {
             stiffness: 100.0,
@@ -59,7 +77,7 @@ impl Default for SecondaryConfig {
     }
 }
 
-impl SecondaryConfig {
+impl Secondary {
     /// Creates a config for soft/bouncy motion (low stiffness, low damping).
     pub fn soft() -> Self {
         Self {

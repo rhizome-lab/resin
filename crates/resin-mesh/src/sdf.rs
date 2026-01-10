@@ -2,13 +2,23 @@
 //!
 //! Converts triangle meshes to signed distance fields for use in
 //! Boolean operations, collision detection, and procedural generation.
+//!
+//! Operations are serializable structs with `apply` methods.
+//! See `docs/design/ops-as-values.md`.
 
 use crate::Mesh;
 use glam::Vec3;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
-/// Configuration for SDF generation.
+/// Generates a signed distance field from a mesh.
+///
+/// Converts a triangle mesh to a 3D grid of signed distance values.
 #[derive(Debug, Clone)]
-pub struct SdfConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Mesh, output = SdfGrid))]
+pub struct GenerateSdf {
     /// Grid resolution in each dimension.
     pub resolution: (usize, usize, usize),
     /// Bounding box padding (multiplier, 1.1 = 10% padding).
@@ -17,7 +27,7 @@ pub struct SdfConfig {
     pub exact: bool,
 }
 
-impl Default for SdfConfig {
+impl Default for GenerateSdf {
     fn default() -> Self {
         Self {
             resolution: (32, 32, 32),
@@ -26,6 +36,16 @@ impl Default for SdfConfig {
         }
     }
 }
+
+impl GenerateSdf {
+    /// Applies this operation to generate an SDF from a mesh.
+    pub fn apply(&self, mesh: &Mesh) -> SdfGrid {
+        mesh_to_sdf(mesh, self)
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type SdfConfig = GenerateSdf;
 
 /// A 3D signed distance field stored as a regular grid.
 #[derive(Debug, Clone)]
@@ -153,7 +173,7 @@ impl SdfGrid {
 }
 
 /// Generates an SDF from a mesh.
-pub fn mesh_to_sdf(mesh: &Mesh, config: &SdfConfig) -> SdfGrid {
+pub fn mesh_to_sdf(mesh: &Mesh, config: &GenerateSdf) -> SdfGrid {
     // Compute bounds
     let (bounds_min, bounds_max) = compute_bounds(mesh, config.padding);
 
@@ -360,7 +380,7 @@ fn point_triangle_distance(p: Vec3, v0: Vec3, v1: Vec3, v2: Vec3) -> f32 {
 }
 
 /// Computes an SDF from a mesh using fast marching (approximate).
-pub fn mesh_to_sdf_fast(mesh: &Mesh, config: &SdfConfig) -> SdfGrid {
+pub fn mesh_to_sdf_fast(mesh: &Mesh, config: &GenerateSdf) -> SdfGrid {
     let mut config = config.clone();
     config.exact = false;
     mesh_to_sdf(mesh, &config)

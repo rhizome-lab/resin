@@ -29,6 +29,8 @@
 //! ```
 
 use glam::Vec2;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 
@@ -100,6 +102,7 @@ pub enum EdgeType {
 
 /// Configuration for road network generation.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct RoadConfig {
     /// Minimum distance between nodes.
     pub min_node_distance: f32,
@@ -444,6 +447,7 @@ impl PartialOrd for AStarNode {
 
 /// Configuration for river network generation.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct RiverConfig {
     /// Minimum flow threshold for a river.
     pub min_flow: f32,
@@ -463,6 +467,50 @@ impl Default for RiverConfig {
             meander_strength: 0.3,
             erosion_iterations: 0,
         }
+    }
+}
+
+/// Operation to generate a simple procedural river from source to sink.
+///
+/// Takes a seed (u64) and produces a RiverNetwork.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = u64, output = RiverNetwork))]
+pub struct GenerateRiver {
+    /// Source position (upstream).
+    pub source: Vec2,
+    /// Sink position (downstream).
+    pub sink: Vec2,
+    /// River configuration parameters.
+    pub config: RiverConfig,
+}
+
+impl GenerateRiver {
+    /// Creates a new river generator with the given source and sink.
+    pub fn new(source: Vec2, sink: Vec2) -> Self {
+        Self {
+            source,
+            sink,
+            config: RiverConfig::default(),
+        }
+    }
+
+    /// Sets the river configuration.
+    pub fn with_config(mut self, config: RiverConfig) -> Self {
+        self.config = config;
+        self
+    }
+
+    /// Sets the meander strength.
+    pub fn with_meander(mut self, strength: f32) -> Self {
+        self.config.meander_strength = strength;
+        self
+    }
+
+    /// Applies this operation to generate a river network.
+    pub fn apply(&self, seed: &u64) -> RiverNetwork {
+        RiverNetwork::generate_river(self.source, self.sink, self.config.clone(), *seed)
     }
 }
 
@@ -715,6 +763,74 @@ impl RiverNetwork {
             .filter(|(_, n)| n.node_type == NodeType::Sink)
             .map(|(i, _)| i)
             .collect()
+    }
+}
+
+// ============================================================================
+// Road Network Operations
+// ============================================================================
+
+/// Operation to generate a grid-based road network.
+///
+/// Takes a seed (u64, unused) and produces a RoadNetwork.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = u64, output = RoadNetwork))]
+pub struct GenerateRoadNetworkGrid {
+    /// Minimum corner of the bounds.
+    pub bounds_min: Vec2,
+    /// Maximum corner of the bounds.
+    pub bounds_max: Vec2,
+    /// Grid spacing between roads.
+    pub spacing: f32,
+}
+
+impl GenerateRoadNetworkGrid {
+    /// Creates a new grid road network generator.
+    pub fn new(bounds_min: Vec2, bounds_max: Vec2, spacing: f32) -> Self {
+        Self {
+            bounds_min,
+            bounds_max,
+            spacing,
+        }
+    }
+
+    /// Applies this operation to generate a road network.
+    pub fn apply(&self, _seed: &u64) -> RoadNetwork {
+        generate_road_network_grid(self.bounds_min, self.bounds_max, self.spacing)
+    }
+}
+
+/// Operation to generate a hierarchical road network with main roads and side streets.
+///
+/// Takes a seed (u64) and produces a RoadNetwork.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = u64, output = RoadNetwork))]
+pub struct GenerateRoadNetworkHierarchical {
+    /// Minimum corner of the bounds.
+    pub bounds_min: Vec2,
+    /// Maximum corner of the bounds.
+    pub bounds_max: Vec2,
+    /// Road density factor.
+    pub density: f32,
+}
+
+impl GenerateRoadNetworkHierarchical {
+    /// Creates a new hierarchical road network generator.
+    pub fn new(bounds_min: Vec2, bounds_max: Vec2, density: f32) -> Self {
+        Self {
+            bounds_min,
+            bounds_max,
+            density,
+        }
+    }
+
+    /// Applies this operation to generate a road network.
+    pub fn apply(&self, seed: &u64) -> RoadNetwork {
+        generate_road_network_hierarchical(self.bounds_min, self.bounds_max, self.density, *seed)
     }
 }
 

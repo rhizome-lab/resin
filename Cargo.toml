@@ -12,6 +12,9 @@ repository = "https://github.com/pterror/resin"
 # Math (bevy-compatible)
 glam = "0.29"
 
+# Serialization
+serde = { version = "1", features = ["derive"] }
+
 # Error handling
 thiserror = "2"
 
@@ -56,6 +59,8 @@ rhizome-resin-noise = { path = "crates/resin-noise" }
 rhizome-resin-field = { path = "crates/resin-field" }
 rhizome-resin-image = { path = "crates/resin-image" }
 rhizome-resin-lsystem = { path = "crates/resin-lsystem" }
+rhizome-resin-op = { path = "crates/resin-op" }
+rhizome-resin-op-macros = { path = "crates/resin-op-macros" }
 
 [package]
 name = "rhizome-resin-examples"

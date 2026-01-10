@@ -24,8 +24,12 @@ use crate::{Path, PathBuilder, PathCommand};
 use glam::Vec2;
 use std::f32::consts::PI;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// Style for line joins.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum JoinStyle {
     /// Sharp corner (may be limited by miter limit).
     #[default]
@@ -38,6 +42,7 @@ pub enum JoinStyle {
 
 /// Style for line caps.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum CapStyle {
     /// Flat cap at the endpoint.
     #[default]
@@ -48,9 +53,12 @@ pub enum CapStyle {
     Square,
 }
 
-/// Configuration for stroke operations.
+/// Operation for converting strokes to filled path outlines.
 #[derive(Debug, Clone)]
-pub struct StrokeConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Path, output = Path))]
+pub struct Stroke {
     /// Width of the stroke.
     pub width: f32,
     /// Cap style for line ends.
@@ -61,7 +69,7 @@ pub struct StrokeConfig {
     pub miter_limit: f32,
 }
 
-impl Default for StrokeConfig {
+impl Default for Stroke {
     fn default() -> Self {
         Self {
             width: 1.0,
@@ -72,7 +80,7 @@ impl Default for StrokeConfig {
     }
 }
 
-impl StrokeConfig {
+impl Stroke {
     /// Creates a stroke config with the given width.
     pub fn new(width: f32) -> Self {
         Self {
@@ -98,7 +106,15 @@ impl StrokeConfig {
         self.miter_limit = limit;
         self
     }
+
+    /// Applies this stroke operation to a path, converting it to a filled outline.
+    pub fn apply(&self, path: &Path) -> Path {
+        stroke_to_path(path, self)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type StrokeConfig = Stroke;
 
 /// Dash pattern for stroked paths.
 #[derive(Debug, Clone)]
@@ -990,9 +1006,12 @@ impl Default for PressureStroke {
     }
 }
 
-/// Configuration for pressure-sensitive stroke rendering.
+/// Operation for pressure-sensitive stroke rendering.
 #[derive(Debug, Clone)]
-pub struct PressureStrokeConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = PressureStroke, output = Path))]
+pub struct PressureStrokeRender {
     /// Minimum stroke width (at pressure 0).
     pub min_width: f32,
     /// Maximum stroke width (at pressure 1).
@@ -1005,7 +1024,7 @@ pub struct PressureStrokeConfig {
     pub miter_limit: f32,
 }
 
-impl Default for PressureStrokeConfig {
+impl Default for PressureStrokeRender {
     fn default() -> Self {
         Self {
             min_width: 0.5,
@@ -1017,7 +1036,7 @@ impl Default for PressureStrokeConfig {
     }
 }
 
-impl PressureStrokeConfig {
+impl PressureStrokeRender {
     /// Creates a new pressure stroke config.
     pub fn new(min_width: f32, max_width: f32) -> Self {
         Self {
@@ -1043,7 +1062,15 @@ impl PressureStrokeConfig {
     pub fn width_for_pressure(&self, pressure: f32) -> f32 {
         self.min_width + (self.max_width - self.min_width) * pressure.clamp(0.0, 1.0)
     }
+
+    /// Applies this operation to a pressure stroke, converting it to a filled path outline.
+    pub fn apply(&self, stroke: &PressureStroke) -> Path {
+        pressure_stroke_to_path(stroke, self)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type PressureStrokeConfig = PressureStrokeRender;
 
 /// Converts a pressure stroke to a filled path outline.
 ///

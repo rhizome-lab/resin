@@ -2,6 +2,17 @@
 //!
 //! Provides types for bones, skeletons, poses, mesh skinning, constraints, animation, and IK.
 
+/// Registers all rig operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of rig ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<Gait>("resin::Gait");
+    registry.register_type::<Ik>("resin::Ik");
+    registry.register_type::<MotionMatching>("resin::MotionMatching");
+    registry.register_type::<Secondary>("resin::Secondary");
+}
+
 mod animation;
 mod blend;
 mod constraint;
@@ -19,20 +30,21 @@ pub use animation::{
 };
 pub use blend::{AnimationLayer, AnimationPose, AnimationStack, BlendMode, BlendNode, Crossfade};
 pub use constraint::{Constraint, ConstraintStack, PathConstraint};
-pub use ik::{IkChain, IkConfig, IkResult, solve_ccd, solve_fabrik};
+pub use ik::{Ik, IkChain, IkConfig, IkResult, solve_ccd, solve_fabrik};
 pub use locomotion::{
-    FootPlacement, GaitConfig, GaitPattern, LegState, ProceduralHop, ProceduralWalk, WalkAnimator,
+    FootPlacement, Gait, GaitConfig, GaitPattern, LegState, ProceduralHop, ProceduralWalk,
+    WalkAnimator,
 };
 pub use motion_matching::{
     FrameRef, MatchResult, MotionClip, MotionDatabase, MotionFrame, MotionFrameBuilder,
-    MotionMatcher, MotionMatchingConfig, MotionQuery, apply_frame_to_pose, blend_frames,
-    compute_match_cost, find_best_match,
+    MotionMatcher, MotionMatching, MotionMatchingConfig, MotionQuery, apply_frame_to_pose,
+    blend_frames, compute_match_cost, find_best_match,
 };
 pub use path3d::{Path3D, Path3DBuilder, PathCommand3D, PathSample, line3d, polyline3d};
 pub use secondary::{
     Drag, FollowThrough, JiggleBone, JiggleChain, JiggleMesh, OverlappingAction,
-    RotationFollowThrough, SecondaryConfig, SecondaryMotion, WindForce, apply_wind_to_bone,
-    apply_wind_to_chain,
+    RotationFollowThrough, Secondary, SecondaryConfig, SecondaryMotion, WindForce,
+    apply_wind_to_bone, apply_wind_to_chain,
 };
 pub use skeleton::{AddBoneResult, Bone, BoneId, Pose, Skeleton};
 pub use skin::{MAX_INFLUENCES, Skin, VertexInfluences};

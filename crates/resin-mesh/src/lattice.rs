@@ -4,6 +4,8 @@
 //! Points are deformed by manipulating control points in a 3D grid.
 
 use glam::Vec3;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use crate::Mesh;
 
@@ -193,6 +195,7 @@ impl Lattice {
 
 /// Configuration for lattice deformation.
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct LatticeDeformConfig {
     /// Whether to update normals after deformation.
     pub update_normals: bool,

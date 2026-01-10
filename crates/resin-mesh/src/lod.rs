@@ -3,23 +3,34 @@
 //! Automatically generates multiple mesh detail levels for efficient rendering
 //! at different viewing distances.
 //!
+//! Operations are serializable structs with `apply` methods.
+//! See `docs/design/ops-as-values.md`.
+//!
 //! # Example
 //!
 //! ```
 //! use rhizome_resin_mesh::{uv_sphere, LodConfig, generate_lod_chain};
 //!
 //! let high_poly = uv_sphere(32, 16);
-//! let lod_chain = generate_lod_chain(&high_poly, &LodConfig::default());
+//! let lod_chain = LodConfig::default().apply(&high_poly);
 //!
 //! // Use different LODs based on distance
 //! let current_lod = lod_chain.select_by_screen_size(0.1); // 10% of screen
 //! ```
 
 use crate::{DecimateConfig, Mesh, decimate};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
-/// Configuration for LOD generation.
+/// Generates a LOD chain from a high-poly mesh.
+///
+/// Creates a sequence of meshes at decreasing detail levels,
+/// suitable for distance-based rendering optimization.
 #[derive(Debug, Clone)]
-pub struct LodConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Mesh, output = LodChain))]
+pub struct GenerateLodChain {
     /// Number of LOD levels to generate (including original).
     pub levels: usize,
     /// Reduction ratio between consecutive levels (0.0 - 1.0).
@@ -36,7 +47,7 @@ pub struct LodConfig {
     pub screen_thresholds: Option<Vec<f32>>,
 }
 
-impl Default for LodConfig {
+impl Default for GenerateLodChain {
     fn default() -> Self {
         Self {
             levels: 4,
@@ -49,7 +60,7 @@ impl Default for LodConfig {
     }
 }
 
-impl LodConfig {
+impl GenerateLodChain {
     /// Creates a config with a specific number of levels.
     pub fn with_levels(levels: usize) -> Self {
         Self {
@@ -87,7 +98,15 @@ impl LodConfig {
         self.screen_thresholds = Some(thresholds);
         self
     }
+
+    /// Applies this operation to generate a LOD chain.
+    pub fn apply(&self, mesh: &Mesh) -> LodChain {
+        generate_lod_chain(mesh, self)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type LodConfig = GenerateLodChain;
 
 /// A chain of meshes at different detail levels.
 #[derive(Debug, Clone)]
@@ -176,7 +195,7 @@ impl LodChain {
 }
 
 /// Generates a LOD chain from a high-poly mesh.
-pub fn generate_lod_chain(mesh: &Mesh, config: &LodConfig) -> LodChain {
+pub fn generate_lod_chain(mesh: &Mesh, config: &GenerateLodChain) -> LodChain {
     if mesh.positions.is_empty() || config.levels == 0 {
         return LodChain { levels: vec![] };
     }
@@ -376,7 +395,7 @@ mod tests {
 
     #[test]
     fn test_lod_config_builder() {
-        let config = LodConfig::with_levels(6)
+        let config = GenerateLodChain::with_levels(6)
             .with_reduction_ratio(0.6)
             .with_min_triangles(100)
             .with_preserve_boundary(false)

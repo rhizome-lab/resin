@@ -7,10 +7,10 @@
 //!
 //! ```
 //! use glam::Vec2;
-//! use rhizome_resin_vector::{HatchConfig, hatch_rect, cross_hatch_rect};
+//! use rhizome_resin_vector::{Hatch, hatch_rect, cross_hatch_rect};
 //!
 //! // Simple parallel hatching
-//! let config = HatchConfig::new().with_spacing(5.0).with_angle(45.0);
+//! let config = Hatch::new().with_spacing(5.0).with_angle(45.0);
 //! let lines = hatch_rect(Vec2::ZERO, Vec2::new(100.0, 100.0), &config);
 //!
 //! // Cross-hatching
@@ -20,9 +20,16 @@
 use crate::Path;
 use glam::Vec2;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// Configuration for hatching patterns.
+///
+/// Note: This is a configuration struct rather than a full Op because hatching
+/// requires bounds/polygon input which isn't a single serializable type.
 #[derive(Debug, Clone)]
-pub struct HatchConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct Hatch {
     /// Spacing between hatch lines.
     pub spacing: f32,
     /// Angle of hatch lines in degrees (0 = horizontal).
@@ -31,7 +38,7 @@ pub struct HatchConfig {
     pub offset: f32,
 }
 
-impl Default for HatchConfig {
+impl Default for Hatch {
     fn default() -> Self {
         Self {
             spacing: 5.0,
@@ -41,7 +48,7 @@ impl Default for HatchConfig {
     }
 }
 
-impl HatchConfig {
+impl Hatch {
     /// Creates a new hatch configuration with default values.
     pub fn new() -> Self {
         Self::default()
@@ -80,6 +87,9 @@ impl HatchConfig {
         Self::new().with_angle(45.0)
     }
 }
+
+/// Backwards-compatible type alias.
+pub type HatchConfig = Hatch;
 
 /// A single hatch line segment.
 #[derive(Debug, Clone, Copy)]

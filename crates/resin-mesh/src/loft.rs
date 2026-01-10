@@ -2,10 +2,13 @@
 //!
 //! Creates meshes by interpolating between multiple cross-sectional profiles.
 //!
+//! Operations are serializable structs with `apply` methods.
+//! See `docs/design/ops-as-values.md`.
+//!
 //! # Example
 //!
 //! ```ignore
-//! use rhizome_resin_mesh::{loft, LoftConfig};
+//! use rhizome_resin_mesh::{loft, Loft};
 //! use glam::Vec3;
 //!
 //! // Create three circular profiles at different heights
@@ -15,16 +18,24 @@
 //!     circle_points(0.8, 2.0, 16),  // radius 0.8 at y=2
 //! ];
 //!
-//! let mesh = loft(&profiles, LoftConfig::default());
+//! let mesh = Loft::default().apply(&profiles);
 //! ```
 
 use glam::Vec3;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use crate::Mesh;
 
-/// Configuration for loft operation.
+/// Lofts between profile curves to create a mesh surface.
+///
+/// Creates meshes by interpolating between multiple cross-sectional profiles.
+/// All profiles should have the same number of points.
 #[derive(Debug, Clone)]
-pub struct LoftConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Vec<Vec<Vec3>>, output = Mesh))]
+pub struct Loft {
     /// Whether to close the surface at the start profile.
     pub cap_start: bool,
     /// Whether to close the surface at the end profile.
@@ -35,7 +46,7 @@ pub struct LoftConfig {
     pub closed_profiles: bool,
 }
 
-impl Default for LoftConfig {
+impl Default for Loft {
     fn default() -> Self {
         Self {
             cap_start: false,
@@ -46,7 +57,7 @@ impl Default for LoftConfig {
     }
 }
 
-impl LoftConfig {
+impl Loft {
     /// Creates config with closed caps at both ends.
     pub fn with_caps() -> Self {
         Self {
@@ -67,7 +78,15 @@ impl LoftConfig {
         self.closed_profiles = closed;
         self
     }
+
+    /// Applies this loft operation to the given profiles.
+    pub fn apply(&self, profiles: &[Vec<Vec3>]) -> Mesh {
+        loft(profiles, self.clone())
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type LoftConfig = Loft;
 
 /// Creates a mesh by lofting between profile curves.
 ///

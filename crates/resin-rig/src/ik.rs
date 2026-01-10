@@ -4,17 +4,34 @@
 
 use crate::{BoneId, Pose, Skeleton, Transform};
 use glam::{Quat, Vec3};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// Configuration for IK solving.
-#[derive(Debug, Clone)]
-pub struct IkConfig {
+///
+/// Controls iteration limits and convergence thresholds for IK solvers.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Ik))]
+pub struct Ik {
     /// Maximum iterations.
     pub max_iterations: u32,
     /// Distance threshold for success.
     pub tolerance: f32,
 }
 
-impl Default for IkConfig {
+/// Backwards-compatible type alias.
+pub type IkConfig = Ik;
+
+impl Ik {
+    /// Applies this generator, returning the configuration.
+    pub fn apply(&self) -> Ik {
+        *self
+    }
+}
+
+impl Default for Ik {
     fn default() -> Self {
         Self {
             max_iterations: 10,

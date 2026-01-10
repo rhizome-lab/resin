@@ -7,9 +7,9 @@
 //! # Example
 //!
 //! ```
-//! use rhizome_resin_audio::vocoder::{Vocoder, VocoderConfig};
+//! use rhizome_resin_audio::vocoder::{Vocoder, VocodeSynth};
 //!
-//! let config = VocoderConfig::default();
+//! let config = VocodeSynth::default();
 //! let mut vocoder = Vocoder::new(config);
 //!
 //! // Process a block of audio
@@ -20,9 +20,28 @@
 
 use crate::spectral::{Complex, fft, hann_window, ifft};
 
-/// Configuration for the vocoder.
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+/// Input for vocoder operation.
 #[derive(Debug, Clone)]
-pub struct VocoderConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct VocodeInput {
+    /// Carrier signal (synthesizer, noise, etc.).
+    pub carrier: Vec<f32>,
+    /// Modulator signal (speech, etc.).
+    pub modulator: Vec<f32>,
+}
+
+/// Configuration for the vocoder.
+///
+/// Operations on audio buffers use the ops-as-values pattern.
+/// See `docs/design/ops-as-values.md`.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = VocodeInput, output = Vec<f32>))]
+pub struct VocodeSynth {
     /// FFT window size (must be power of 2).
     pub window_size: usize,
     /// Hop size between consecutive frames.
@@ -33,7 +52,7 @@ pub struct VocoderConfig {
     pub envelope_smoothing: f32,
 }
 
-impl Default for VocoderConfig {
+impl Default for VocodeSynth {
     fn default() -> Self {
         Self {
             window_size: 1024,
@@ -44,7 +63,7 @@ impl Default for VocoderConfig {
     }
 }
 
-impl VocoderConfig {
+impl VocodeSynth {
     /// Creates a new vocoder config with the given window size.
     pub fn new(window_size: usize) -> Self {
         Self {
@@ -65,7 +84,16 @@ impl VocoderConfig {
         self.envelope_smoothing = smoothing.clamp(0.0, 0.999);
         self
     }
+
+    /// Applies this vocoder configuration to process carrier and modulator signals.
+    pub fn apply(&self, input: &VocodeInput) -> Vec<f32> {
+        let mut vocoder = Vocoder::new(self.clone());
+        vocoder.process(&input.carrier, &input.modulator)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type VocoderConfig = VocodeSynth;
 
 /// Band definition for filterbank vocoder.
 #[derive(Debug, Clone)]
@@ -80,7 +108,7 @@ struct Band {
 
 /// A phase vocoder for spectral cross-synthesis.
 pub struct Vocoder {
-    config: VocoderConfig,
+    config: VocodeSynth,
     window: Vec<f32>,
     bands: Vec<Band>,
     /// Input buffer for carrier.
@@ -95,7 +123,7 @@ pub struct Vocoder {
 
 impl Vocoder {
     /// Creates a new vocoder with the given configuration.
-    pub fn new(config: VocoderConfig) -> Self {
+    pub fn new(config: VocodeSynth) -> Self {
         let window = hann_window(config.window_size);
         let num_bins = config.window_size / 2 + 1;
 
@@ -446,7 +474,7 @@ mod tests {
 
     #[test]
     fn test_vocoder_config() {
-        let config = VocoderConfig::new(2048).with_bands(32).with_smoothing(0.95);
+        let config = VocodeSynth::new(2048).with_bands(32).with_smoothing(0.95);
 
         assert_eq!(config.window_size, 2048);
         assert_eq!(config.num_bands, 32);
@@ -455,7 +483,7 @@ mod tests {
 
     #[test]
     fn test_vocoder_process() {
-        let config = VocoderConfig::default();
+        let config = VocodeSynth::default();
         let mut vocoder = Vocoder::new(config);
 
         let n = 2048;
@@ -492,7 +520,7 @@ mod tests {
 
     #[test]
     fn test_vocoder_reset() {
-        let config = VocoderConfig::default();
+        let config = VocodeSynth::default();
         let mut vocoder = Vocoder::new(config);
 
         let signal = vec![0.5; 512];

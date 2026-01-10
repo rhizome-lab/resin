@@ -31,7 +31,18 @@
 //! }
 //! ```
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 use glam::Vec3;
+
+/// Registers all spring operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of spring ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<SpringConfig>("resin::SpringConfig");
+}
 
 /// A particle in the spring system.
 #[derive(Debug, Clone)]
@@ -70,7 +81,13 @@ impl Particle {
 }
 
 /// Configuration for a spring constraint.
+///
+/// Operations on spring systems use the ops-as-values pattern.
+/// See `docs/design/ops-as-values.md`.
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = SpringConfig))]
 pub struct SpringConfig {
     /// Rest length of the spring.
     pub rest_length: f32,
@@ -104,6 +121,14 @@ impl SpringConfig {
     pub fn with_damping(mut self, damping: f32) -> Self {
         self.damping = damping;
         self
+    }
+
+    /// Applies this configuration, returning a copy of self.
+    ///
+    /// This is the identity operation for config structs - the config
+    /// is the value itself. Useful for serialization pipelines.
+    pub fn apply(&self) -> SpringConfig {
+        *self
     }
 }
 

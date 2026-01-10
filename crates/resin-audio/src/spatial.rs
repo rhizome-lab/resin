@@ -21,8 +21,12 @@
 
 use std::f32::consts::PI;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// A 3D vector for spatial audio.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Vec3 {
     pub x: f32,
     pub y: f32,
@@ -125,6 +129,7 @@ impl std::ops::Mul<f32> for Vec3 {
 
 /// A spatial audio source.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SpatialSource {
     /// Position in world space.
     pub position: Vec3,
@@ -184,6 +189,7 @@ impl SpatialSource {
 
 /// A spatial audio listener (typically the camera/player).
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SpatialListener {
     /// Position in world space.
     pub position: Vec3,
@@ -230,6 +236,7 @@ impl SpatialListener {
 
 /// Distance attenuation model.
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum DistanceModel {
     /// No distance attenuation.
     None,
@@ -282,9 +289,39 @@ impl DistanceModel {
     }
 }
 
-/// Configuration for the spatializer.
+/// Input for spatialize operation.
 #[derive(Debug, Clone)]
-pub struct SpatializerConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct SpatializeInput {
+    /// Mono audio samples.
+    pub audio: Vec<f32>,
+    /// Sound source position.
+    pub source: SpatialSource,
+    /// Listener position.
+    pub listener: SpatialListener,
+    /// Sample rate in Hz.
+    pub sample_rate: u32,
+}
+
+/// Output from spatialize operation.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct SpatializeOutput {
+    /// Left channel audio.
+    pub left: Vec<f32>,
+    /// Right channel audio.
+    pub right: Vec<f32>,
+}
+
+/// Configuration for the spatializer.
+///
+/// Operations on audio buffers use the ops-as-values pattern.
+/// See `docs/design/ops-as-values.md`.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = SpatializeInput, output = SpatializeOutput))]
+pub struct Spatialize {
     /// Distance attenuation model.
     pub distance_model: DistanceModel,
     /// Whether to enable Doppler effect.
@@ -297,7 +334,7 @@ pub struct SpatializerConfig {
     pub max_itd_samples: usize,
 }
 
-impl Default for SpatializerConfig {
+impl Default for Spatialize {
     fn default() -> Self {
         Self {
             distance_model: DistanceModel::default(),
@@ -309,8 +346,23 @@ impl Default for SpatializerConfig {
     }
 }
 
+impl Spatialize {
+    /// Applies this spatializer configuration to process mono audio.
+    ///
+    /// Returns stereo output (left, right).
+    pub fn apply(&self, input: &SpatializeInput) -> SpatializeOutput {
+        let spatializer = Spatializer::with_config(input.sample_rate, self.clone());
+        let (left, right) = spatializer.process_mono(&input.audio, &input.source, &input.listener);
+        SpatializeOutput { left, right }
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type SpatializerConfig = Spatialize;
+
 /// HRTF processing mode.
 #[derive(Debug, Clone, Copy, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum HrtfMode {
     /// Simple panning (no HRTF).
     #[default]
@@ -327,7 +379,7 @@ pub struct Spatializer {
     /// Sample rate.
     pub sample_rate: u32,
     /// Configuration.
-    pub config: SpatializerConfig,
+    pub config: Spatialize,
     /// Delay buffer for ITD.
     delay_buffer_l: Vec<f32>,
     delay_buffer_r: Vec<f32>,
@@ -341,11 +393,11 @@ pub struct Spatializer {
 impl Spatializer {
     /// Creates a new spatializer.
     pub fn new(sample_rate: u32) -> Self {
-        Self::with_config(sample_rate, SpatializerConfig::default())
+        Self::with_config(sample_rate, Spatialize::default())
     }
 
     /// Creates a spatializer with custom configuration.
-    pub fn with_config(sample_rate: u32, config: SpatializerConfig) -> Self {
+    pub fn with_config(sample_rate: u32, config: Spatialize) -> Self {
         let buffer_size = config.max_itd_samples * 2;
         Self {
             sample_rate,
@@ -768,7 +820,7 @@ mod tests {
 
     #[test]
     fn test_hrtf_basic() {
-        let mut config = SpatializerConfig::default();
+        let mut config = Spatialize::default();
         config.hrtf_mode = HrtfMode::Basic;
         let spatializer = Spatializer::with_config(44100, config);
 

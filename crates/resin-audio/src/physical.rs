@@ -5,10 +5,10 @@
 //! # Example
 //!
 //! ```
-//! use rhizome_resin_audio::physical::{KarplusStrong, PluckConfig};
+//! use rhizome_resin_audio::physical::{KarplusStrong, PluckSynth};
 //!
 //! let mut ks = KarplusStrong::new(44100.0);
-//! ks.pluck(440.0, PluckConfig::default());
+//! ks.pluck(440.0, PluckSynth::default());
 //!
 //! let mut buffer = vec![0.0; 1000];
 //! ks.generate(&mut buffer);
@@ -16,9 +16,30 @@
 
 use std::collections::VecDeque;
 
-/// Configuration for plucking a string.
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+/// Input for pluck synthesis operation.
 #[derive(Debug, Clone)]
-pub struct PluckConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct PluckInput {
+    /// Frequency in Hz.
+    pub frequency: f32,
+    /// Sample rate in Hz.
+    pub sample_rate: f32,
+    /// Number of samples to generate.
+    pub num_samples: usize,
+}
+
+/// Configuration for plucking a string.
+///
+/// Operations on audio buffers use the ops-as-values pattern.
+/// See `docs/design/ops-as-values.md`.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = PluckInput, output = Vec<f32>))]
+pub struct PluckSynth {
     /// Initial amplitude (0.0 to 1.0).
     pub amplitude: f32,
     /// Damping factor (0.0 to 1.0). Higher = more damping = faster decay.
@@ -29,7 +50,7 @@ pub struct PluckConfig {
     pub noise_blend: f32,
 }
 
-impl Default for PluckConfig {
+impl Default for PluckSynth {
     fn default() -> Self {
         Self {
             amplitude: 0.8,
@@ -40,7 +61,7 @@ impl Default for PluckConfig {
     }
 }
 
-impl PluckConfig {
+impl PluckSynth {
     /// Sets the amplitude.
     pub fn with_amplitude(mut self, amplitude: f32) -> Self {
         self.amplitude = amplitude;
@@ -64,7 +85,21 @@ impl PluckConfig {
         self.noise_blend = blend;
         self
     }
+
+    /// Applies this pluck configuration to generate samples.
+    ///
+    /// Takes pluck input and returns audio samples.
+    pub fn apply(&self, input: &PluckInput) -> Vec<f32> {
+        let mut ks = KarplusStrong::new(input.sample_rate);
+        ks.pluck(input.frequency, self.clone());
+        let mut output = vec![0.0; input.num_samples];
+        ks.generate(&mut output);
+        output
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type PluckConfig = PluckSynth;
 
 /// Karplus-Strong string synthesis.
 ///
@@ -103,7 +138,7 @@ impl KarplusStrong {
     }
 
     /// Plucks the string at the given frequency.
-    pub fn pluck(&mut self, frequency: f32, config: PluckConfig) {
+    pub fn pluck(&mut self, frequency: f32, config: PluckSynth) {
         // Calculate delay line length from frequency
         let period = (self.sample_rate / frequency).round() as usize;
         let period = period.max(2); // Minimum 2 samples
@@ -222,7 +257,7 @@ impl ExtendedKarplusStrong {
     }
 
     /// Plucks the string.
-    pub fn pluck(&mut self, frequency: f32, config: PluckConfig) {
+    pub fn pluck(&mut self, frequency: f32, config: PluckSynth) {
         self.ks.pluck(frequency, config);
 
         // Apply pick position filtering to initial buffer
@@ -294,7 +329,7 @@ impl PolyStrings {
     }
 
     /// Plucks a new string.
-    pub fn pluck(&mut self, frequency: f32, config: PluckConfig) {
+    pub fn pluck(&mut self, frequency: f32, config: PluckSynth) {
         // Find an inactive voice or steal the oldest
         let voice_idx = self
             .voices
@@ -356,7 +391,7 @@ mod tests {
     #[test]
     fn test_karplus_strong_basic() {
         let mut ks = KarplusStrong::new(44100.0);
-        ks.pluck(440.0, PluckConfig::default());
+        ks.pluck(440.0, PluckSynth::default());
 
         // Generate some samples
         let mut buffer = vec![0.0; 1000];
@@ -375,7 +410,7 @@ mod tests {
     #[test]
     fn test_karplus_strong_decay() {
         let mut ks = KarplusStrong::new(44100.0);
-        ks.pluck(440.0, PluckConfig::default());
+        ks.pluck(440.0, PluckSynth::default());
 
         // Generate two chunks
         let mut buffer1 = vec![0.0; 1000];
@@ -396,10 +431,10 @@ mod tests {
         let mut ks = KarplusStrong::new(44100.0);
 
         // Higher frequency should have shorter period
-        ks.pluck(880.0, PluckConfig::default());
+        ks.pluck(880.0, PluckSynth::default());
         let len_high = ks.buffer.len();
 
-        ks.pluck(440.0, PluckConfig::default());
+        ks.pluck(440.0, PluckSynth::default());
         let len_low = ks.buffer.len();
 
         assert!(len_high < len_low, "higher freq should have shorter buffer");
@@ -411,8 +446,8 @@ mod tests {
         let mut ks1 = KarplusStrong::new(44100.0);
         let mut ks2 = KarplusStrong::new(44100.0);
 
-        ks1.pluck(440.0, PluckConfig::default().with_damping(0.1));
-        ks2.pluck(440.0, PluckConfig::default().with_damping(0.9));
+        ks1.pluck(440.0, PluckSynth::default().with_damping(0.1));
+        ks2.pluck(440.0, PluckSynth::default().with_damping(0.9));
 
         // Generate samples
         let mut buf1 = vec![0.0; 5000];
@@ -434,7 +469,7 @@ mod tests {
 
         assert!(!ks.is_active(), "should be inactive before pluck");
 
-        ks.pluck(440.0, PluckConfig::default());
+        ks.pluck(440.0, PluckSynth::default());
         assert!(ks.is_active(), "should be active after pluck");
 
         ks.mute();
@@ -445,7 +480,7 @@ mod tests {
     fn test_extended_karplus_strong() {
         let mut eks = ExtendedKarplusStrong::new(44100.0);
         eks.set_pick_position(0.25);
-        eks.pluck(440.0, PluckConfig::default());
+        eks.pluck(440.0, PluckSynth::default());
 
         let mut buffer = vec![0.0; 1000];
         eks.generate(&mut buffer);
@@ -459,9 +494,9 @@ mod tests {
         let mut poly = PolyStrings::new(44100.0, 4);
 
         // Pluck multiple strings
-        poly.pluck(440.0, PluckConfig::default());
-        poly.pluck(554.37, PluckConfig::default()); // C#
-        poly.pluck(659.25, PluckConfig::default()); // E
+        poly.pluck(440.0, PluckSynth::default());
+        poly.pluck(554.37, PluckSynth::default()); // C#
+        poly.pluck(659.25, PluckSynth::default()); // E
 
         assert_eq!(poly.active_voices(), 3);
 
@@ -477,7 +512,7 @@ mod tests {
 
     #[test]
     fn test_pluck_config_builder() {
-        let config = PluckConfig::default()
+        let config = PluckSynth::default()
             .with_amplitude(0.5)
             .with_damping(0.3)
             .with_brightness(0.8)

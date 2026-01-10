@@ -8,9 +8,9 @@
 //! # Example
 //!
 //! ```
-//! use rhizome_resin_audio::percussion::{Membrane, MembraneConfig};
+//! use rhizome_resin_audio::percussion::{Membrane, MembraneSynth};
 //!
-//! let config = MembraneConfig::snare();
+//! let config = MembraneSynth::snare();
 //! let mut drum = Membrane::new(config, 44100.0);
 //!
 //! // Trigger a hit
@@ -21,6 +21,21 @@
 //! ```
 
 use std::f32::consts::PI;
+
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+/// Input for percussion synthesis operations.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct PercussionInput {
+    /// Hit velocity (0.0 to 1.0).
+    pub velocity: f32,
+    /// Sample rate in Hz.
+    pub sample_rate: f32,
+    /// Number of samples to generate.
+    pub num_samples: usize,
+}
 
 // ============================================================================
 // Modal synthesis core
@@ -83,8 +98,14 @@ impl Mode {
 // ============================================================================
 
 /// Configuration for membrane synthesis.
+///
+/// Operations on audio buffers use the ops-as-values pattern.
+/// See `docs/design/ops-as-values.md`.
 #[derive(Debug, Clone)]
-pub struct MembraneConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = PercussionInput, output = Vec<f32>))]
+pub struct MembraneSynth {
     /// Fundamental frequency in Hz.
     pub fundamental: f32,
     /// Number of modes to simulate.
@@ -97,7 +118,7 @@ pub struct MembraneConfig {
     pub decay_time: f32,
 }
 
-impl Default for MembraneConfig {
+impl Default for MembraneSynth {
     fn default() -> Self {
         Self {
             fundamental: 150.0,
@@ -109,7 +130,7 @@ impl Default for MembraneConfig {
     }
 }
 
-impl MembraneConfig {
+impl MembraneSynth {
     /// Creates a snare drum configuration.
     pub fn snare() -> Self {
         Self {
@@ -153,7 +174,18 @@ impl MembraneConfig {
             decay_time: 2.0,
         }
     }
+
+    /// Applies this membrane configuration to generate samples.
+    ///
+    /// Takes percussion input and returns audio samples.
+    pub fn apply(&self, input: &PercussionInput) -> Vec<f32> {
+        let mut membrane = Membrane::new(self.clone(), input.sample_rate);
+        membrane.generate(input.velocity, input.num_samples)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type MembraneConfig = MembraneSynth;
 
 /// Circular membrane physical model (drums).
 ///
@@ -161,12 +193,12 @@ impl MembraneConfig {
 pub struct Membrane {
     modes: Vec<Mode>,
     sample_rate: f32,
-    config: MembraneConfig,
+    config: MembraneSynth,
 }
 
 impl Membrane {
     /// Creates a new membrane with the given configuration.
-    pub fn new(config: MembraneConfig, sample_rate: f32) -> Self {
+    pub fn new(config: MembraneSynth, sample_rate: f32) -> Self {
         // Bessel function zeros for circular membrane (J_mn)
         // These are the frequency ratios relative to fundamental
         let bessel_ratios = [
@@ -246,8 +278,14 @@ impl Membrane {
 // ============================================================================
 
 /// Configuration for bar synthesis.
+///
+/// Operations on audio buffers use the ops-as-values pattern.
+/// See `docs/design/ops-as-values.md`.
 #[derive(Debug, Clone)]
-pub struct BarConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = PercussionInput, output = Vec<f32>))]
+pub struct BarSynth {
     /// Fundamental frequency in Hz.
     pub fundamental: f32,
     /// Number of modes to simulate.
@@ -260,7 +298,7 @@ pub struct BarConfig {
     pub brightness: f32,
 }
 
-impl Default for BarConfig {
+impl Default for BarSynth {
     fn default() -> Self {
         Self {
             fundamental: 440.0,
@@ -272,7 +310,7 @@ impl Default for BarConfig {
     }
 }
 
-impl BarConfig {
+impl BarSynth {
     /// Creates a xylophone bar configuration.
     pub fn xylophone(note_freq: f32) -> Self {
         Self {
@@ -316,7 +354,18 @@ impl BarConfig {
             brightness: 2.0,
         }
     }
+
+    /// Applies this bar configuration to generate samples.
+    ///
+    /// Takes percussion input and returns audio samples.
+    pub fn apply(&self, input: &PercussionInput) -> Vec<f32> {
+        let mut bar = Bar::new(self.clone(), input.sample_rate);
+        bar.generate(input.velocity, input.num_samples)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type BarConfig = BarSynth;
 
 /// Bar physical model (xylophone, marimba, vibraphone).
 ///
@@ -324,7 +373,7 @@ impl BarConfig {
 pub struct Bar {
     modes: Vec<Mode>,
     sample_rate: f32,
-    config: BarConfig,
+    config: BarSynth,
     /// Optional vibrato for vibraphone effect.
     vibrato_phase: f32,
     vibrato_rate: f32,
@@ -333,7 +382,7 @@ pub struct Bar {
 
 impl Bar {
     /// Creates a new bar with the given configuration.
-    pub fn new(config: BarConfig, sample_rate: f32) -> Self {
+    pub fn new(config: BarSynth, sample_rate: f32) -> Self {
         // For a free-free bar, frequency ratios are proportional to (n + 0.5)^2
         // First few ratios: 1.0, 2.76, 5.40, 8.93, 13.34...
         let bar_ratios: [f32; 8] = [
@@ -427,8 +476,14 @@ impl Bar {
 // ============================================================================
 
 /// Configuration for plate synthesis.
+///
+/// Operations on audio buffers use the ops-as-values pattern.
+/// See `docs/design/ops-as-values.md`.
 #[derive(Debug, Clone)]
-pub struct PlateConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = PercussionInput, output = Vec<f32>))]
+pub struct PlateSynth {
     /// Fundamental frequency in Hz.
     pub fundamental: f32,
     /// Number of modes to simulate.
@@ -441,7 +496,7 @@ pub struct PlateConfig {
     pub density: f32,
 }
 
-impl Default for PlateConfig {
+impl Default for PlateSynth {
     fn default() -> Self {
         Self {
             fundamental: 300.0,
@@ -453,7 +508,7 @@ impl Default for PlateConfig {
     }
 }
 
-impl PlateConfig {
+impl PlateSynth {
     /// Creates a hi-hat configuration.
     pub fn hihat() -> Self {
         Self {
@@ -508,7 +563,18 @@ impl PlateConfig {
             density: 1.0,
         }
     }
+
+    /// Applies this plate configuration to generate samples.
+    ///
+    /// Takes percussion input and returns audio samples.
+    pub fn apply(&self, input: &PercussionInput) -> Vec<f32> {
+        let mut plate = Plate::new(self.clone(), input.sample_rate);
+        plate.generate(input.velocity, input.num_samples)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type PlateConfig = PlateSynth;
 
 /// Plate physical model (cymbals, bells, gongs).
 ///
@@ -516,13 +582,13 @@ impl PlateConfig {
 pub struct Plate {
     modes: Vec<Mode>,
     sample_rate: f32,
-    config: PlateConfig,
+    config: PlateSynth,
     noise_state: u32,
 }
 
 impl Plate {
     /// Creates a new plate with the given configuration.
-    pub fn new(config: PlateConfig, sample_rate: f32) -> Self {
+    pub fn new(config: PlateSynth, sample_rate: f32) -> Self {
         let mut modes = Vec::with_capacity(config.num_modes);
 
         // Plates have a complex, inharmonic spectrum
@@ -634,7 +700,7 @@ mod tests {
 
     #[test]
     fn test_membrane_snare() {
-        let config = MembraneConfig::snare();
+        let config = MembraneSynth::snare();
         let mut drum = Membrane::new(config, 44100.0);
 
         drum.strike(0.8);
@@ -652,7 +718,7 @@ mod tests {
 
     #[test]
     fn test_membrane_kick() {
-        let config = MembraneConfig::kick();
+        let config = MembraneSynth::kick();
         let mut drum = Membrane::new(config, 44100.0);
 
         let samples = drum.generate(1.0, 22050);
@@ -665,7 +731,7 @@ mod tests {
 
     #[test]
     fn test_bar_xylophone() {
-        let config = BarConfig::xylophone(440.0);
+        let config = BarSynth::xylophone(440.0);
         let mut bar = Bar::new(config, 44100.0);
 
         bar.strike(0.7);
@@ -677,7 +743,7 @@ mod tests {
 
     #[test]
     fn test_bar_vibrato() {
-        let config = BarConfig::vibraphone(440.0);
+        let config = BarSynth::vibraphone(440.0);
         let mut bar = Bar::new(config, 44100.0);
         bar.set_vibrato(5.0, 0.3); // 5Hz vibrato
 
@@ -690,7 +756,7 @@ mod tests {
 
     #[test]
     fn test_plate_hihat() {
-        let config = PlateConfig::hihat();
+        let config = PlateSynth::hihat();
         let mut hihat = Plate::new(config, 44100.0);
 
         hihat.strike(0.6);
@@ -702,7 +768,7 @@ mod tests {
 
     #[test]
     fn test_plate_crash() {
-        let config = PlateConfig::crash();
+        let config = PlateSynth::crash();
         let mut cymbal = Plate::new(config, 44100.0);
 
         let samples = cymbal.generate(0.9, 44100);
@@ -715,7 +781,7 @@ mod tests {
 
     #[test]
     fn test_plate_bell() {
-        let config = PlateConfig::bell(523.25); // C5
+        let config = PlateSynth::bell(523.25); // C5
         let mut bell = Plate::new(config, 44100.0);
 
         bell.strike(0.8);
@@ -739,7 +805,7 @@ mod tests {
 
     #[test]
     fn test_membrane_reset() {
-        let config = MembraneConfig::snare();
+        let config = MembraneSynth::snare();
         let mut drum = Membrane::new(config, 44100.0);
 
         drum.strike(1.0);
@@ -753,20 +819,20 @@ mod tests {
     #[test]
     fn test_configs() {
         // Test that all preset configs can be created
-        let _ = MembraneConfig::snare();
-        let _ = MembraneConfig::kick();
-        let _ = MembraneConfig::tom(200.0);
-        let _ = MembraneConfig::timpani(100.0);
+        let _ = MembraneSynth::snare();
+        let _ = MembraneSynth::kick();
+        let _ = MembraneSynth::tom(200.0);
+        let _ = MembraneSynth::timpani(100.0);
 
-        let _ = BarConfig::xylophone(440.0);
-        let _ = BarConfig::marimba(220.0);
-        let _ = BarConfig::vibraphone(330.0);
-        let _ = BarConfig::glockenspiel(880.0);
+        let _ = BarSynth::xylophone(440.0);
+        let _ = BarSynth::marimba(220.0);
+        let _ = BarSynth::vibraphone(330.0);
+        let _ = BarSynth::glockenspiel(880.0);
 
-        let _ = PlateConfig::hihat();
-        let _ = PlateConfig::crash();
-        let _ = PlateConfig::ride();
-        let _ = PlateConfig::bell(440.0);
-        let _ = PlateConfig::gong(100.0);
+        let _ = PlateSynth::hihat();
+        let _ = PlateSynth::crash();
+        let _ = PlateSynth::ride();
+        let _ = PlateSynth::bell(440.0);
+        let _ = PlateSynth::gong(100.0);
     }
 }

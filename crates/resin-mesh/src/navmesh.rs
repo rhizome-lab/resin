@@ -1,14 +1,25 @@
 //! Navigation mesh generation and pathfinding.
 //!
 //! Provides walkable surface generation and A* pathfinding for game AI.
+//!
+//! Operations are serializable structs with `apply` methods.
+//! See `docs/design/ops-as-values.md`.
 
 use crate::Mesh;
 use glam::{Vec2, Vec3};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
-/// Configuration for navmesh generation.
+/// Generates a navigation mesh from a floor mesh.
+///
+/// Filters triangles based on slope and other walkability criteria
+/// to create a navmesh for pathfinding.
 #[derive(Debug, Clone)]
-pub struct NavMeshConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Mesh, output = NavMesh))]
+pub struct GenerateNavMesh {
     /// Cell size for rasterization.
     pub cell_size: f32,
     /// Cell height for vertical sampling.
@@ -23,7 +34,7 @@ pub struct NavMeshConfig {
     pub max_step_height: f32,
 }
 
-impl Default for NavMeshConfig {
+impl Default for GenerateNavMesh {
     fn default() -> Self {
         Self {
             cell_size: 0.3,
@@ -35,6 +46,16 @@ impl Default for NavMeshConfig {
         }
     }
 }
+
+impl GenerateNavMesh {
+    /// Applies this operation to generate a navmesh from a floor mesh.
+    pub fn apply(&self, mesh: &Mesh) -> NavMesh {
+        NavMesh::from_floor(mesh, self)
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type NavMeshConfig = GenerateNavMesh;
 
 /// A navigation polygon (convex walkable area).
 #[derive(Debug, Clone)]
@@ -237,7 +258,7 @@ impl NavMesh {
     }
 
     /// Creates a simple navmesh from a floor mesh.
-    pub fn from_floor(mesh: &Mesh, config: &NavMeshConfig) -> Self {
+    pub fn from_floor(mesh: &Mesh, config: &GenerateNavMesh) -> Self {
         let mut navmesh = NavMesh::new();
 
         // Filter walkable triangles
@@ -516,7 +537,7 @@ mod tests {
 
     #[test]
     fn test_navmesh_config_default() {
-        let config = NavMeshConfig::default();
+        let config = GenerateNavMesh::default();
         assert!(config.cell_size > 0.0);
         assert!(config.agent_height > 0.0);
     }

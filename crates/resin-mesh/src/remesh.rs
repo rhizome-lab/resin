@@ -2,14 +2,34 @@
 //!
 //! Provides algorithms for improving mesh topology, including
 //! isotropic remeshing and basic quad conversion.
+//!
+//! Operations are serializable structs with `apply` methods.
+//! See `docs/design/ops-as-values.md`.
+//!
+//! # Example
+//!
+//! ```ignore
+//! use rhizome_resin_mesh::{box_mesh, Remesh};
+//!
+//! let mesh = box_mesh();
+//! let remeshed = Remesh::default().apply(&mesh);
+//! ```
 
 use crate::Mesh;
 use glam::Vec3;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Configuration for isotropic remeshing.
+/// Performs isotropic remeshing to achieve uniform edge lengths.
+///
+/// Uses edge splitting/collapsing and vertex smoothing to create
+/// a more uniform mesh topology.
 #[derive(Debug, Clone)]
-pub struct RemeshConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Mesh, output = Mesh))]
+pub struct Remesh {
     /// Target edge length.
     pub target_edge_length: f32,
     /// Number of iterations.
@@ -20,7 +40,7 @@ pub struct RemeshConfig {
     pub preserve_boundary: bool,
 }
 
-impl Default for RemeshConfig {
+impl Default for Remesh {
     fn default() -> Self {
         Self {
             target_edge_length: 0.1,
@@ -31,11 +51,21 @@ impl Default for RemeshConfig {
     }
 }
 
+impl Remesh {
+    /// Applies this remeshing operation to a mesh.
+    pub fn apply(&self, mesh: &Mesh) -> Mesh {
+        isotropic_remesh(mesh, self)
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type RemeshConfig = Remesh;
+
 /// Performs isotropic remeshing to achieve uniform edge lengths.
 ///
 /// This is a simplified implementation that uses edge splitting/collapsing
 /// and vertex smoothing to create a more uniform mesh.
-pub fn isotropic_remesh(mesh: &Mesh, config: &RemeshConfig) -> Mesh {
+pub fn isotropic_remesh(mesh: &Mesh, config: &Remesh) -> Mesh {
     let mut result = mesh.clone();
 
     let low = config.target_edge_length * 0.8;
@@ -300,9 +330,14 @@ fn find_boundary_vertices(mesh: &Mesh) -> std::collections::HashSet<u32> {
     boundary
 }
 
-/// Configuration for quad conversion.
+/// Converts triangle pairs to quads where possible.
+///
+/// Pairs adjacent triangles with similar normals to form quad faces.
 #[derive(Debug, Clone)]
-pub struct QuadifyConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Mesh, output = QuadMesh))]
+pub struct Quadify {
     /// Maximum angle difference for merging triangles (degrees).
     pub max_angle: f32,
     /// Whether to preserve sharp edges.
@@ -311,7 +346,7 @@ pub struct QuadifyConfig {
     pub sharp_angle: f32,
 }
 
-impl Default for QuadifyConfig {
+impl Default for Quadify {
     fn default() -> Self {
         Self {
             max_angle: 15.0,
@@ -321,11 +356,21 @@ impl Default for QuadifyConfig {
     }
 }
 
+impl Quadify {
+    /// Applies this quadification operation to a mesh.
+    pub fn apply(&self, mesh: &Mesh) -> QuadMesh {
+        quadify(mesh, self)
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type QuadifyConfig = Quadify;
+
 /// Converts triangle pairs to quads where possible.
 ///
 /// Returns indices as quads (4 indices per face) for faces that were converted,
 /// and triangles for those that weren't.
-pub fn quadify(mesh: &Mesh, config: &QuadifyConfig) -> QuadMesh {
+pub fn quadify(mesh: &Mesh, config: &Quadify) -> QuadMesh {
     let mut result = QuadMesh::new();
     result.positions = mesh.positions.clone();
 

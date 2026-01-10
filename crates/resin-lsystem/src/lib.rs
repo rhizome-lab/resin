@@ -6,17 +6,30 @@
 //! # Example
 //!
 //! ```
-//! use rhizome_resin_lsystem::{LSystem, Rule, TurtleConfig, interpret_turtle_2d};
+//! use rhizome_resin_lsystem::{LSystem, Rule, Turtle2D};
 //!
 //! // Koch curve
 //! let lsystem = LSystem::new("F")
 //!     .with_rule(Rule::simple('F', "F+F-F-F+F"));
 //!
 //! let result = lsystem.generate(3);
-//! let paths = interpret_turtle_2d(&result, &TurtleConfig::default().with_angle(90.0));
+//! let segments = Turtle2D::default().with_angle(90.0).apply(&result);
 //! ```
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 use glam::{Vec2, Vec3};
+
+/// Registers all lsystem operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of lsystem ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<Turtle2D>("resin::Turtle2D");
+    registry.register_type::<Turtle3D>("resin::Turtle3D");
+}
+
 use std::collections::HashMap;
 use std::f32::consts::PI;
 
@@ -138,9 +151,15 @@ impl LSystem {
     }
 }
 
-/// Configuration for turtle interpretation.
-#[derive(Debug, Clone)]
-pub struct TurtleConfig {
+/// Interprets an L-system string using 2D turtle graphics.
+///
+/// Operations are serializable structs with `apply` methods.
+/// See `docs/design/ops-as-values.md`.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = String, output = Vec<TurtleSegment2D>))]
+pub struct Turtle2D {
     /// Rotation angle in degrees for + and - commands.
     pub angle: f32,
     /// Step distance for F and f commands.
@@ -149,7 +168,7 @@ pub struct TurtleConfig {
     pub scale_factor: f32,
 }
 
-impl Default for TurtleConfig {
+impl Default for Turtle2D {
     fn default() -> Self {
         Self {
             angle: 25.0,
@@ -159,7 +178,7 @@ impl Default for TurtleConfig {
     }
 }
 
-impl TurtleConfig {
+impl Turtle2D {
     /// Sets the rotation angle in degrees.
     pub fn with_angle(mut self, angle: f32) -> Self {
         self.angle = angle;
@@ -177,6 +196,101 @@ impl TurtleConfig {
         self.scale_factor = factor;
         self
     }
+
+    /// Applies this operation to interpret an L-system string.
+    pub fn apply(&self, input: &str) -> Vec<TurtleSegment2D> {
+        interpret_turtle_2d(input, &self.into())
+    }
+}
+
+/// Interprets an L-system string using 3D turtle graphics.
+///
+/// Operations are serializable structs with `apply` methods.
+/// See `docs/design/ops-as-values.md`.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = String, output = Vec<TurtleSegment3D>))]
+pub struct Turtle3D {
+    /// Rotation angle in degrees for + and - commands.
+    pub angle: f32,
+    /// Step distance for F and f commands.
+    pub step: f32,
+    /// Scale factor for push/pop.
+    pub scale_factor: f32,
+}
+
+impl Default for Turtle3D {
+    fn default() -> Self {
+        Self {
+            angle: 25.0,
+            step: 1.0,
+            scale_factor: 0.9,
+        }
+    }
+}
+
+impl Turtle3D {
+    /// Sets the rotation angle in degrees.
+    pub fn with_angle(mut self, angle: f32) -> Self {
+        self.angle = angle;
+        self
+    }
+
+    /// Sets the step distance.
+    pub fn with_step(mut self, step: f32) -> Self {
+        self.step = step;
+        self
+    }
+
+    /// Sets the scale factor for branches.
+    pub fn with_scale_factor(mut self, factor: f32) -> Self {
+        self.scale_factor = factor;
+        self
+    }
+
+    /// Applies this operation to interpret an L-system string.
+    pub fn apply(&self, input: &str) -> Vec<TurtleSegment3D> {
+        interpret_turtle_3d(input, &self.into())
+    }
+}
+
+/// Configuration for turtle interpretation.
+///
+/// Backwards-compatible type alias for `Turtle2D`.
+pub type TurtleConfig = Turtle2D;
+
+/// Conversion from Turtle2D to internal config for interpret functions.
+impl From<&Turtle2D> for TurtleConfigInternal {
+    fn from(t: &Turtle2D) -> Self {
+        TurtleConfigInternal {
+            angle: t.angle,
+            step: t.step,
+            scale_factor: t.scale_factor,
+        }
+    }
+}
+
+/// Conversion from Turtle3D to internal config for interpret functions.
+impl From<&Turtle3D> for TurtleConfigInternal {
+    fn from(t: &Turtle3D) -> Self {
+        TurtleConfigInternal {
+            angle: t.angle,
+            step: t.step,
+            scale_factor: t.scale_factor,
+        }
+    }
+}
+
+/// Internal configuration for turtle interpretation functions.
+#[derive(Debug, Clone)]
+struct TurtleConfigInternal {
+    /// Rotation angle in degrees for + and - commands.
+    angle: f32,
+    /// Step distance for F and f commands.
+    step: f32,
+    /// Scale factor for push/pop.
+    scale_factor: f32,
 }
 
 /// 2D turtle state.
@@ -211,7 +325,7 @@ pub struct TurtleSegment2D {
 /// - [: Push state
 /// - ]: Pop state
 /// - |: Turn around (180 degrees)
-pub fn interpret_turtle_2d(input: &str, config: &TurtleConfig) -> Vec<TurtleSegment2D> {
+fn interpret_turtle_2d(input: &str, config: &TurtleConfigInternal) -> Vec<TurtleSegment2D> {
     let mut segments = Vec::new();
     let mut stack = Vec::new();
     let angle_rad = config.angle * PI / 180.0;
@@ -316,7 +430,7 @@ pub struct TurtleSegment3D {
 /// - ^: Pitch up
 /// - \\: Roll left
 /// - /: Roll right
-pub fn interpret_turtle_3d(input: &str, config: &TurtleConfig) -> Vec<TurtleSegment3D> {
+fn interpret_turtle_3d(input: &str, config: &TurtleConfigInternal) -> Vec<TurtleSegment3D> {
     let mut segments = Vec::new();
     let mut stack = Vec::new();
     let angle_rad = config.angle * PI / 180.0;
@@ -578,8 +692,8 @@ mod tests {
         let lsystem = LSystem::new("F+F+F+F").with_rule(Rule::simple('F', "F"));
 
         let result = lsystem.generate(0);
-        let config = TurtleConfig::default().with_angle(90.0);
-        let segments = interpret_turtle_2d(&result, &config);
+        let turtle = Turtle2D::default().with_angle(90.0);
+        let segments = turtle.apply(&result);
 
         // Should produce 4 segments forming a square
         assert_eq!(segments.len(), 4);
@@ -588,8 +702,8 @@ mod tests {
     #[test]
     fn test_turtle_push_pop() {
         let result = "F[+F]F";
-        let config = TurtleConfig::default().with_angle(90.0);
-        let segments = interpret_turtle_2d(result, &config);
+        let turtle = Turtle2D::default().with_angle(90.0);
+        let segments = turtle.apply(result);
 
         // Should produce 3 segments
         assert_eq!(segments.len(), 3);
@@ -658,8 +772,8 @@ mod tests {
     #[test]
     fn test_turtle_3d() {
         let result = "F+F&F";
-        let config = TurtleConfig::default().with_angle(90.0);
-        let segments = interpret_turtle_3d(result, &config);
+        let turtle = Turtle3D::default().with_angle(90.0);
+        let segments = turtle.apply(result);
 
         assert_eq!(segments.len(), 3);
     }

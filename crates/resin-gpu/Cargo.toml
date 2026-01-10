@@ -5,12 +5,19 @@ edition.workspace = true
 license.workspace = true
 description = "GPU compute backend for resin fields"
 
+[features]
+serde = ["dep:serde"]
+dynop = ["dep:rhizome-resin-op", "dep:serde_json", "serde"]
+
 [dependencies]
 glam = { workspace = true }
 wgpu = "23"
 bytemuck = { version = "1.14", features = ["derive"] }
 pollster = "0.4"
 thiserror = { workspace = true }
+rhizome-resin-op = { path = "../resin-op", optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { version = "1", optional = true }
 
 [dev-dependencies]
 image = "0.25"

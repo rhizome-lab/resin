@@ -5,8 +5,12 @@
 
 use glam::{Vec2, Vec3};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// A single particle with position, velocity, and lifetime.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Particle {
     /// Position in world space.
     pub position: Vec3,
@@ -76,6 +80,7 @@ pub trait Force: Send + Sync {
 
 /// Simple random number generator for particle systems.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ParticleRng {
     state: u64,
 }
@@ -238,6 +243,9 @@ impl ParticleSystem {
 
 /// Emits particles from a single point.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = PointEmitter))]
 pub struct PointEmitter {
     /// Emission position.
     pub position: Vec3,
@@ -275,6 +283,13 @@ impl Default for PointEmitter {
     }
 }
 
+impl PointEmitter {
+    /// Returns this emitter configuration (for Op pipeline).
+    pub fn apply(&self) -> PointEmitter {
+        self.clone()
+    }
+}
+
 impl Emitter for PointEmitter {
     fn emit(&self, rng: &mut ParticleRng) -> Particle {
         // Create a random direction within the spread cone
@@ -306,6 +321,9 @@ impl Emitter for PointEmitter {
 
 /// Emits particles from a sphere surface or volume.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = SphereEmitter))]
 pub struct SphereEmitter {
     /// Center position.
     pub center: Vec3,
@@ -343,6 +361,13 @@ impl Default for SphereEmitter {
     }
 }
 
+impl SphereEmitter {
+    /// Returns this emitter configuration (for Op pipeline).
+    pub fn apply(&self) -> SphereEmitter {
+        self.clone()
+    }
+}
+
 impl Emitter for SphereEmitter {
     fn emit(&self, rng: &mut ParticleRng) -> Particle {
         let dir = rng.unit_sphere();
@@ -369,6 +394,9 @@ impl Emitter for SphereEmitter {
 
 /// Emits particles in a cone shape.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = ConeEmitter))]
 pub struct ConeEmitter {
     /// Cone apex position.
     pub position: Vec3,
@@ -403,6 +431,13 @@ impl Default for ConeEmitter {
             size: 1.0,
             color: [1.0, 1.0, 1.0, 1.0],
         }
+    }
+}
+
+impl ConeEmitter {
+    /// Returns this emitter configuration (for Op pipeline).
+    pub fn apply(&self) -> ConeEmitter {
+        self.clone()
     }
 }
 
@@ -460,6 +495,9 @@ fn rotate_to_direction(v: Vec3, dir: Vec3) -> Vec3 {
 
 /// Constant directional force (like gravity).
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Gravity))]
 pub struct Gravity {
     /// Acceleration vector (units per second squared).
     pub acceleration: Vec3,
@@ -473,6 +511,14 @@ impl Default for Gravity {
     }
 }
 
+impl Gravity {
+    /// Returns this force configuration (for Op pipeline).
+    #[cfg_attr(not(feature = "dynop"), allow(dead_code))]
+    pub fn apply(&self) -> Gravity {
+        self.clone()
+    }
+}
+
 impl Force for Gravity {
     fn apply(&self, particle: &mut Particle, dt: f32) {
         particle.velocity += self.acceleration * dt;
@@ -481,6 +527,9 @@ impl Force for Gravity {
 
 /// Constant wind force.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Wind))]
 pub struct Wind {
     /// Wind velocity (target velocity particles are pushed toward).
     pub velocity: Vec3,
@@ -497,6 +546,14 @@ impl Default for Wind {
     }
 }
 
+impl Wind {
+    /// Returns this force configuration (for Op pipeline).
+    #[cfg_attr(not(feature = "dynop"), allow(dead_code))]
+    pub fn apply(&self) -> Wind {
+        self.clone()
+    }
+}
+
 impl Force for Wind {
     fn apply(&self, particle: &mut Particle, dt: f32) {
         let diff = self.velocity - particle.velocity;
@@ -506,6 +563,9 @@ impl Force for Wind {
 
 /// Drag force that slows particles.
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Drag))]
 pub struct Drag {
     /// Drag coefficient (0 = no drag, higher = more drag).
     pub coefficient: f32,
@@ -514,6 +574,14 @@ pub struct Drag {
 impl Default for Drag {
     fn default() -> Self {
         Self { coefficient: 0.1 }
+    }
+}
+
+impl Drag {
+    /// Returns this force configuration (for Op pipeline).
+    #[cfg_attr(not(feature = "dynop"), allow(dead_code))]
+    pub fn apply(&self) -> Drag {
+        *self
     }
 }
 
@@ -526,6 +594,9 @@ impl Force for Drag {
 
 /// Attractor/repulsor force.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Attractor))]
 pub struct Attractor {
     /// Attractor position.
     pub position: Vec3,
@@ -545,6 +616,14 @@ impl Default for Attractor {
     }
 }
 
+impl Attractor {
+    /// Returns this force configuration (for Op pipeline).
+    #[cfg_attr(not(feature = "dynop"), allow(dead_code))]
+    pub fn apply(&self) -> Attractor {
+        self.clone()
+    }
+}
+
 impl Force for Attractor {
     fn apply(&self, particle: &mut Particle, dt: f32) {
         let to_attractor = self.position - particle.position;
@@ -559,6 +638,9 @@ impl Force for Attractor {
 
 /// Vortex force that creates spinning motion.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Vortex))]
 pub struct Vortex {
     /// Vortex axis origin.
     pub position: Vec3,
@@ -578,6 +660,14 @@ impl Default for Vortex {
             strength: 5.0,
             falloff: 1.0,
         }
+    }
+}
+
+impl Vortex {
+    /// Returns this force configuration (for Op pipeline).
+    #[cfg_attr(not(feature = "dynop"), allow(dead_code))]
+    pub fn apply(&self) -> Vortex {
+        self.clone()
     }
 }
 
@@ -604,6 +694,9 @@ impl Force for Vortex {
 
 /// Turbulence force using noise.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Turbulence))]
 pub struct Turbulence {
     /// Strength of the turbulence.
     pub strength: f32,
@@ -635,6 +728,12 @@ impl Turbulence {
         }
     }
 
+    /// Returns this force configuration (for Op pipeline).
+    #[cfg_attr(not(feature = "dynop"), allow(dead_code))]
+    pub fn apply(&self) -> Turbulence {
+        self.clone()
+    }
+
     /// Advances the internal time.
     pub fn advance(&mut self, dt: f32) {
         self.time += dt * self.speed;
@@ -659,6 +758,9 @@ impl Force for Turbulence {
 
 /// Curl noise force for divergence-free turbulence.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = CurlNoise))]
 pub struct CurlNoise {
     /// Strength of the force.
     pub strength: f32,
@@ -685,6 +787,12 @@ impl CurlNoise {
             strength,
             ..Default::default()
         }
+    }
+
+    /// Returns this force configuration (for Op pipeline).
+    #[cfg_attr(not(feature = "dynop"), allow(dead_code))]
+    pub fn apply(&self) -> CurlNoise {
+        self.clone()
     }
 }
 
@@ -715,6 +823,23 @@ impl Force for CurlNoise {
 
         particle.velocity += curl * self.strength * dt;
     }
+}
+
+/// Registers all particle operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of particle ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<PointEmitter>("resin::PointEmitter");
+    registry.register_type::<SphereEmitter>("resin::SphereEmitter");
+    registry.register_type::<ConeEmitter>("resin::ConeEmitter");
+    registry.register_type::<Gravity>("resin::Gravity");
+    registry.register_type::<Wind>("resin::Wind");
+    registry.register_type::<Drag>("resin::Drag");
+    registry.register_type::<Attractor>("resin::Attractor");
+    registry.register_type::<Vortex>("resin::Vortex");
+    registry.register_type::<Turbulence>("resin::Turbulence");
+    registry.register_type::<CurlNoise>("resin::CurlNoise");
 }
 
 #[cfg(test)]
@@ -817,7 +942,7 @@ mod tests {
 
         assert_eq!(p.velocity, Vec3::ZERO);
 
-        gravity.apply(&mut p, 1.0);
+        Force::apply(&gravity, &mut p, 1.0);
         assert!((p.velocity.y - (-9.81)).abs() < 0.001);
     }
 
@@ -827,7 +952,7 @@ mod tests {
         let mut p = Particle::new(Vec3::ZERO);
         p.velocity = Vec3::new(10.0, 0.0, 0.0);
 
-        drag.apply(&mut p, 1.0);
+        Force::apply(&drag, &mut p, 1.0);
         assert!(p.velocity.x < 10.0);
         assert!(p.velocity.x > 0.0);
     }
@@ -841,7 +966,7 @@ mod tests {
         };
 
         let mut p = Particle::new(Vec3::ZERO);
-        attractor.apply(&mut p, 1.0);
+        Force::apply(&attractor, &mut p, 1.0);
 
         // Should be pulled toward attractor
         assert!(p.velocity.x > 0.0);
@@ -894,7 +1019,7 @@ mod tests {
         };
 
         let mut p = Particle::new(Vec3::new(1.0, 0.0, 0.0));
-        vortex.apply(&mut p, 1.0);
+        Force::apply(&vortex, &mut p, 1.0);
 
         // Should spin around Y axis (negative Z direction from +X)
         assert!(p.velocity.z < 0.0);
@@ -908,7 +1033,7 @@ mod tests {
         };
 
         let mut p = Particle::new(Vec3::ZERO);
-        wind.apply(&mut p, 1.0);
+        Force::apply(&wind, &mut p, 1.0);
 
         // Should be pushed toward wind velocity
         assert!(p.velocity.x > 0.0);

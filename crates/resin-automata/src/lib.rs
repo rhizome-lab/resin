@@ -18,10 +18,26 @@
 //! life.step();
 //! ```
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+/// Registers all automata operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of automata ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<ElementaryCAConfig>("resin::ElementaryCAConfig");
+    registry.register_type::<CellularAutomaton2DConfig>("resin::CellularAutomaton2DConfig");
+    registry.register_type::<StepElementaryCA>("resin::StepElementaryCA");
+    registry.register_type::<StepCellularAutomaton2D>("resin::StepCellularAutomaton2D");
+    registry.register_type::<GeneratePattern>("resin::GeneratePattern");
+}
+
 /// 1D Elementary Cellular Automaton.
 ///
 /// Implements Wolfram's elementary cellular automata with 256 possible rules.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ElementaryCA {
     /// Current cell states (true = alive).
     cells: Vec<bool>,
@@ -156,6 +172,7 @@ impl ElementaryCA {
 
 /// 2D Cellular Automaton with configurable rules.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct CellularAutomaton2D {
     /// Cell states.
     cells: Vec<Vec<bool>>,
@@ -393,6 +410,253 @@ impl SimpleRng {
 
     fn next_f32(&mut self) -> f32 {
         (self.next_u64() as f64 / u64::MAX as f64) as f32
+    }
+}
+
+// ============================================================================
+// Operation Structs (DynOp support)
+// ============================================================================
+
+/// Configuration operation for creating a 1D elementary cellular automaton.
+///
+/// This operation creates an `ElementaryCA` with the specified width and rule.
+/// Use a seed for reproducible random initialization, or None for empty state.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = ElementaryCA))]
+pub struct ElementaryCAConfig {
+    /// Width of the automaton (number of cells).
+    pub width: usize,
+    /// Rule number (0-255).
+    pub rule: u8,
+    /// Whether to wrap at edges (toroidal topology).
+    pub wrap: bool,
+    /// Seed for random initialization (None = start with center cell only).
+    pub seed: Option<u64>,
+}
+
+impl ElementaryCAConfig {
+    /// Creates a new configuration with default settings.
+    pub fn new(width: usize, rule: u8) -> Self {
+        Self {
+            width,
+            rule,
+            wrap: true,
+            seed: None,
+        }
+    }
+
+    /// Sets whether the automaton wraps at edges.
+    pub fn with_wrap(mut self, wrap: bool) -> Self {
+        self.wrap = wrap;
+        self
+    }
+
+    /// Sets the seed for random initialization.
+    pub fn with_seed(mut self, seed: u64) -> Self {
+        self.seed = Some(seed);
+        self
+    }
+
+    /// Creates the configured ElementaryCA.
+    pub fn apply(&self) -> ElementaryCA {
+        let mut ca = ElementaryCA::new(self.width, self.rule);
+        ca.set_wrap(self.wrap);
+        if let Some(seed) = self.seed {
+            ca.randomize(seed);
+        } else {
+            ca.set_center();
+        }
+        ca
+    }
+}
+
+impl Default for ElementaryCAConfig {
+    fn default() -> Self {
+        Self::new(100, elementary_rules::RULE_30)
+    }
+}
+
+/// Configuration operation for creating a 2D cellular automaton.
+///
+/// This operation creates a `CellularAutomaton2D` with the specified dimensions
+/// and birth/survival rules. Use a seed and density for random initialization.
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = CellularAutomaton2D))]
+pub struct CellularAutomaton2DConfig {
+    /// Width of the grid.
+    pub width: usize,
+    /// Height of the grid.
+    pub height: usize,
+    /// Birth rule (number of neighbors that cause birth).
+    pub birth: Vec<u8>,
+    /// Survival rule (number of neighbors that allow survival).
+    pub survive: Vec<u8>,
+    /// Whether to wrap at edges (toroidal topology).
+    pub wrap: bool,
+    /// Seed for random initialization (None = start empty).
+    pub seed: Option<u64>,
+    /// Density for random initialization (0.0 - 1.0).
+    pub density: f32,
+}
+
+impl CellularAutomaton2DConfig {
+    /// Creates a new configuration with custom rules.
+    pub fn new(width: usize, height: usize, birth: &[u8], survive: &[u8]) -> Self {
+        Self {
+            width,
+            height,
+            birth: birth.to_vec(),
+            survive: survive.to_vec(),
+            wrap: true,
+            seed: None,
+            density: 0.3,
+        }
+    }
+
+    /// Creates a Game of Life configuration (B3/S23).
+    pub fn life(width: usize, height: usize) -> Self {
+        let (birth, survive) = rules::LIFE;
+        Self::new(width, height, birth, survive)
+    }
+
+    /// Creates a HighLife configuration (B36/S23).
+    pub fn high_life(width: usize, height: usize) -> Self {
+        let (birth, survive) = rules::HIGH_LIFE;
+        Self::new(width, height, birth, survive)
+    }
+
+    /// Creates a Seeds configuration (B2/S).
+    pub fn seeds(width: usize, height: usize) -> Self {
+        let (birth, survive) = rules::SEEDS;
+        Self::new(width, height, birth, survive)
+    }
+
+    /// Sets whether the automaton wraps at edges.
+    pub fn with_wrap(mut self, wrap: bool) -> Self {
+        self.wrap = wrap;
+        self
+    }
+
+    /// Sets the seed and density for random initialization.
+    pub fn with_random(mut self, seed: u64, density: f32) -> Self {
+        self.seed = Some(seed);
+        self.density = density;
+        self
+    }
+
+    /// Creates the configured CellularAutomaton2D.
+    pub fn apply(&self) -> CellularAutomaton2D {
+        let mut ca = CellularAutomaton2D::new(self.width, self.height, &self.birth, &self.survive);
+        ca.set_wrap(self.wrap);
+        if let Some(seed) = self.seed {
+            ca.randomize(seed, self.density);
+        }
+        ca
+    }
+}
+
+impl Default for CellularAutomaton2DConfig {
+    fn default() -> Self {
+        Self::life(50, 50)
+    }
+}
+
+/// Operation to step an elementary CA forward.
+///
+/// Takes an `ElementaryCA` and returns it after advancing the specified number of steps.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = ElementaryCA, output = ElementaryCA))]
+pub struct StepElementaryCA {
+    /// Number of steps to advance.
+    pub steps: usize,
+}
+
+impl StepElementaryCA {
+    /// Creates a new step operation.
+    pub fn new(steps: usize) -> Self {
+        Self { steps }
+    }
+
+    /// Applies the step operation to an ElementaryCA.
+    pub fn apply(&self, ca: &ElementaryCA) -> ElementaryCA {
+        let mut result = ca.clone();
+        result.steps(self.steps);
+        result
+    }
+}
+
+impl Default for StepElementaryCA {
+    fn default() -> Self {
+        Self::new(1)
+    }
+}
+
+/// Operation to step a 2D CA forward.
+///
+/// Takes a `CellularAutomaton2D` and returns it after advancing the specified number of steps.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = CellularAutomaton2D, output = CellularAutomaton2D))]
+pub struct StepCellularAutomaton2D {
+    /// Number of steps to advance.
+    pub steps: usize,
+}
+
+impl StepCellularAutomaton2D {
+    /// Creates a new step operation.
+    pub fn new(steps: usize) -> Self {
+        Self { steps }
+    }
+
+    /// Applies the step operation to a CellularAutomaton2D.
+    pub fn apply(&self, ca: &CellularAutomaton2D) -> CellularAutomaton2D {
+        let mut result = ca.clone();
+        result.steps(self.steps);
+        result
+    }
+}
+
+impl Default for StepCellularAutomaton2D {
+    fn default() -> Self {
+        Self::new(1)
+    }
+}
+
+/// Operation to generate a 2D pattern from a 1D elementary CA.
+///
+/// Runs the CA for multiple generations and returns all states as a 2D grid.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = ElementaryCA, output = Vec<Vec<bool>>))]
+pub struct GeneratePattern {
+    /// Number of generations to produce.
+    pub generations: usize,
+}
+
+impl GeneratePattern {
+    /// Creates a new pattern generation operation.
+    pub fn new(generations: usize) -> Self {
+        Self { generations }
+    }
+
+    /// Generates the pattern from an ElementaryCA.
+    pub fn apply(&self, ca: &ElementaryCA) -> Vec<Vec<bool>> {
+        let mut result = ca.clone();
+        result.generate_pattern(self.generations)
+    }
+}
+
+impl Default for GeneratePattern {
+    fn default() -> Self {
+        Self::new(100)
     }
 }
 

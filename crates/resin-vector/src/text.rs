@@ -3,14 +3,17 @@
 //! # Example
 //!
 //! ```ignore
-//! use rhizome_resin_vector::{Font, TextConfig, text_to_paths};
+//! use rhizome_resin_vector::{Font, TextLayout, text_to_paths};
 //!
 //! let font = Font::from_bytes(include_bytes!("font.ttf")).unwrap();
-//! let paths = text_to_paths("Hello", &font, TextConfig::default());
+//! let paths = text_to_paths("Hello", &font, TextLayout::default());
 //! ```
 
 use ab_glyph::{Font as AbFont, FontRef, GlyphId, OutlinedGlyph, ScaleFont};
 use glam::Vec2;
+
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use crate::path::{Path, PathBuilder};
 
@@ -64,8 +67,12 @@ impl<'a> Font<'a> {
 }
 
 /// Configuration for text rendering.
+///
+/// Note: This is a configuration struct rather than a full Op because text
+/// rendering requires a font reference which cannot be serialized.
 #[derive(Debug, Clone)]
-pub struct TextConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct TextLayout {
     /// Font size in pixels/units.
     pub size: f32,
     /// Letter spacing (0.0 = default).
@@ -74,7 +81,7 @@ pub struct TextConfig {
     pub line_height: f32,
 }
 
-impl Default for TextConfig {
+impl Default for TextLayout {
     fn default() -> Self {
         Self {
             size: 72.0,
@@ -84,7 +91,12 @@ impl Default for TextConfig {
     }
 }
 
-impl TextConfig {
+impl TextLayout {
+    /// Creates a new text layout with default values.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Sets the font size.
     pub fn with_size(mut self, size: f32) -> Self {
         self.size = size;
@@ -103,6 +115,9 @@ impl TextConfig {
         self
     }
 }
+
+/// Backwards-compatible type alias.
+pub type TextConfig = TextLayout;
 
 /// Converts text to vector paths using a font.
 ///

@@ -24,6 +24,8 @@
 
 use crate::Mesh;
 use glam::Vec3;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 /// Vertex weights for skinning.
@@ -236,6 +238,7 @@ pub fn smooth_influence(mesh: &Mesh, weights: &[f32], factor: f32, iterations: u
 
 /// Heat diffusion configuration.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct HeatDiffusionConfig {
     /// Time step for diffusion simulation.
     pub time_step: f32,

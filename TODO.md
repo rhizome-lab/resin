@@ -107,17 +107,24 @@
 
 ### Graph Serialization
 
-> **Status:** ✅ Implemented in `resin-serde` and `resin-history`
+> **Status:** ✅ Fully implemented
 
 **Crates:**
+- `resin-op` - DynOp trait, OpRegistry, Pipeline, `#[derive(Op)]` macro
 - `resin-serde` - SerialGraph format, NodeRegistry, JSON/bincode formats
 - `resin-history` - SnapshotHistory (full snapshots), EventHistory (event sourcing)
+
+**DynOp System (ops-as-values):**
+- All domain ops derive `Op` macro: `#[derive(Op)] #[op(input = T, output = U)]`
+- Each crate exports `register_ops(registry)` for pipeline deserialization
+- 20 crates with dynop feature: mesh, audio, vector, image, field, procgen, physics, fluid, rig, pointcloud, scatter, lsystem, space-colonization, spring, crossdomain, rd, automata, voxel, particle, gpu
 
 **How it works:**
 1. `SerialGraph` stores nodes as `(id, type_name, params_json)` + edges
 2. `NodeRegistry` maps type_name → deserializer factory function
-3. Supports JSON (human-readable) and bincode (compact binary)
-4. History: snapshots for simple undo/redo, events for fine-grained tracking
+3. `OpRegistry` maps op names → op deserializer for pipelines
+4. Supports JSON (human-readable) and bincode (compact binary)
+5. History: snapshots for simple undo/redo, events for fine-grained tracking
 
 ### Post-Features
 

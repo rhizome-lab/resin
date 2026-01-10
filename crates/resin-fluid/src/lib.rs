@@ -7,6 +7,8 @@
 //! - `Sph3D` - 3D Smoothed Particle Hydrodynamics
 
 use glam::{Vec2, Vec3};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::f32::consts::PI;
 
 // ============================================================================
@@ -15,7 +17,10 @@ use std::f32::consts::PI;
 
 /// Configuration for grid-based fluid simulation.
 #[derive(Clone, Debug)]
-pub struct FluidConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Fluid))]
+pub struct Fluid {
     /// Diffusion rate (viscosity).
     pub diffusion: f32,
     /// Number of iterations for Gauss-Seidel solver.
@@ -24,7 +29,7 @@ pub struct FluidConfig {
     pub dt: f32,
 }
 
-impl Default for FluidConfig {
+impl Default for Fluid {
     fn default() -> Self {
         Self {
             diffusion: 0.0001,
@@ -33,6 +38,16 @@ impl Default for FluidConfig {
         }
     }
 }
+
+impl Fluid {
+    /// Applies this configuration, returning it as-is.
+    pub fn apply(&self) -> Fluid {
+        self.clone()
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type FluidConfig = Fluid;
 
 /// 2D grid-based fluid simulation using stable fluids method.
 ///
@@ -823,7 +838,10 @@ fn set_bnd_3d(b: i32, x: &mut [f32], width: usize, height: usize, depth: usize) 
 
 /// Configuration for SPH simulation.
 #[derive(Clone, Debug)]
-pub struct SphConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Sph))]
+pub struct Sph {
     /// Rest density of the fluid.
     pub rest_density: f32,
     /// Gas constant for pressure calculation.
@@ -840,7 +858,7 @@ pub struct SphConfig {
     pub boundary_damping: f32,
 }
 
-impl Default for SphConfig {
+impl Default for Sph {
     fn default() -> Self {
         Self {
             rest_density: 1000.0,
@@ -853,6 +871,16 @@ impl Default for SphConfig {
         }
     }
 }
+
+impl Sph {
+    /// Applies this configuration, returning it as-is.
+    pub fn apply(&self) -> Sph {
+        self.clone()
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type SphConfig = Sph;
 
 /// A single SPH particle.
 #[derive(Clone, Debug)]
@@ -1089,7 +1117,10 @@ impl SphParticle3D {
 
 /// Configuration for 3D SPH simulation.
 #[derive(Clone, Debug)]
-pub struct SphConfig3D {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = SphParams3D))]
+pub struct SphParams3D {
     /// Rest density of the fluid.
     pub rest_density: f32,
     /// Gas constant for pressure calculation.
@@ -1106,7 +1137,7 @@ pub struct SphConfig3D {
     pub boundary_damping: f32,
 }
 
-impl Default for SphConfig3D {
+impl Default for SphParams3D {
     fn default() -> Self {
         Self {
             rest_density: 1000.0,
@@ -1119,6 +1150,16 @@ impl Default for SphConfig3D {
         }
     }
 }
+
+impl SphParams3D {
+    /// Applies this configuration, returning it as-is.
+    pub fn apply(&self) -> SphParams3D {
+        self.clone()
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type SphConfig3D = SphParams3D;
 
 /// 3D SPH fluid simulation.
 pub struct Sph3D {
@@ -1295,7 +1336,10 @@ impl Sph3D {
 
 /// Configuration for smoke simulation.
 #[derive(Clone, Debug)]
-pub struct SmokeConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Smoke))]
+pub struct Smoke {
     /// Diffusion rate for velocity.
     pub diffusion: f32,
     /// Number of iterations for solver.
@@ -1312,7 +1356,7 @@ pub struct SmokeConfig {
     pub density_dissipation: f32,
 }
 
-impl Default for SmokeConfig {
+impl Default for Smoke {
     fn default() -> Self {
         Self {
             diffusion: 0.0,
@@ -1325,6 +1369,16 @@ impl Default for SmokeConfig {
         }
     }
 }
+
+impl Smoke {
+    /// Applies this configuration, returning it as-is.
+    pub fn apply(&self) -> Smoke {
+        self.clone()
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type SmokeConfig = Smoke;
 
 /// 2D smoke/gas simulation with buoyancy.
 #[derive(Clone)]
@@ -1831,6 +1885,17 @@ impl SmokeGrid3D {
     pub fn temperature_field(&self) -> &[f32] {
         &self.temperature
     }
+}
+
+/// Registers all fluid operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of fluid ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<Fluid>("resin::Fluid");
+    registry.register_type::<Sph>("resin::Sph");
+    registry.register_type::<SphParams3D>("resin::SphParams3D");
+    registry.register_type::<Smoke>("resin::Smoke");
 }
 
 #[cfg(test)]

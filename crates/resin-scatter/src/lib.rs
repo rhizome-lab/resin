@@ -14,9 +14,12 @@
 //! ```
 
 use glam::{Mat4, Quat, Vec2, Vec3};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// A single instance with transform data.
 #[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Instance {
     /// Instance position.
     pub position: Vec3,
@@ -83,9 +86,21 @@ impl Instance {
     }
 }
 
-/// Configuration for scattering operations.
+/// Scatters instances randomly within a box volume.
+///
+/// A complete operation that combines volume bounds, count, and scatter
+/// configuration into a single serializable struct.
 #[derive(Debug, Clone)]
-pub struct ScatterConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Vec<Instance>))]
+pub struct Scatter {
+    /// Minimum bounds of the scatter volume.
+    pub min: Vec3,
+    /// Maximum bounds of the scatter volume.
+    pub max: Vec3,
+    /// Number of instances to generate.
+    pub count: usize,
     /// Random seed.
     pub seed: u64,
     /// Minimum scale (for random scaling).
@@ -98,9 +113,12 @@ pub struct ScatterConfig {
     pub align_axis: Option<Vec3>,
 }
 
-impl Default for ScatterConfig {
+impl Default for Scatter {
     fn default() -> Self {
         Self {
+            min: Vec3::ZERO,
+            max: Vec3::ONE,
+            count: 100,
             seed: 42,
             min_scale: 1.0,
             max_scale: 1.0,
@@ -110,7 +128,17 @@ impl Default for ScatterConfig {
     }
 }
 
-impl ScatterConfig {
+impl Scatter {
+    /// Creates a new scatter operation with given bounds and count.
+    pub fn new(min: Vec3, max: Vec3, count: usize) -> Self {
+        Self {
+            min,
+            max,
+            count,
+            ..Default::default()
+        }
+    }
+
     /// Sets the random seed.
     pub fn with_seed(mut self, seed: u64) -> Self {
         self.seed = seed;
@@ -135,7 +163,15 @@ impl ScatterConfig {
         self.align_axis = Some(axis);
         self
     }
+
+    /// Applies this operation to generate instances.
+    pub fn apply(&self) -> Vec<Instance> {
+        scatter_random_with_config(self.min, self.max, self.count, self.clone())
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type ScatterConfig = Scatter;
 
 /// Simple LCG random number generator for deterministic scattering.
 struct Rng {
@@ -465,6 +501,14 @@ pub fn jitter_positions(instances: &mut [Instance], amount: Vec3, seed: u64) {
             rng.range(-amount.z, amount.z),
         );
     }
+}
+
+/// Registers all scatter operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of scatter ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<Scatter>("resin::Scatter");
 }
 
 #[cfg(test)]

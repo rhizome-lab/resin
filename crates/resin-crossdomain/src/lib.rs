@@ -22,6 +22,8 @@ use rhizome_resin_audio::spectral::{StftConfig, stft_with_sample_rate};
 use rhizome_resin_color::Rgba;
 use rhizome_resin_field::{EvalContext, Field};
 use rhizome_resin_image::ImageField;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 // ============================================================================
 // Buffer Reinterpretation
@@ -231,9 +233,17 @@ pub fn bytes_to_image_auto(bytes: &[u8]) -> Option<ImageField> {
 // Image to Audio Conversion
 // ============================================================================
 
-/// Configuration for image-to-audio conversion.
+/// Converts an image to audio using additive synthesis.
+///
+/// Each row of the image represents a frequency band. Brightness controls amplitude.
+/// Time progresses from left to right across the image.
+///
+/// This is inspired by MetaSynth's "paint with sound" approach.
 #[derive(Debug, Clone)]
-pub struct ImageToAudioConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = ImageField, output = Vec<f32>))]
+pub struct ImageToAudio {
     /// Sample rate in Hz.
     pub sample_rate: u32,
     /// Duration of the output audio in seconds.
@@ -246,7 +256,7 @@ pub struct ImageToAudioConfig {
     pub log_frequency: bool,
 }
 
-impl ImageToAudioConfig {
+impl ImageToAudio {
     /// Creates a new config with default frequency range (80 Hz - 8000 Hz).
     pub fn new(sample_rate: u32, duration: f32) -> Self {
         Self {
@@ -270,7 +280,15 @@ impl ImageToAudioConfig {
         self.log_frequency = log;
         self
     }
+
+    /// Applies this operation to an image.
+    pub fn apply(&self, image: &ImageField) -> Vec<f32> {
+        image_to_audio(image, self)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type ImageToAudioConfig = ImageToAudio;
 
 /// Converts an image to audio using additive synthesis.
 ///
@@ -332,9 +350,17 @@ pub fn image_to_audio(image: &ImageField, config: &ImageToAudioConfig) -> Vec<f3
     output
 }
 
-/// Configuration for audio-to-image conversion.
+/// Converts audio to a spectrogram image.
+///
+/// The resulting image represents frequency (vertical) vs time (horizontal),
+/// with brightness indicating magnitude.
 #[derive(Debug, Clone)]
-pub struct AudioToImageConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Vec<f32>, output = ImageField))]
+pub struct AudioToImage {
+    /// Sample rate of the input audio in Hz.
+    pub sample_rate: u32,
     /// Output image width in pixels.
     pub width: u32,
     /// Output image height in pixels (number of frequency bins).
@@ -349,10 +375,11 @@ pub struct AudioToImageConfig {
     pub gain: f32,
 }
 
-impl AudioToImageConfig {
+impl AudioToImage {
     /// Creates a new config with reasonable defaults.
-    pub fn new(width: u32, height: u32) -> Self {
+    pub fn new(sample_rate: u32, width: u32, height: u32) -> Self {
         Self {
+            sample_rate,
             width,
             height,
             window_size: 2048,
@@ -374,7 +401,15 @@ impl AudioToImageConfig {
         self.gain = gain;
         self
     }
+
+    /// Applies this operation to audio samples.
+    pub fn apply(&self, audio: &[f32]) -> ImageField {
+        audio_to_image(audio, self.sample_rate, self)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type AudioToImageConfig = AudioToImage;
 
 /// Converts audio to a spectrogram image.
 ///
@@ -663,6 +698,19 @@ where
 }
 
 // ============================================================================
+// Op Registration
+// ============================================================================
+
+/// Registers all crossdomain operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of crossdomain ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<ImageToAudio>("resin::ImageToAudio");
+    registry.register_type::<AudioToImage>("resin::AudioToImage");
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -765,9 +813,10 @@ mod tests {
 
     #[test]
     fn test_audio_to_image_config() {
-        let config = AudioToImageConfig::new(512, 256)
+        let config = AudioToImageConfig::new(44100, 512, 256)
             .with_fft(1024, 256)
             .with_gain(2.0);
+        assert_eq!(config.sample_rate, 44100);
         assert_eq!(config.width, 512);
         assert_eq!(config.height, 256);
         assert_eq!(config.window_size, 1024);
@@ -778,7 +827,7 @@ mod tests {
     #[test]
     fn test_audio_to_image_empty() {
         let audio: Vec<f32> = vec![];
-        let config = AudioToImageConfig::new(64, 32);
+        let config = AudioToImageConfig::new(44100, 64, 32);
         let image = audio_to_image(&audio, 44100, &config);
         let (w, h) = image.dimensions();
         assert_eq!(w, 64);
@@ -800,7 +849,7 @@ mod tests {
             })
             .collect();
 
-        let config = AudioToImageConfig::new(128, 64).with_fft(1024, 256);
+        let config = AudioToImageConfig::new(sample_rate, 128, 64).with_fft(1024, 256);
         let image = audio_to_image(&audio, sample_rate, &config);
 
         let (w, h) = image.dimensions();

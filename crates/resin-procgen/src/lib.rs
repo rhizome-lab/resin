@@ -23,6 +23,22 @@
 pub mod maze;
 pub mod network;
 
+// Re-export op types for convenient access
+pub use maze::GenerateMaze;
+pub use network::{GenerateRiver, GenerateRoadNetworkGrid, GenerateRoadNetworkHierarchical};
+
+/// Registers all procgen operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of procgen ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<GenerateMaze>("resin::GenerateMaze");
+    registry.register_type::<GenerateRiver>("resin::GenerateRiver");
+    registry.register_type::<GenerateRoadNetworkGrid>("resin::GenerateRoadNetworkGrid");
+    registry
+        .register_type::<GenerateRoadNetworkHierarchical>("resin::GenerateRoadNetworkHierarchical");
+}
+
 use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Direction for adjacency rules in 2D.

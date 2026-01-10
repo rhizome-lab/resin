@@ -4,7 +4,7 @@
 //!
 //! Run with: `cargo run --example procgen_lsystem`
 
-use rhizome_resin_lsystem::{LSystem, Rule, TurtleConfig, interpret_turtle_2d};
+use rhizome_resin_lsystem::{LSystem, Rule, Turtle2D};
 
 fn main() {
     println!("=== L-System Fractal Plant ===\n");
@@ -25,9 +25,8 @@ fn main() {
     let result = lsystem.generate(iterations);
 
     // Interpret as 2D turtle graphics
-    let config = TurtleConfig::default().with_angle(25.0).with_step(5.0);
-
-    let segments = interpret_turtle_2d(&result, &config);
+    let turtle = Turtle2D::default().with_angle(25.0).with_step(5.0);
+    let segments = turtle.apply(&result);
 
     println!("\nGenerated {} line segments", segments.len());
 

@@ -6,8 +6,16 @@ description = "Point cloud operations: sampling, filtering, normals, reconstruct
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/rhizome-lab/resin"
 
+[features]
+default = []
+serde = ["dep:serde", "glam/serde"]
+dynop = ["dep:rhizome-resin-op", "dep:serde_json", "serde"]
+
 [dependencies]
 glam.workspace = true
 rand.workspace = true
 rhizome-resin-mesh = { path = "../resin-mesh" }
 rhizome-resin-field = { path = "../resin-field" }
+rhizome-resin-op = { path = "../resin-op", optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { version = "1", optional = true }

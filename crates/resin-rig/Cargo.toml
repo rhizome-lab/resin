@@ -5,6 +5,13 @@ edition.workspace = true
 license.workspace = true
 description = "Skeletal animation and rigging for resin"
 
+[features]
+serde = ["dep:serde", "glam/serde"]
+dynop = ["dep:rhizome-resin-op", "dep:serde_json", "serde"]
+
 [dependencies]
 glam.workspace = true
 thiserror.workspace = true
+rhizome-resin-op = { path = "../resin-op", optional = true }
+serde = { workspace = true, optional = true }
+serde_json = { version = "1", optional = true }

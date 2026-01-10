@@ -5,6 +5,9 @@
 //! - `Collider` - collision shapes (sphere, box, plane)
 //! - `PhysicsWorld` - simulation container with gravity and constraints
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 pub mod cloth;
 pub mod softbody;
 
@@ -17,6 +20,16 @@ pub use softbody::{
     LameParameters, SoftBody, SoftBodyConfig, SoftVertex, Tetrahedron, generate_cube_mesh,
     tetrahedralize_surface,
 };
+
+/// Registers all physics operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of physics ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<ClothConfig>("resin::ClothConfig");
+    registry.register_type::<SoftBodyConfig>("resin::SoftBodyConfig");
+    registry.register_type::<Physics>("resin::Physics");
+}
 
 use glam::{Mat3, Quat, Vec3};
 
@@ -523,7 +536,10 @@ impl SpringConstraint {
 
 /// Configuration for physics simulation.
 #[derive(Clone, Debug)]
-pub struct PhysicsConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = Physics))]
+pub struct Physics {
     /// Gravity acceleration.
     pub gravity: Vec3,
     /// Number of constraint solver iterations.
@@ -532,7 +548,7 @@ pub struct PhysicsConfig {
     pub dt: f32,
 }
 
-impl Default for PhysicsConfig {
+impl Default for Physics {
     fn default() -> Self {
         Self {
             gravity: Vec3::new(0.0, -9.81, 0.0),
@@ -542,6 +558,16 @@ impl Default for PhysicsConfig {
     }
 }
 
+impl Physics {
+    /// Applies this configuration (returns self as a generator op).
+    pub fn apply(&self) -> Physics {
+        self.clone()
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type PhysicsConfig = Physics;
+
 /// The physics simulation world.
 pub struct PhysicsWorld {
     /// All rigid bodies.
@@ -549,7 +575,7 @@ pub struct PhysicsWorld {
     /// All constraints.
     pub constraints: Vec<Constraint>,
     /// Configuration.
-    pub config: PhysicsConfig,
+    pub config: Physics,
 }
 
 impl PhysicsWorld {

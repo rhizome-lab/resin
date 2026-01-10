@@ -2,13 +2,24 @@
 //!
 //! Generates per-vertex or texture-space ambient occlusion data
 //! by raycasting against mesh geometry.
+//!
+//! Operations are serializable structs with `apply` methods.
+//! See `docs/design/ops-as-values.md`.
 
 use crate::Mesh;
 use glam::Vec3;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
-/// Configuration for AO baking.
+/// Bakes ambient occlusion to per-vertex values.
+///
+/// Uses raycasting against mesh geometry to compute per-vertex
+/// ambient occlusion values.
 #[derive(Debug, Clone)]
-pub struct AoBakeConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Mesh, output = Vec<f32>))]
+pub struct BakeAo {
     /// Number of rays to cast per sample.
     pub ray_count: u32,
     /// Maximum ray distance.
@@ -21,7 +32,7 @@ pub struct AoBakeConfig {
     pub falloff_power: f32,
 }
 
-impl Default for AoBakeConfig {
+impl Default for BakeAo {
     fn default() -> Self {
         Self {
             ray_count: 64,
@@ -33,7 +44,7 @@ impl Default for AoBakeConfig {
     }
 }
 
-impl AoBakeConfig {
+impl BakeAo {
     /// Low quality preset (fast).
     pub fn low() -> Self {
         Self {
@@ -57,7 +68,15 @@ impl AoBakeConfig {
             ..Default::default()
         }
     }
+
+    /// Applies this operation to bake AO values for a mesh.
+    pub fn apply(&self, mesh: &Mesh) -> Vec<f32> {
+        bake_ao_vertices(mesh, self)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type AoBakeConfig = BakeAo;
 
 /// A simple BVH node for ray intersection.
 #[derive(Debug, Clone)]
@@ -296,7 +315,7 @@ impl AoAccelerator {
 }
 
 /// Bakes ambient occlusion to per-vertex values.
-pub fn bake_ao_vertices(mesh: &Mesh, config: &AoBakeConfig) -> Vec<f32> {
+pub fn bake_ao_vertices(mesh: &Mesh, config: &BakeAo) -> Vec<f32> {
     let accel = AoAccelerator::build(mesh);
     let normals = compute_vertex_normals(mesh);
 
@@ -316,7 +335,7 @@ fn compute_ao_at_point(
     accel: &AoAccelerator,
     position: Vec3,
     normal: Vec3,
-    config: &AoBakeConfig,
+    config: &BakeAo,
 ) -> f32 {
     let origin = position + normal * config.bias;
 
@@ -454,12 +473,7 @@ impl AoTexture {
 }
 
 /// Bakes AO to a texture using UV coordinates.
-pub fn bake_ao_texture(
-    mesh: &Mesh,
-    config: &AoBakeConfig,
-    width: u32,
-    height: u32,
-) -> Option<AoTexture> {
+pub fn bake_ao_texture(mesh: &Mesh, config: &BakeAo, width: u32, height: u32) -> Option<AoTexture> {
     if mesh.uvs.is_empty() {
         return None;
     }
@@ -602,15 +616,15 @@ mod tests {
 
     #[test]
     fn test_ao_config_default() {
-        let config = AoBakeConfig::default();
+        let config = BakeAo::default();
         assert!(config.ray_count > 0);
         assert!(config.max_distance > 0.0);
     }
 
     #[test]
     fn test_ao_config_presets() {
-        let low = AoBakeConfig::low();
-        let high = AoBakeConfig::high();
+        let low = BakeAo::low();
+        let high = BakeAo::high();
 
         assert!(low.ray_count < high.ray_count);
     }
@@ -640,7 +654,7 @@ mod tests {
     #[test]
     fn test_bake_ao_vertices() {
         let mesh = box_mesh();
-        let config = AoBakeConfig::low();
+        let config = BakeAo::low();
 
         let ao_values = bake_ao_vertices(&mesh, &config);
 

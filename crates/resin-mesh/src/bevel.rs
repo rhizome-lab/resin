@@ -10,19 +10,24 @@
 //! let mut hemesh = HalfEdgeMesh::from_mesh(&cube);
 //!
 //! // Bevel all edges
-//! let beveled = bevel_edges(&hemesh, 0.1, 1);
-//!
-//! // Bevel specific vertices
-//! let beveled = bevel_vertices(&hemesh, &[VertexId(0), VertexId(1)], 0.1);
+//! let beveled = Bevel::chamfer(0.1).apply(&hemesh);
 //! ```
 
 use crate::Mesh;
 use crate::halfedge::{FaceId, HalfEdgeId, HalfEdgeMesh, Vertex, VertexId};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
-/// Configuration for bevel operations.
+/// Bevels edges of a half-edge mesh.
+///
+/// Each edge is replaced with a face (or multiple faces for smooth bevels).
+/// Adjacent faces are adjusted to maintain a watertight mesh.
 #[derive(Debug, Clone)]
-pub struct BevelConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = HalfEdgeMesh, output = HalfEdgeMesh))]
+pub struct Bevel {
     /// The amount to bevel (distance from original edge/vertex).
     pub amount: f32,
     /// Number of segments for smooth bevels (1 = flat chamfer).
@@ -31,7 +36,7 @@ pub struct BevelConfig {
     pub smooth: bool,
 }
 
-impl Default for BevelConfig {
+impl Default for Bevel {
     fn default() -> Self {
         Self {
             amount: 0.1,
@@ -41,7 +46,7 @@ impl Default for BevelConfig {
     }
 }
 
-impl BevelConfig {
+impl Bevel {
     /// Creates a simple chamfer bevel.
     pub fn chamfer(amount: f32) -> Self {
         Self {
@@ -59,7 +64,15 @@ impl BevelConfig {
             smooth: true,
         }
     }
+
+    /// Applies this bevel operation to a half-edge mesh.
+    pub fn apply(&self, mesh: &HalfEdgeMesh) -> HalfEdgeMesh {
+        bevel_edges(mesh, self)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type BevelConfig = Bevel;
 
 /// Bevels all edges of a mesh.
 ///

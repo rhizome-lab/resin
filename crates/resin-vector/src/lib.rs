@@ -34,7 +34,7 @@ pub use gradient_mesh::{
     four_corner_gradient_mesh, linear_gradient_mesh,
 };
 pub use hatching::{
-    HatchConfig, HatchLine, cross_hatch_polygon, cross_hatch_rect, hatch_lines_to_paths,
+    Hatch, HatchConfig, HatchLine, cross_hatch_polygon, cross_hatch_rect, hatch_lines_to_paths,
     hatch_polygon, hatch_rect,
 };
 pub use network::{
@@ -57,11 +57,22 @@ pub use path::{
     star,
 };
 pub use stroke::{
-    CapStyle, DashPattern, JoinStyle, StrokeConfig, dash_path, offset_path, path_length,
-    point_at_length, resample_path, simplify_path, simplify_points, smooth_path, stroke_to_path,
+    CapStyle, DashPattern, JoinStyle, PressurePoint, PressureStroke, PressureStrokeConfig,
+    PressureStrokeRender, Stroke, StrokeConfig, dash_path, offset_path, path_length,
+    point_at_length, pressure_stroke_to_path, resample_path, simplify_path, simplify_points,
+    simulate_natural_pressure, simulate_velocity_pressure, smooth_path, stroke_to_path,
     tangent_at_length,
 };
 pub use text::{
-    Font, FontError, FontResult, TextConfig, TextMetrics, measure_text, text_to_path,
+    Font, FontError, FontResult, TextConfig, TextLayout, TextMetrics, measure_text, text_to_path,
     text_to_path_outlined, text_to_paths, text_to_paths_outlined,
 };
+
+/// Registers all vector operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of vector ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<Stroke>("resin::Stroke");
+    registry.register_type::<PressureStrokeRender>("resin::PressureStrokeRender");
+}

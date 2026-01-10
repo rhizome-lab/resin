@@ -1,16 +1,25 @@
 //! Mesh operations for procedural geometry.
 //!
-//! Provides operations like extrude, inset, solidify for mesh manipulation.
+//! Operations are serializable structs with `apply` methods. Free functions
+//! and method sugar delegate to these ops. See `docs/design/ops-as-values.md`.
 
 use std::collections::HashMap;
 
 use glam::Vec3;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use crate::Mesh;
 
-/// Configuration for extrusion operations.
-#[derive(Debug, Clone)]
-pub struct ExtrudeConfig {
+/// Extrudes a mesh along vertex normals.
+///
+/// Creates a shell by duplicating all vertices and offsetting them along
+/// their normals, then connecting old and new vertices with side faces.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Mesh, output = Mesh))]
+pub struct Extrude {
     /// Distance to extrude (positive = outward, negative = inward).
     pub amount: f32,
     /// Whether to create side faces connecting old and new vertices.
@@ -19,7 +28,7 @@ pub struct ExtrudeConfig {
     pub keep_original: bool,
 }
 
-impl Default for ExtrudeConfig {
+impl Default for Extrude {
     fn default() -> Self {
         Self {
             amount: 1.0,
@@ -28,6 +37,24 @@ impl Default for ExtrudeConfig {
         }
     }
 }
+
+impl Extrude {
+    /// Creates a new extrude operation with the given amount.
+    pub fn new(amount: f32) -> Self {
+        Self {
+            amount,
+            ..Default::default()
+        }
+    }
+
+    /// Applies this operation to a mesh.
+    pub fn apply(&self, mesh: &Mesh) -> Mesh {
+        extrude_with_config(mesh, *self)
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type ExtrudeConfig = Extrude;
 
 /// Extrudes the entire mesh along vertex normals.
 ///
@@ -133,9 +160,14 @@ pub fn solidify(mesh: &Mesh, thickness: f32) -> Mesh {
     )
 }
 
-/// Configuration for inset operation.
-#[derive(Debug, Clone)]
-pub struct InsetConfig {
+/// Insets all faces toward their centers.
+///
+/// Creates a new inner face for each triangle, connected by bridge faces.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Mesh, output = Mesh))]
+pub struct Inset {
     /// Inset amount (0.0 = no change, 1.0 = shrink to center).
     pub amount: f32,
     /// Optional depth (positive = extrude inward after inset).
@@ -144,7 +176,7 @@ pub struct InsetConfig {
     pub create_bridge: bool,
 }
 
-impl Default for InsetConfig {
+impl Default for Inset {
     fn default() -> Self {
         Self {
             amount: 0.2,
@@ -153,6 +185,24 @@ impl Default for InsetConfig {
         }
     }
 }
+
+impl Inset {
+    /// Creates a new inset operation with the given amount.
+    pub fn new(amount: f32) -> Self {
+        Self {
+            amount,
+            ..Default::default()
+        }
+    }
+
+    /// Applies this operation to a mesh.
+    pub fn apply(&self, mesh: &Mesh) -> Mesh {
+        inset_with_config(mesh, *self)
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type InsetConfig = Inset;
 
 /// Insets all faces toward their centers.
 ///
@@ -431,9 +481,15 @@ pub fn recalculate_normals(mesh: &Mesh, mode: NormalMode) -> Mesh {
     result
 }
 
-/// Configuration for Laplacian smoothing.
-#[derive(Debug, Clone)]
-pub struct SmoothConfig {
+/// Applies Laplacian smoothing to a mesh.
+///
+/// Moves each vertex towards the centroid of its neighbors, creating
+/// a smoother surface. Multiple iterations increase the smoothing effect.
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Mesh, output = Mesh))]
+pub struct Smooth {
     /// Smoothing factor per iteration (0.0 = no change, 1.0 = move to average).
     /// Values between 0.3-0.5 are typical.
     pub lambda: f32,
@@ -443,7 +499,7 @@ pub struct SmoothConfig {
     pub preserve_boundary: bool,
 }
 
-impl Default for SmoothConfig {
+impl Default for Smooth {
     fn default() -> Self {
         Self {
             lambda: 0.5,
@@ -452,6 +508,25 @@ impl Default for SmoothConfig {
         }
     }
 }
+
+impl Smooth {
+    /// Creates a new smooth operation with the given parameters.
+    pub fn new(lambda: f32, iterations: usize) -> Self {
+        Self {
+            lambda,
+            iterations,
+            ..Default::default()
+        }
+    }
+
+    /// Applies this operation to a mesh.
+    pub fn apply(&self, mesh: &Mesh) -> Mesh {
+        smooth_with_config(mesh, *self)
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type SmoothConfig = Smooth;
 
 /// Applies Laplacian smoothing to a mesh.
 ///

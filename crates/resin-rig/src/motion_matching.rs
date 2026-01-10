@@ -5,10 +5,18 @@
 
 use crate::{Pose, Skeleton, Transform};
 use glam::{Quat, Vec3};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// Configuration for motion matching.
+///
+/// Controls weights for different matching criteria and timing parameters
+/// for the motion matching algorithm.
 #[derive(Debug, Clone)]
-pub struct MotionMatchingConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = (), output = MotionMatching))]
+pub struct MotionMatching {
     /// Weight for bone position matching.
     pub position_weight: f32,
     /// Weight for bone velocity matching.
@@ -27,7 +35,17 @@ pub struct MotionMatchingConfig {
     pub blend_time: f32,
 }
 
-impl Default for MotionMatchingConfig {
+/// Backwards-compatible type alias.
+pub type MotionMatchingConfig = MotionMatching;
+
+impl MotionMatching {
+    /// Applies this generator, returning the configuration.
+    pub fn apply(&self) -> MotionMatching {
+        self.clone()
+    }
+}
+
+impl Default for MotionMatching {
     fn default() -> Self {
         Self {
             position_weight: 1.0,

@@ -26,6 +26,9 @@
 
 use std::f32::consts::PI;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 /// A complex number for FFT operations.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct Complex {
@@ -272,8 +275,14 @@ pub fn ifft_complex(spectrum: &[Complex]) -> Vec<Complex> {
 // ============================================================================
 
 /// Configuration for STFT analysis.
+///
+/// Operations on audio buffers use the ops-as-values pattern.
+/// See `docs/design/ops-as-values.md`.
 #[derive(Debug, Clone)]
-pub struct StftConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Vec<f32>, output = StftResult))]
+pub struct Stft {
     /// FFT window size (must be power of 2).
     pub window_size: usize,
     /// Hop size between consecutive frames.
@@ -282,7 +291,7 @@ pub struct StftConfig {
     pub window: Vec<f32>,
 }
 
-impl Default for StftConfig {
+impl Default for Stft {
     fn default() -> Self {
         let window_size = 1024;
         Self {
@@ -293,7 +302,7 @@ impl Default for StftConfig {
     }
 }
 
-impl StftConfig {
+impl Stft {
     /// Creates a new STFT config with the given window size.
     pub fn new(window_size: usize) -> Self {
         Self {
@@ -315,7 +324,15 @@ impl StftConfig {
         self.window = window;
         self
     }
+
+    /// Applies this STFT configuration to a signal.
+    pub fn apply(&self, signal: &[f32]) -> StftResult {
+        stft(signal, self)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type StftConfig = Stft;
 
 /// Result of STFT analysis.
 #[derive(Debug, Clone)]
@@ -325,7 +342,7 @@ pub struct StftResult {
     /// Sample rate (if known).
     pub sample_rate: Option<u32>,
     /// Configuration used.
-    pub config: StftConfig,
+    pub config: Stft,
 }
 
 impl StftResult {
@@ -381,14 +398,14 @@ impl StftResult {
 }
 
 /// Computes the Short-Time Fourier Transform of a signal.
-pub fn stft(signal: &[f32], config: &StftConfig) -> StftResult {
+pub fn stft(signal: &[f32], config: &Stft) -> StftResult {
     stft_with_sample_rate(signal, config, None)
 }
 
 /// Computes the STFT with a known sample rate.
 pub fn stft_with_sample_rate(
     signal: &[f32],
-    config: &StftConfig,
+    config: &Stft,
     sample_rate: Option<u32>,
 ) -> StftResult {
     let mut frames = Vec::new();
@@ -598,8 +615,14 @@ pub fn spectral_flatness(magnitudes: &[f32]) -> f32 {
 // ============================================================================
 
 /// Configuration for time-stretching.
+///
+/// Operations on audio buffers use the ops-as-values pattern.
+/// See `docs/design/ops-as-values.md`.
 #[derive(Debug, Clone)]
-pub struct TimeStretchConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Vec<f32>, output = Vec<f32>))]
+pub struct TimeStretch {
     /// FFT window size (must be power of 2).
     pub window_size: usize,
     /// Analysis hop size.
@@ -612,7 +635,7 @@ pub struct TimeStretchConfig {
     pub transient_threshold: f32,
 }
 
-impl Default for TimeStretchConfig {
+impl Default for TimeStretch {
     fn default() -> Self {
         Self {
             window_size: 2048,
@@ -624,7 +647,7 @@ impl Default for TimeStretchConfig {
     }
 }
 
-impl TimeStretchConfig {
+impl TimeStretch {
     /// Creates a config with the given stretch factor.
     pub fn with_factor(factor: f32) -> Self {
         Self {
@@ -646,7 +669,15 @@ impl TimeStretchConfig {
         self.preserve_transients = preserve;
         self
     }
+
+    /// Applies this time-stretch configuration to a signal.
+    pub fn apply(&self, signal: &[f32]) -> Vec<f32> {
+        time_stretch(signal, self)
+    }
 }
+
+/// Backwards-compatible type alias.
+pub type TimeStretchConfig = TimeStretch;
 
 /// Time-stretches audio using a phase vocoder.
 ///
@@ -655,17 +686,17 @@ impl TimeStretchConfig {
 /// # Example
 ///
 /// ```
-/// use rhizome_resin_audio::spectral::{time_stretch, TimeStretchConfig};
+/// use rhizome_resin_audio::spectral::{time_stretch, TimeStretch};
 ///
 /// let audio: Vec<f32> = (0..8192).map(|i| (i as f32 * 0.1).sin()).collect();
 ///
 /// // Slow down to 1.5x duration
-/// let slower = time_stretch(&audio, &TimeStretchConfig::with_factor(1.5));
+/// let slower = time_stretch(&audio, &TimeStretch::with_factor(1.5));
 ///
 /// // Speed up to 0.5x duration
-/// let faster = time_stretch(&audio, &TimeStretchConfig::with_factor(0.5));
+/// let faster = time_stretch(&audio, &TimeStretch::with_factor(0.5));
 /// ```
-pub fn time_stretch(signal: &[f32], config: &TimeStretchConfig) -> Vec<f32> {
+pub fn time_stretch(signal: &[f32], config: &TimeStretch) -> Vec<f32> {
     if signal.is_empty() || (config.stretch_factor - 1.0).abs() < 0.001 {
         return signal.to_vec();
     }
@@ -788,7 +819,7 @@ pub fn pitch_shift(signal: &[f32], semitones: f32) -> Vec<f32> {
     let pitch_ratio = (2.0f32).powf(semitones / 12.0);
 
     // Time-stretch to compensate for resampling
-    let stretch_config = TimeStretchConfig::with_factor(pitch_ratio);
+    let stretch_config = TimeStretch::with_factor(pitch_ratio);
     let stretched = time_stretch(signal, &stretch_config);
 
     // Resample to original length
@@ -978,7 +1009,7 @@ mod tests {
             .map(|i| (2.0 * PI * 440.0 * i as f32 / 44100.0).sin())
             .collect();
 
-        let config = StftConfig::new(1024).with_hop_size(256);
+        let config = Stft::new(1024).with_hop_size(256);
         let stft_result = stft(&signal, &config);
 
         assert!(stft_result.num_frames() > 0);
@@ -1033,7 +1064,7 @@ mod tests {
             .map(|i| (2.0 * PI * 100.0 * i as f32 / 1024.0).sin())
             .collect();
 
-        let config = StftConfig::new(1024);
+        let config = Stft::new(1024);
         let result = stft(&signal, &config);
         let mags = result.magnitude();
 
@@ -1068,7 +1099,7 @@ mod tests {
             .map(|i| (2.0 * PI * 440.0 * i as f32 / 44100.0).sin())
             .collect();
 
-        let config = TimeStretchConfig::with_factor(2.0);
+        let config = TimeStretch::with_factor(2.0);
         let stretched = time_stretch(&signal, &config);
 
         // Should be approximately twice as long
@@ -1086,7 +1117,7 @@ mod tests {
             .map(|i| (2.0 * PI * 440.0 * i as f32 / 44100.0).sin())
             .collect();
 
-        let config = TimeStretchConfig::with_factor(0.5);
+        let config = TimeStretch::with_factor(0.5);
         let stretched = time_stretch(&signal, &config);
 
         // Should be approximately half as long
@@ -1104,7 +1135,7 @@ mod tests {
             .map(|i| (2.0 * PI * 440.0 * i as f32 / 44100.0).sin())
             .collect();
 
-        let config = TimeStretchConfig::with_factor(1.0);
+        let config = TimeStretch::with_factor(1.0);
         let stretched = time_stretch(&signal, &config);
 
         // Should be same length for unity stretch
@@ -1144,7 +1175,7 @@ mod tests {
     #[test]
     fn test_time_stretch_empty() {
         let signal: Vec<f32> = vec![];
-        let stretched = time_stretch(&signal, &TimeStretchConfig::with_factor(2.0));
+        let stretched = time_stretch(&signal, &TimeStretch::with_factor(2.0));
         assert!(stretched.is_empty());
     }
 

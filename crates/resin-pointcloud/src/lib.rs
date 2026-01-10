@@ -22,6 +22,17 @@ use glam::Vec3;
 use rand::Rng;
 use rhizome_resin_field::{EvalContext, Field};
 use rhizome_resin_mesh::Mesh;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+/// Registers all pointcloud operations with an [`OpRegistry`].
+///
+/// Call this to enable deserialization of pointcloud ops from saved pipelines.
+#[cfg(feature = "dynop")]
+pub fn register_ops(registry: &mut rhizome_resin_op::OpRegistry) {
+    registry.register_type::<Poisson>("resin::Poisson");
+    registry.register_type::<RemoveOutliers>("resin::RemoveOutliers");
+}
 
 /// A point cloud with positions, optional normals, and optional colors.
 #[derive(Debug, Clone, Default)]
@@ -305,16 +316,22 @@ pub fn sample_sdf_with_rng<F: Field<Vec3, f32>, R: Rng>(
     PointCloud::from_positions(positions)
 }
 
-/// Configuration for Poisson disk sampling.
+/// Poisson disk sampling operation for mesh surfaces.
+///
+/// Creates a more uniform distribution than pure random sampling by
+/// ensuring minimum distance between points.
 #[derive(Debug, Clone)]
-pub struct PoissonConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Mesh, output = PointCloud))]
+pub struct Poisson {
     /// Minimum distance between points.
     pub min_distance: f32,
     /// Maximum attempts to place each point.
     pub max_attempts: u32,
 }
 
-impl Default for PoissonConfig {
+impl Default for Poisson {
     fn default() -> Self {
         Self {
             min_distance: 0.1,
@@ -323,10 +340,34 @@ impl Default for PoissonConfig {
     }
 }
 
+impl Poisson {
+    /// Creates a new Poisson disk sampler with the given minimum distance.
+    pub fn new(min_distance: f32) -> Self {
+        Self {
+            min_distance,
+            ..Default::default()
+        }
+    }
+
+    /// Sets the maximum attempts per point.
+    pub fn with_max_attempts(mut self, max_attempts: u32) -> Self {
+        self.max_attempts = max_attempts;
+        self
+    }
+
+    /// Applies this Poisson disk sampling operation to a mesh.
+    pub fn apply(&self, mesh: &Mesh) -> PointCloud {
+        sample_mesh_poisson(mesh, self)
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type PoissonConfig = Poisson;
+
 /// Samples points from a mesh surface using Poisson disk sampling.
 ///
 /// This creates a more uniform distribution than pure random sampling.
-pub fn sample_mesh_poisson(mesh: &Mesh, config: &PoissonConfig) -> PointCloud {
+pub fn sample_mesh_poisson(mesh: &Mesh, config: &Poisson) -> PointCloud {
     // First sample many points uniformly
     let oversampled = sample_mesh_uniform(mesh, 10000);
     if oversampled.is_empty() {
@@ -491,16 +532,22 @@ fn orient_normals(positions: &[Vec3], normals: &mut [Vec3]) {
 // Filtering
 // ============================================================================
 
-/// Configuration for statistical outlier removal.
+/// Statistical outlier removal operation for point clouds.
+///
+/// Removes points whose mean distance to k nearest neighbors exceeds
+/// the global mean + std_ratio * std_dev.
 #[derive(Debug, Clone)]
-pub struct OutlierConfig {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = PointCloud, output = PointCloud))]
+pub struct RemoveOutliers {
     /// Number of neighbors to consider.
     pub k: usize,
     /// Standard deviation multiplier for outlier threshold.
     pub std_ratio: f32,
 }
 
-impl Default for OutlierConfig {
+impl Default for RemoveOutliers {
     fn default() -> Self {
         Self {
             k: 10,
@@ -509,11 +556,35 @@ impl Default for OutlierConfig {
     }
 }
 
+impl RemoveOutliers {
+    /// Creates a new outlier removal operation with the given neighbor count.
+    pub fn new(k: usize) -> Self {
+        Self {
+            k,
+            ..Default::default()
+        }
+    }
+
+    /// Sets the standard deviation ratio threshold.
+    pub fn with_std_ratio(mut self, std_ratio: f32) -> Self {
+        self.std_ratio = std_ratio;
+        self
+    }
+
+    /// Applies this outlier removal operation to a point cloud.
+    pub fn apply(&self, cloud: &PointCloud) -> PointCloud {
+        remove_outliers(cloud, self)
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type OutlierConfig = RemoveOutliers;
+
 /// Removes statistical outliers from a point cloud.
 ///
 /// Points whose mean distance to k nearest neighbors exceeds
 /// the global mean + std_ratio * std_dev are removed.
-pub fn remove_outliers(cloud: &PointCloud, config: &OutlierConfig) -> PointCloud {
+pub fn remove_outliers(cloud: &PointCloud, config: &RemoveOutliers) -> PointCloud {
     if cloud.len() <= config.k {
         return cloud.clone();
     }

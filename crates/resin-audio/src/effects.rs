@@ -943,9 +943,15 @@ impl AudioNode for ConvolutionReverb {
     }
 }
 
-/// Configuration for convolution reverb.
+/// Creates a convolution reverb from an impulse response.
+///
+/// Operations on audio buffers use the ops-as-values pattern.
+/// See `docs/design/ops-as-values.md`.
 #[derive(Clone, Copy, Debug)]
-pub struct ConvolutionConfig {
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "dynop", derive(rhizome_resin_op::Op))]
+#[cfg_attr(feature = "dynop", op(input = Vec<f32>, output = ConvolutionReverb))]
+pub struct Convolution {
     /// Processing block size (power of 2).
     pub block_size: usize,
     /// Dry/wet mix.
@@ -954,7 +960,7 @@ pub struct ConvolutionConfig {
     pub gain: f32,
 }
 
-impl Default for ConvolutionConfig {
+impl Default for Convolution {
     fn default() -> Self {
         Self {
             block_size: 1024,
@@ -964,12 +970,30 @@ impl Default for ConvolutionConfig {
     }
 }
 
+impl Convolution {
+    /// Creates a new convolution configuration.
+    pub fn new(block_size: usize) -> Self {
+        Self {
+            block_size,
+            ..Default::default()
+        }
+    }
+
+    /// Applies this operation to create a ConvolutionReverb.
+    pub fn apply(&self, ir: &[f32]) -> ConvolutionReverb {
+        let mut reverb = ConvolutionReverb::new(ir, self.block_size);
+        reverb.mix = self.mix;
+        reverb.gain = self.gain;
+        reverb
+    }
+}
+
+/// Backwards-compatible type alias.
+pub type ConvolutionConfig = Convolution;
+
 /// Creates a convolution reverb with configuration.
 pub fn convolution_reverb(ir: &[f32], config: &ConvolutionConfig) -> ConvolutionReverb {
-    let mut reverb = ConvolutionReverb::new(ir, config.block_size);
-    reverb.mix = config.mix;
-    reverb.gain = config.gain;
-    reverb
+    config.apply(ir)
 }
 
 /// Generates a synthetic impulse response for a room.

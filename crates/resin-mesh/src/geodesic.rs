@@ -18,11 +18,14 @@
 
 use crate::Mesh;
 use glam::Vec3;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap, HashSet};
 
 /// Configuration for geodesic distance computation.
 #[derive(Debug, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GeodesicConfig {
     /// Maximum distance to compute (for early termination).
     pub max_distance: Option<f32>,
