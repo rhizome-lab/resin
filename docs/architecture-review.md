@@ -15,6 +15,20 @@ Review of patterns, inconsistencies, and code smells across the workspace.
 | Consistency | Trait implementations vary between similar types | `resin-spline/lib.rs` | MEDIUM | ✅ Fixed |
 | Complexity | Large functions handle multiple concerns | `resin-physics/lib.rs::step()` | MEDIUM | ✅ Fixed |
 
+## Recent Additions
+
+New modules added (Jan 2026):
+
+| Module | Crate | Purpose |
+|--------|-------|---------|
+| `topology.rs` | resin-mesh | Euler characteristic, genus, manifold testing, boundary detection |
+| `weights.rs` | resin-mesh | Vertex weight painting, smoothing, heat diffusion for skinning |
+| `lod.rs` | resin-mesh | Automatic LOD generation via mesh decimation |
+| `spatial.rs` | resin-audio | 3D spatial audio, HRTF, distance attenuation, Doppler |
+| `pattern.rs` | resin-audio | TidalCycles-inspired pattern combinators (fast/slow/rev/jux) |
+
+These follow existing patterns and conventions. No architectural concerns.
+
 ## Strengths
 
 1. **Consistent builder pattern** - Most crates use `with_*` methods for configuration
@@ -94,6 +108,25 @@ pub fn step(&mut self) {
 ```
 
 ## LOW Priority / Observations
+
+### Utility Function Duplication
+
+Some helper functions are duplicated across modules. Noted but acceptable trade-offs:
+
+**`build_adjacency`** (3 implementations):
+- `weights.rs` → returns `Vec<HashSet<usize>>` (for weight smoothing)
+- `ops.rs` → returns `Vec<Vec<usize>>` (for mesh operations)
+- `geodesic.rs` → returns `Vec<Vec<usize>>` (for distance calculation)
+
+Different return types serve different use cases. HashSet provides O(1) neighbor lookup, Vec is more cache-friendly for iteration.
+
+**`edge_key`** (2 implementations):
+- `topology.rs` - canonical edge ordering for topology analysis
+- `subdivision.rs` - same pattern for edge midpoint caching
+
+Simple 2-line function. Creating a shared utility would add more complexity than it saves.
+
+**Recommendation:** Leave as-is. The duplication is minimal and serves slightly different purposes. A shared mesh utilities module could be considered if more common patterns emerge.
 
 ### Error Type Variation
 

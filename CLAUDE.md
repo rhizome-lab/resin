@@ -33,6 +33,7 @@ Do not:
 - Create special cases - design to avoid them
 - **Return tuples from functions** - use structs with named fields
 - **String-match when structure exists** - use proper typed representations
+- **Create DSLs** - custom syntax is subjective, hard to maintain, and creates learning burden. Use Rust APIs instead (builders, combinators, method chaining)
 
 ## Design Principles
 

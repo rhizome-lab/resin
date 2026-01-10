@@ -15,22 +15,22 @@
 ### New Features (prioritized suggestions)
 
 **High Value / Moderate Effort:**
-- [ ] UV atlas packing - pack multiple UV charts efficiently for game dev
-- [ ] LOD generation - automatic level-of-detail from high-poly meshes
-- [ ] Mesh curvature - Gaussian/mean curvature calculation
-- [ ] 2D signed distance fields - SDF operations for 2D (have 3D already)
+- [x] UV atlas packing - pack multiple UV charts efficiently for game dev
+- [x] LOD generation - automatic level-of-detail from high-poly meshes
+- [x] Mesh curvature - Gaussian/mean curvature calculation
+- [x] 2D signed distance fields - SDF operations for 2D (have 3D already)
 
 **Audio Extensions:**
-- [ ] Audio time-stretching - phase vocoder, granular time-stretch
-- [ ] 3D audio / HRTF - spatial audio, binaural rendering
+- [x] Audio time-stretching - phase vocoder, granular time-stretch
+- [x] 3D audio / HRTF - spatial audio, binaural rendering
 
 **Pattern/Sequencing (TidalCycles-inspired):**
-- [ ] Pattern combinators - `fast()`, `slow()`, `rev()`, `jux()` transformations
-- [ ] Pattern mini-notation - DSL for rhythmic patterns
+- [x] Pattern combinators - `fast()`, `slow()`, `rev()`, `jux()` transformations
+- ~~Pattern mini-notation~~ - Not planned (DSLs avoided per docs/philosophy.md)
 
 **Quality of Life:**
-- [ ] Weight painting tools - weight smoothing, heat diffusion for skinning
-- [ ] Topology analysis - genus detection, manifold testing, boundary classification
+- [x] Weight painting tools - weight smoothing, heat diffusion for skinning
+- [x] Topology analysis - genus detection, manifold testing, boundary classification
 
 ## Backlog
 

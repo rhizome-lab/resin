@@ -26,8 +26,35 @@ When adding a new feature, first ask: can an existing concept handle this?
 - Prefer stdlib over dependencies
 - Functions over traits (until you need the trait)
 - Explicit over implicit
+- **No DSLs** - custom syntax is subjective, hard to maintain, and creates learning burden
 
 If proposing a new dependency, ask: can existing code do this?
+
+### Why No DSLs?
+
+DSLs (domain-specific languages) seem appealing but carry hidden costs:
+
+1. **Subjectivity** - syntax preferences vary wildly between users
+2. **Maintenance burden** - parsers, error messages, tooling, documentation
+3. **Learning curve** - users must learn new syntax on top of Rust
+4. **Debugging difficulty** - DSL errors harder to trace than Rust compiler errors
+5. **IDE support** - no autocomplete, no go-to-definition, no refactoring
+
+Instead, use **Rust APIs**: builders, combinators, method chaining. These get full IDE support, type checking, and familiar syntax.
+
+```rust
+// Bad: DSL mini-notation
+let pattern = parse_pattern("bd [sn cp] hh*2")?;
+
+// Good: Rust combinator API
+let pattern = cat(vec![
+    pure("bd"),
+    stack(vec![pure("sn"), pure("cp")]),
+    pure("hh").fast(2.0),
+]);
+```
+
+The Rust version is longer but: compiles with type safety, has IDE autocomplete, produces clear error messages, and requires no custom parser.
 
 ## General Internal, Constrained APIs
 

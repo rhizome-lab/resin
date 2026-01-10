@@ -4,11 +4,13 @@ Constructive generation and manipulation of media in Rust.
 
 ## Features
 
-- **Meshes** - Procedural 3D geometry, primitives, indexed mesh representation
-- **Audio** - Synthesis oscillators (sine, saw, square, triangle) with anti-aliasing
-- **Textures & Noise** - Perlin, Simplex, fBm with lazy `Field` trait and combinators
-- **2D Vector** - SVG-like paths, bezier curves, shapes
-- **Rigging** - Skeletons, bones, poses, GPU-friendly skinning
+- **Meshes** - Procedural 3D geometry, booleans, decimation, LOD, topology analysis, UV atlas packing
+- **Audio** - Synthesis, FM/wavetable/granular, effects, 3D spatial audio (HRTF), pattern sequencing
+- **Textures & Noise** - Perlin, Simplex, fBm with lazy `Field` trait, 2D/3D signed distance fields
+- **2D Vector** - SVG-like paths, bezier curves, booleans, hatching, rasterization
+- **Rigging** - Skeletons, IK solvers, weight painting tools, heat diffusion skinning
+- **Physics** - Rigid bodies, soft bodies, cloth, fluids, smoke simulation
+- **Procedural** - L-systems, WFC, mazes, terrain erosion, space colonization
 - **Node Graphs** - Dynamic evaluation with type-safe connections
 
 ## Quick Start
