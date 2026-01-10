@@ -14,6 +14,7 @@ serde = ["dep:serde", "glam/serde", "rhizome-resin-color/serde"]
 glam.workspace = true
 rhizome-resin-color = { path = "../resin-color" }
 rhizome-resin-motion-fn = { path = "../resin-motion-fn" }
+rhizome-resin-noise = { path = "../resin-noise" }
 serde = { workspace = true, optional = true }
 
 [dev-dependencies]

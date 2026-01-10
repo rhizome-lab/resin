@@ -539,6 +539,691 @@ impl Scene {
 }
 
 // ============================================================================
+// LinearTransform2D (general 2x2 matrix with polar decomposition)
+// ============================================================================
+
+/// A general 2D linear transformation represented as rotation + scale.
+///
+/// This decomposes a 2x2 matrix into:
+/// - Rotation angle (can include reflection via negative scale)
+/// - Non-uniform scale (x and y)
+///
+/// This representation enables smooth interpolation between arbitrary
+/// linear transformations using polar decomposition.
+///
+/// # Example
+///
+/// ```
+/// use rhizome_resin_motion::LinearTransform2D;
+/// use glam::{Vec2, Mat2};
+///
+/// // Create from rotation + scale
+/// let t = LinearTransform2D::new(std::f32::consts::FRAC_PI_4, Vec2::new(2.0, 1.0));
+///
+/// // Create from arbitrary matrix (decomposes automatically)
+/// let mat = Mat2::from_angle(0.5) * Mat2::from_diagonal(Vec2::new(2.0, 0.5));
+/// let t2 = LinearTransform2D::from_matrix(mat);
+///
+/// // Interpolate between transforms
+/// let mid = t.lerp(&t2, 0.5);
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct LinearTransform2D {
+    /// Rotation angle in radians.
+    pub rotation: f32,
+
+    /// Scale factors (can be negative for reflection).
+    pub scale: Vec2,
+}
+
+impl Default for LinearTransform2D {
+    fn default() -> Self {
+        Self {
+            rotation: 0.0,
+            scale: Vec2::ONE,
+        }
+    }
+}
+
+impl LinearTransform2D {
+    /// Creates a new linear transform from rotation and scale.
+    pub fn new(rotation: f32, scale: Vec2) -> Self {
+        Self { rotation, scale }
+    }
+
+    /// Identity transform.
+    pub fn identity() -> Self {
+        Self::default()
+    }
+
+    /// Pure rotation.
+    pub fn from_rotation(angle: f32) -> Self {
+        Self {
+            rotation: angle,
+            scale: Vec2::ONE,
+        }
+    }
+
+    /// Pure uniform scale.
+    pub fn from_scale(scale: f32) -> Self {
+        Self {
+            rotation: 0.0,
+            scale: Vec2::splat(scale),
+        }
+    }
+
+    /// Pure non-uniform scale.
+    pub fn from_scale_xy(scale: Vec2) -> Self {
+        Self {
+            rotation: 0.0,
+            scale,
+        }
+    }
+
+    /// Reflection across X axis (flip vertically).
+    pub fn reflect_x() -> Self {
+        Self {
+            rotation: 0.0,
+            scale: Vec2::new(1.0, -1.0),
+        }
+    }
+
+    /// Reflection across Y axis (flip horizontally).
+    pub fn reflect_y() -> Self {
+        Self {
+            rotation: 0.0,
+            scale: Vec2::new(-1.0, 1.0),
+        }
+    }
+
+    /// Reflection across arbitrary axis (angle from X axis).
+    pub fn reflect_axis(angle: f32) -> Self {
+        // Reflection across axis at angle θ is equivalent to:
+        // rotation by 2θ with determinant -1
+        Self {
+            rotation: 2.0 * angle,
+            scale: Vec2::new(1.0, -1.0),
+        }
+    }
+
+    /// Creates from an arbitrary 2x2 matrix using polar decomposition.
+    ///
+    /// Decomposes M = R * S where R is rotation (and possibly reflection)
+    /// and S is scale along the original axes.
+    pub fn from_matrix(mat: glam::Mat2) -> Self {
+        // Polar decomposition: M = R * S
+        // where R is orthogonal and S is symmetric positive semi-definite
+        //
+        // For 2x2: we can use SVD-like approach
+        // M = U * Σ * V^T, then R = U * V^T, S = V * Σ * V^T
+        //
+        // Simpler approach for 2x2:
+        // 1. Compute determinant to detect reflection
+        // 2. Extract rotation angle from the orthogonal part
+        // 3. Extract scale from singular values
+
+        let col0 = mat.col(0);
+        let col1 = mat.col(1);
+
+        // Singular values (scale factors)
+        let sx = col0.length();
+        let sy = col1.length();
+
+        // Determinant tells us if there's a reflection
+        let det = mat.determinant();
+
+        if sx < 1e-10 || sy < 1e-10 {
+            // Degenerate matrix
+            return Self::default();
+        }
+
+        // Normalize columns to get rotation
+        let r0 = col0 / sx;
+
+        // Rotation angle from first column
+        let rotation = r0.y.atan2(r0.x);
+
+        // If determinant is negative, one scale is negative (reflection)
+        let scale = if det < 0.0 {
+            Vec2::new(sx, -sy)
+        } else {
+            Vec2::new(sx, sy)
+        };
+
+        Self { rotation, scale }
+    }
+
+    /// Converts to a 2x2 matrix.
+    pub fn to_matrix(&self) -> glam::Mat2 {
+        let (sin, cos) = self.rotation.sin_cos();
+        glam::Mat2::from_cols(
+            Vec2::new(cos * self.scale.x, sin * self.scale.x),
+            Vec2::new(-sin * self.scale.y, cos * self.scale.y),
+        )
+    }
+
+    /// Transform a point.
+    pub fn transform_point(&self, point: Vec2) -> Vec2 {
+        self.to_matrix() * point
+    }
+
+    /// Interpolate between two linear transforms.
+    ///
+    /// Uses angle interpolation for rotation and linear interpolation for scale,
+    /// which produces smooth results for general linear transformations.
+    pub fn lerp(&self, other: &Self, t: f32) -> Self {
+        // Handle angle wraparound for shortest path
+        let mut delta_rotation = other.rotation - self.rotation;
+
+        // Normalize to [-π, π] for shortest path
+        while delta_rotation > std::f32::consts::PI {
+            delta_rotation -= std::f32::consts::TAU;
+        }
+        while delta_rotation < -std::f32::consts::PI {
+            delta_rotation += std::f32::consts::TAU;
+        }
+
+        Self {
+            rotation: self.rotation + delta_rotation * t,
+            scale: self.scale.lerp(other.scale, t),
+        }
+    }
+
+    /// Concatenate with another transform (self * other).
+    pub fn concat(&self, other: &Self) -> Self {
+        Self::from_matrix(self.to_matrix() * other.to_matrix())
+    }
+
+    /// Inverse transform.
+    pub fn inverse(&self) -> Option<Self> {
+        let det = self.scale.x * self.scale.y;
+        if det.abs() < 1e-10 {
+            return None;
+        }
+        // M = R * S, so M^(-1) = S^(-1) * R^(-1)
+        // Use matrix inverse and decompose for correctness
+        let mat = self.to_matrix();
+        let inv = mat.inverse();
+        Some(Self::from_matrix(inv))
+    }
+
+    /// Returns true if this includes a reflection (negative determinant).
+    pub fn has_reflection(&self) -> bool {
+        self.scale.x * self.scale.y < 0.0
+    }
+
+    /// Returns the determinant of the transform.
+    pub fn determinant(&self) -> f32 {
+        self.scale.x * self.scale.y
+    }
+}
+
+// ============================================================================
+// Motion implementations for Transform2D
+// ============================================================================
+
+use rhizome_resin_motion_fn::{Eased, Lerp, Motion, Spring};
+
+// Re-export motion types for convenience
+pub use rhizome_resin_motion_fn::{
+    Constant, Delay, Eased as EasedMotion, EasingType, Lerp as LerpMotion, Loop,
+    Motion as MotionTrait, Oscillate, PingPong, Spring as SpringMotion, TimeScale, Wiggle,
+    Wiggle2D,
+};
+
+/// Helper to spring-interpolate a scalar component.
+fn spring_value(from: f32, to: f32, stiffness: f32, damping: f32, t: f32) -> f32 {
+    if t <= 0.0 {
+        return from;
+    }
+
+    let omega = stiffness.sqrt();
+    let zeta = damping / (2.0 * omega);
+    let delta = to - from;
+
+    if zeta >= 1.0 {
+        let decay = (-omega * zeta * t).exp();
+        if (zeta - 1.0).abs() < 0.001 {
+            to - delta * (1.0 + omega * t) * decay
+        } else {
+            let s = (zeta * zeta - 1.0).sqrt();
+            let r1 = -omega * (zeta - s);
+            let r2 = -omega * (zeta + s);
+            let c2 = delta * r1 / (r1 - r2);
+            let c1 = delta - c2;
+            to - c1 * (r1 * t).exp() - c2 * (r2 * t).exp()
+        }
+    } else {
+        let omega_d = omega * (1.0 - zeta * zeta).sqrt();
+        let decay = (-omega * zeta * t).exp();
+        let cos_term = (omega_d * t).cos();
+        let sin_term = (omega_d * t).sin();
+        to - delta * decay * (cos_term + (zeta * omega / omega_d) * sin_term)
+    }
+}
+
+// Note: Constant<Transform2D> uses blanket impl from rhizome_resin_motion_fn
+
+// -- Lerp<Transform2D> --
+
+impl Motion<Transform2D> for Lerp<Transform2D> {
+    fn at(&self, t: f32) -> Transform2D {
+        let progress = (t / self.duration).clamp(0.0, 1.0);
+        self.from.lerp(&self.to, progress)
+    }
+}
+
+// -- Eased<Transform2D> --
+
+impl Motion<Transform2D> for Eased<Transform2D> {
+    fn at(&self, t: f32) -> Transform2D {
+        let linear = (t / self.duration).clamp(0.0, 1.0);
+        let eased = self.easing.apply(linear);
+        self.from.lerp(&self.to, eased)
+    }
+}
+
+// -- Spring<Transform2D> --
+
+impl Motion<Transform2D> for Spring<Transform2D> {
+    fn at(&self, t: f32) -> Transform2D {
+        Transform2D {
+            position: Vec2::new(
+                spring_value(
+                    self.from.position.x,
+                    self.to.position.x,
+                    self.stiffness,
+                    self.damping,
+                    t,
+                ),
+                spring_value(
+                    self.from.position.y,
+                    self.to.position.y,
+                    self.stiffness,
+                    self.damping,
+                    t,
+                ),
+            ),
+            anchor: Vec2::new(
+                spring_value(
+                    self.from.anchor.x,
+                    self.to.anchor.x,
+                    self.stiffness,
+                    self.damping,
+                    t,
+                ),
+                spring_value(
+                    self.from.anchor.y,
+                    self.to.anchor.y,
+                    self.stiffness,
+                    self.damping,
+                    t,
+                ),
+            ),
+            rotation: spring_value(
+                self.from.rotation,
+                self.to.rotation,
+                self.stiffness,
+                self.damping,
+                t,
+            ),
+            scale: Vec2::new(
+                spring_value(
+                    self.from.scale.x,
+                    self.to.scale.x,
+                    self.stiffness,
+                    self.damping,
+                    t,
+                ),
+                spring_value(
+                    self.from.scale.y,
+                    self.to.scale.y,
+                    self.stiffness,
+                    self.damping,
+                    t,
+                ),
+            ),
+            skew: spring_value(
+                self.from.skew,
+                self.to.skew,
+                self.stiffness,
+                self.damping,
+                t,
+            ),
+            skew_axis: spring_value(
+                self.from.skew_axis,
+                self.to.skew_axis,
+                self.stiffness,
+                self.damping,
+                t,
+            ),
+        }
+    }
+}
+
+// ============================================================================
+// Motion implementations for LinearTransform2D
+// ============================================================================
+
+// Note: Constant<LinearTransform2D> uses blanket impl from rhizome_resin_motion_fn
+
+// -- Lerp<LinearTransform2D> --
+
+impl Motion<LinearTransform2D> for Lerp<LinearTransform2D> {
+    fn at(&self, t: f32) -> LinearTransform2D {
+        let progress = (t / self.duration).clamp(0.0, 1.0);
+        self.from.lerp(&self.to, progress)
+    }
+}
+
+// -- Eased<LinearTransform2D> --
+
+impl Motion<LinearTransform2D> for Eased<LinearTransform2D> {
+    fn at(&self, t: f32) -> LinearTransform2D {
+        let linear = (t / self.duration).clamp(0.0, 1.0);
+        let eased = self.easing.apply(linear);
+        self.from.lerp(&self.to, eased)
+    }
+}
+
+// -- Spring<LinearTransform2D> --
+
+impl Motion<LinearTransform2D> for Spring<LinearTransform2D> {
+    fn at(&self, t: f32) -> LinearTransform2D {
+        // Handle rotation wraparound for shortest path
+        let mut delta_rotation = self.to.rotation - self.from.rotation;
+        while delta_rotation > std::f32::consts::PI {
+            delta_rotation -= std::f32::consts::TAU;
+        }
+        while delta_rotation < -std::f32::consts::PI {
+            delta_rotation += std::f32::consts::TAU;
+        }
+        let target_rotation = self.from.rotation + delta_rotation;
+
+        LinearTransform2D {
+            rotation: spring_value(
+                self.from.rotation,
+                target_rotation,
+                self.stiffness,
+                self.damping,
+                t,
+            ),
+            scale: Vec2::new(
+                spring_value(
+                    self.from.scale.x,
+                    self.to.scale.x,
+                    self.stiffness,
+                    self.damping,
+                    t,
+                ),
+                spring_value(
+                    self.from.scale.y,
+                    self.to.scale.y,
+                    self.stiffness,
+                    self.damping,
+                    t,
+                ),
+            ),
+        }
+    }
+}
+
+// -- Oscillate for transforms --
+
+/// Oscillating transform around a center transform.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct OscillateTransform2D {
+    /// Center transform.
+    pub center: Transform2D,
+    /// Amplitude for each component.
+    pub amplitude: TransformAmplitude,
+    /// Frequency in Hz.
+    pub frequency: f32,
+    /// Phase offset in radians.
+    pub phase: f32,
+}
+
+/// Amplitude values for transform oscillation.
+#[derive(Debug, Clone, PartialEq, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct TransformAmplitude {
+    pub position: Vec2,
+    pub rotation: f32,
+    pub scale: Vec2,
+    pub skew: f32,
+}
+
+impl TransformAmplitude {
+    /// No amplitude (static).
+    pub fn zero() -> Self {
+        Self::default()
+    }
+
+    /// Position only.
+    pub fn position(amplitude: Vec2) -> Self {
+        Self {
+            position: amplitude,
+            ..Default::default()
+        }
+    }
+
+    /// Rotation only.
+    pub fn rotation(amplitude: f32) -> Self {
+        Self {
+            rotation: amplitude,
+            ..Default::default()
+        }
+    }
+
+    /// Scale only.
+    pub fn scale(amplitude: Vec2) -> Self {
+        Self {
+            scale: amplitude,
+            ..Default::default()
+        }
+    }
+}
+
+impl OscillateTransform2D {
+    /// Creates a new oscillating transform.
+    pub fn new(
+        center: Transform2D,
+        amplitude: TransformAmplitude,
+        frequency: f32,
+        phase: f32,
+    ) -> Self {
+        Self {
+            center,
+            amplitude,
+            frequency,
+            phase,
+        }
+    }
+}
+
+impl Motion<Transform2D> for OscillateTransform2D {
+    fn at(&self, t: f32) -> Transform2D {
+        let angle = std::f32::consts::TAU * self.frequency * t + self.phase;
+        let sin = angle.sin();
+
+        Transform2D {
+            position: self.center.position + self.amplitude.position * sin,
+            anchor: self.center.anchor,
+            rotation: self.center.rotation + self.amplitude.rotation * sin,
+            scale: self.center.scale + self.amplitude.scale * sin,
+            skew: self.center.skew + self.amplitude.skew * sin,
+            skew_axis: self.center.skew_axis,
+        }
+    }
+}
+
+/// Oscillating linear transform.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct OscillateLinearTransform2D {
+    /// Center transform.
+    pub center: LinearTransform2D,
+    /// Rotation amplitude.
+    pub rotation_amplitude: f32,
+    /// Scale amplitude.
+    pub scale_amplitude: Vec2,
+    /// Frequency in Hz.
+    pub frequency: f32,
+    /// Phase offset in radians.
+    pub phase: f32,
+}
+
+impl OscillateLinearTransform2D {
+    /// Creates a new oscillating linear transform.
+    pub fn new(
+        center: LinearTransform2D,
+        rotation_amplitude: f32,
+        scale_amplitude: Vec2,
+        frequency: f32,
+        phase: f32,
+    ) -> Self {
+        Self {
+            center,
+            rotation_amplitude,
+            scale_amplitude,
+            frequency,
+            phase,
+        }
+    }
+}
+
+impl Motion<LinearTransform2D> for OscillateLinearTransform2D {
+    fn at(&self, t: f32) -> LinearTransform2D {
+        let angle = std::f32::consts::TAU * self.frequency * t + self.phase;
+        let sin = angle.sin();
+
+        LinearTransform2D {
+            rotation: self.center.rotation + self.rotation_amplitude * sin,
+            scale: self.center.scale + self.scale_amplitude * sin,
+        }
+    }
+}
+
+// -- Wiggle for transforms --
+
+/// Noise-based random transform motion.
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct WiggleTransform2D {
+    /// Center transform.
+    pub center: Transform2D,
+    /// Maximum deviation for each component.
+    pub amplitude: TransformAmplitude,
+    /// Speed of the wiggle.
+    pub frequency: f32,
+    /// Seed for noise generation.
+    pub seed: f32,
+}
+
+impl WiggleTransform2D {
+    /// Creates a new wiggling transform.
+    pub fn new(
+        center: Transform2D,
+        amplitude: TransformAmplitude,
+        frequency: f32,
+        seed: f32,
+    ) -> Self {
+        Self {
+            center,
+            amplitude,
+            frequency,
+            seed,
+        }
+    }
+}
+
+impl Motion<Transform2D> for WiggleTransform2D {
+    fn at(&self, t: f32) -> Transform2D {
+        use rhizome_resin_noise::perlin2;
+
+        let noise_pos_x = perlin2(t * self.frequency, self.seed) * 2.0 - 1.0;
+        let noise_pos_y = perlin2(t * self.frequency, self.seed + 100.0) * 2.0 - 1.0;
+        let noise_rot = perlin2(t * self.frequency, self.seed + 200.0) * 2.0 - 1.0;
+        let noise_scale_x = perlin2(t * self.frequency, self.seed + 300.0) * 2.0 - 1.0;
+        let noise_scale_y = perlin2(t * self.frequency, self.seed + 400.0) * 2.0 - 1.0;
+        let noise_skew = perlin2(t * self.frequency, self.seed + 500.0) * 2.0 - 1.0;
+
+        Transform2D {
+            position: self.center.position
+                + Vec2::new(
+                    self.amplitude.position.x * noise_pos_x,
+                    self.amplitude.position.y * noise_pos_y,
+                ),
+            anchor: self.center.anchor,
+            rotation: self.center.rotation + self.amplitude.rotation * noise_rot,
+            scale: self.center.scale
+                + Vec2::new(
+                    self.amplitude.scale.x * noise_scale_x,
+                    self.amplitude.scale.y * noise_scale_y,
+                ),
+            skew: self.center.skew + self.amplitude.skew * noise_skew,
+            skew_axis: self.center.skew_axis,
+        }
+    }
+}
+
+/// Noise-based random linear transform motion.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct WiggleLinearTransform2D {
+    /// Center transform.
+    pub center: LinearTransform2D,
+    /// Rotation amplitude.
+    pub rotation_amplitude: f32,
+    /// Scale amplitude.
+    pub scale_amplitude: Vec2,
+    /// Speed of the wiggle.
+    pub frequency: f32,
+    /// Seed for noise generation.
+    pub seed: f32,
+}
+
+impl WiggleLinearTransform2D {
+    /// Creates a new wiggling linear transform.
+    pub fn new(
+        center: LinearTransform2D,
+        rotation_amplitude: f32,
+        scale_amplitude: Vec2,
+        frequency: f32,
+        seed: f32,
+    ) -> Self {
+        Self {
+            center,
+            rotation_amplitude,
+            scale_amplitude,
+            frequency,
+            seed,
+        }
+    }
+}
+
+impl Motion<LinearTransform2D> for WiggleLinearTransform2D {
+    fn at(&self, t: f32) -> LinearTransform2D {
+        use rhizome_resin_noise::perlin2;
+
+        let noise_rot = perlin2(t * self.frequency, self.seed) * 2.0 - 1.0;
+        let noise_scale_x = perlin2(t * self.frequency, self.seed + 100.0) * 2.0 - 1.0;
+        let noise_scale_y = perlin2(t * self.frequency, self.seed + 200.0) * 2.0 - 1.0;
+
+        LinearTransform2D {
+            rotation: self.center.rotation + self.rotation_amplitude * noise_rot,
+            scale: self.center.scale
+                + Vec2::new(
+                    self.scale_amplitude.x * noise_scale_x,
+                    self.scale_amplitude.y * noise_scale_y,
+                ),
+        }
+    }
+}
+
+// ============================================================================
 // Tests
 // ============================================================================
 
@@ -782,5 +1467,309 @@ mod tests {
 
         assert_eq!(parsed.layers.len(), 1);
         assert_eq!(parsed.layers[0].name, "test");
+    }
+
+    // ========================================================================
+    // LinearTransform2D tests
+    // ========================================================================
+
+    #[test]
+    fn test_linear_transform_identity() {
+        let t = LinearTransform2D::identity();
+        let point = Vec2::new(10.0, 20.0);
+        let result = t.transform_point(point);
+        assert!((result - point).length() < 0.001);
+    }
+
+    #[test]
+    fn test_linear_transform_rotation() {
+        let t = LinearTransform2D::from_rotation(std::f32::consts::FRAC_PI_2);
+        let point = Vec2::new(1.0, 0.0);
+        let result = t.transform_point(point);
+        assert!(
+            (result - Vec2::new(0.0, 1.0)).length() < 0.001,
+            "Expected (0, 1), got {:?}",
+            result
+        );
+    }
+
+    #[test]
+    fn test_linear_transform_scale() {
+        let t = LinearTransform2D::from_scale_xy(Vec2::new(2.0, 3.0));
+        let point = Vec2::new(10.0, 10.0);
+        let result = t.transform_point(point);
+        assert!((result - Vec2::new(20.0, 30.0)).length() < 0.001);
+    }
+
+    #[test]
+    fn test_linear_transform_reflect_x() {
+        let t = LinearTransform2D::reflect_x();
+        let point = Vec2::new(1.0, 1.0);
+        let result = t.transform_point(point);
+        assert!(
+            (result - Vec2::new(1.0, -1.0)).length() < 0.001,
+            "Expected (1, -1), got {:?}",
+            result
+        );
+        assert!(t.has_reflection());
+    }
+
+    #[test]
+    fn test_linear_transform_reflect_y() {
+        let t = LinearTransform2D::reflect_y();
+        let point = Vec2::new(1.0, 1.0);
+        let result = t.transform_point(point);
+        assert!(
+            (result - Vec2::new(-1.0, 1.0)).length() < 0.001,
+            "Expected (-1, 1), got {:?}",
+            result
+        );
+        assert!(t.has_reflection());
+    }
+
+    #[test]
+    fn test_linear_transform_from_matrix_rotation() {
+        use glam::Mat2;
+        let angle = 0.7;
+        let mat = Mat2::from_angle(angle);
+        let t = LinearTransform2D::from_matrix(mat);
+
+        assert!((t.rotation - angle).abs() < 0.001);
+        assert!((t.scale - Vec2::ONE).length() < 0.001);
+    }
+
+    #[test]
+    fn test_linear_transform_from_matrix_scale() {
+        use glam::Mat2;
+        let mat = Mat2::from_diagonal(Vec2::new(2.0, 3.0));
+        let t = LinearTransform2D::from_matrix(mat);
+
+        assert!(t.rotation.abs() < 0.001);
+        assert!((t.scale - Vec2::new(2.0, 3.0)).length() < 0.001);
+    }
+
+    #[test]
+    fn test_linear_transform_from_matrix_combined() {
+        use glam::Mat2;
+        let angle = 0.5;
+        let scale = Vec2::new(2.0, 1.5);
+        let mat = Mat2::from_angle(angle) * Mat2::from_diagonal(scale);
+        let t = LinearTransform2D::from_matrix(mat);
+
+        // Verify round-trip
+        let reconstructed = t.to_matrix();
+        let point = Vec2::new(1.0, 1.0);
+        let expected = mat * point;
+        let actual = reconstructed * point;
+        assert!(
+            (expected - actual).length() < 0.01,
+            "Expected {:?}, got {:?}",
+            expected,
+            actual
+        );
+    }
+
+    #[test]
+    fn test_linear_transform_lerp() {
+        let t1 = LinearTransform2D::from_rotation(0.0);
+        let t2 = LinearTransform2D::from_rotation(std::f32::consts::PI);
+        let mid = t1.lerp(&t2, 0.5);
+
+        assert!((mid.rotation - std::f32::consts::FRAC_PI_2).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_linear_transform_lerp_shortest_path() {
+        // Test that lerp takes shortest path around the circle
+        let t1 = LinearTransform2D::from_rotation(0.1);
+        let t2 = LinearTransform2D::from_rotation(-0.1);
+        let mid = t1.lerp(&t2, 0.5);
+
+        // Should interpolate through 0, not through π
+        assert!(mid.rotation.abs() < 0.001);
+    }
+
+    #[test]
+    fn test_linear_transform_inverse_uniform_scale() {
+        // Uniform scale + rotation inverts cleanly
+        let t = LinearTransform2D::new(0.5, Vec2::splat(2.0));
+        let inv = t.inverse().unwrap();
+
+        let point = Vec2::new(1.0, 1.0);
+        let transformed = t.transform_point(point);
+        let back = inv.transform_point(transformed);
+
+        assert!(
+            (back - point).length() < 0.01,
+            "Expected {:?}, got {:?}",
+            point,
+            back
+        );
+    }
+
+    #[test]
+    fn test_linear_transform_inverse_no_rotation() {
+        // Non-uniform scale without rotation inverts cleanly
+        let t = LinearTransform2D::from_scale_xy(Vec2::new(2.0, 3.0));
+        let inv = t.inverse().unwrap();
+
+        let point = Vec2::new(1.0, 1.0);
+        let transformed = t.transform_point(point);
+        let back = inv.transform_point(transformed);
+
+        assert!(
+            (back - point).length() < 0.01,
+            "Expected {:?}, got {:?}",
+            point,
+            back
+        );
+    }
+
+    #[test]
+    fn test_linear_transform_inverse_matrix_roundtrip() {
+        // Test that matrix inverse is correct even if decomposition differs
+        let t = LinearTransform2D::new(0.5, Vec2::new(2.0, 3.0));
+        let mat = t.to_matrix();
+        let inv_mat = mat.inverse();
+
+        let point = Vec2::new(1.0, 1.0);
+        let transformed = mat * point;
+        let back = inv_mat * transformed;
+
+        assert!(
+            (back - point).length() < 0.01,
+            "Matrix inverse failed: expected {:?}, got {:?}",
+            point,
+            back
+        );
+    }
+
+    #[test]
+    fn test_linear_transform_determinant() {
+        let t = LinearTransform2D::new(0.5, Vec2::new(2.0, 3.0));
+        assert!((t.determinant() - 6.0).abs() < 0.001);
+
+        let reflected = LinearTransform2D::reflect_x();
+        assert!(reflected.determinant() < 0.0);
+    }
+
+    // ========================================================================
+    // Motion<Transform2D> tests
+    // ========================================================================
+
+    #[test]
+    fn test_motion_transform2d_lerp() {
+        let from = Transform2D::from_position(Vec2::ZERO);
+        let to = Transform2D::from_position(Vec2::new(100.0, 100.0));
+        let motion = Lerp::new(from, to, 1.0);
+
+        let at_half: Transform2D = motion.at(0.5);
+        assert!((at_half.position - Vec2::new(50.0, 50.0)).length() < 0.001);
+    }
+
+    #[test]
+    fn test_motion_transform2d_eased() {
+        let from = Transform2D::new().with_scale(1.0);
+        let to = Transform2D::new().with_scale(2.0);
+        let motion = Eased::new(from, to, 1.0, EasingType::QuadInOut);
+
+        let at_start: Transform2D = motion.at(0.0);
+        let at_end: Transform2D = motion.at(1.0);
+
+        assert!((at_start.scale.x - 1.0).abs() < 0.001);
+        assert!((at_end.scale.x - 2.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_motion_transform2d_spring() {
+        let from = Transform2D::from_position(Vec2::ZERO);
+        let to = Transform2D::from_position(Vec2::new(100.0, 0.0));
+        let motion = Spring::critical(from, to, 300.0);
+
+        // Spring should approach target over time
+        let at_1s: Transform2D = motion.at(1.0);
+        assert!(
+            (at_1s.position.x - 100.0).abs() < 5.0,
+            "Spring should be near target at t=1, got {:?}",
+            at_1s.position
+        );
+    }
+
+    #[test]
+    fn test_oscillate_transform2d() {
+        let center = Transform2D::from_position(Vec2::new(100.0, 100.0));
+        let amplitude = TransformAmplitude::position(Vec2::new(50.0, 0.0));
+        let motion = OscillateTransform2D::new(center, amplitude, 1.0, 0.0);
+
+        let at_quarter: Transform2D = motion.at(0.25); // sin(π/2) = 1
+        assert!(
+            (at_quarter.position.x - 150.0).abs() < 0.01,
+            "Expected x=150, got {:?}",
+            at_quarter.position.x
+        );
+    }
+
+    #[test]
+    fn test_wiggle_transform2d() {
+        let center = Transform2D::from_position(Vec2::new(100.0, 100.0));
+        let amplitude = TransformAmplitude::position(Vec2::new(10.0, 10.0));
+        let motion = WiggleTransform2D::new(center, amplitude, 1.0, 42.0);
+
+        // Wiggle should produce values within amplitude range
+        let sample: Transform2D = motion.at(0.5);
+        assert!((sample.position.x - 100.0).abs() <= 10.0);
+        assert!((sample.position.y - 100.0).abs() <= 10.0);
+    }
+
+    // ========================================================================
+    // Motion<LinearTransform2D> tests
+    // ========================================================================
+
+    #[test]
+    fn test_motion_linear_lerp() {
+        let from = LinearTransform2D::from_rotation(0.0);
+        let to = LinearTransform2D::from_rotation(1.0);
+        let motion = Lerp::new(from, to, 1.0);
+
+        let at_half: LinearTransform2D = motion.at(0.5);
+        assert!((at_half.rotation - 0.5).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_motion_linear_spring() {
+        let from = LinearTransform2D::from_scale(1.0);
+        let to = LinearTransform2D::from_scale(2.0);
+        let motion = Spring::critical(from, to, 300.0);
+
+        let at_1s: LinearTransform2D = motion.at(1.0);
+        assert!(
+            (at_1s.scale.x - 2.0).abs() < 0.1,
+            "Spring should be near target at t=1, got {:?}",
+            at_1s.scale
+        );
+    }
+
+    #[test]
+    fn test_oscillate_linear() {
+        let center = LinearTransform2D::from_rotation(0.0);
+        let motion = OscillateLinearTransform2D::new(center, 0.5, Vec2::ZERO, 1.0, 0.0);
+
+        let at_quarter: LinearTransform2D = motion.at(0.25);
+        assert!(
+            (at_quarter.rotation - 0.5).abs() < 0.01,
+            "Expected rotation=0.5, got {:?}",
+            at_quarter.rotation
+        );
+    }
+
+    #[test]
+    fn test_wiggle_linear() {
+        let center = LinearTransform2D::identity();
+        let motion = WiggleLinearTransform2D::new(center, 0.1, Vec2::new(0.1, 0.1), 1.0, 42.0);
+
+        let sample: LinearTransform2D = motion.at(0.5);
+        assert!(sample.rotation.abs() <= 0.1);
+        assert!((sample.scale.x - 1.0).abs() <= 0.1);
+        assert!((sample.scale.y - 1.0).abs() <= 0.1);
     }
 }
