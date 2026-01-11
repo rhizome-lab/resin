@@ -20,6 +20,7 @@ docs/.vitepress/dist/
 # Moss
 .moss/*
 !.moss/config.toml
+!.moss/complexity-allow
 !.moss/duplicate-functions-allow
 !.moss/duplicate-types-allow
 !.moss/hotspots-allow

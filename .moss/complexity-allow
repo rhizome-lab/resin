@@ -1,0 +1,29 @@
+crates/resin-vector/src/svg.rs:arc_to_cubics  # Standard SVG arc-to-cubic algorithm, math interconnected
+crates/resin-noise/src/lib.rs:simplex3  # Simplex noise algorithm with lookup tables
+crates/resin-noise/src/lib.rs:simplex2  # Simplex noise algorithm with lookup tables
+crates/resin-mesh/src/marching_cubes.rs:marching_cubes  # Classic isosurface algorithm with lookup tables
+crates/resin-image/src/lib.rs:patchmatch_iteration  # PatchMatch research algorithm
+crates/resin-mesh/src/sdf.rs:point_triangle_distance  # Geometry with documented edge cases (regions 0-6)
+crates/resin-physics/src/cloth.rs:query_collision  # Cloth collision requires many collision type cases
+crates/resin-voxel/src/lib.rs:voxels_to_mesh  # Greedy meshing algorithm complexity
+crates/resin-scatter/src/lib.rs:scatter_poisson_2d  # Bridson's Poisson disk sampling algorithm
+crates/resin-mesh/src/lattice.rs:twist_lattice  # FFD deformation math
+crates/resin-vector/src/hatching.rs:clip_line_to_rect  # Cohen-Sutherland line clipping algorithm
+crates/resin-mesh/src/curvature.rs:mean_curvature  # Discrete differential geometry calculation
+crates/resin-vector/src/svg.rs:parse_path_data  # SVG parser with 10 command variants
+crates/resin-vector/src/rasterize.rs:composite_mask  # Rasterization compositing modes
+crates/resin-vector/src/path.rs:rounded_rect_corners  # 4 corners with clear sequential structure
+crates/resin-mesh/src/geodesic.rs:solve_triangle_update  # Fast marching method math
+crates/resin-vector/src/geometry.rs:circle_from_three_points  # Analytic geometry with degenerate cases
+crates/resin-mesh/src/obj.rs:import_obj_from_reader  # OBJ parser with many line types
+crates/resin-audio/src/spectral.rs:estimate_pitch  # Autocorrelation pitch detection algorithm
+crates/resin-vector/src/stroke.rs:offset_path  # Path offset with geometry edge cases
+crates/resin-vector/src/stroke.rs:stroke_to_path  # Stroke generation with cap/join handling
+crates/resin-field/src/lib.rs:hydraulic_erosion  # Terrain erosion simulation algorithm
+crates/resin-motion-fn/src/lib.rs:spring_value  # Spring physics analytical solution
+crates/resin-motion/src/lib.rs:spring_value  # Spring physics analytical solution (copy)
+crates/resin-vector/src/stroke.rs:trim_path  # Path trimming with segment interpolation
+crates/resin-field/src/lib.rs:thermal_erosion  # Terrain erosion simulation algorithm
+crates/resin-fluid/src/lib.rs:advect_3d  # Fluid advection algorithm
+crates/resin-noise/src/lib.rs:perlin3  # 3D Perlin noise algorithm
+crates/resin-mesh/src/architecture.rs:generate_stairs  # Procedural stair generation
