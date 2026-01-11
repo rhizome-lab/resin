@@ -135,13 +135,16 @@
 
 ### Complexity Hotspots
 
-> **Status:** ✅ Reviewed - all allowed in `.moss/complexity-allow`
+> **Status:** ✅ Reviewed - 57 functions allowed in `.moss/complexity-allow`
 
-29 high-complexity functions reviewed. All represent inherent algorithmic complexity:
-- Standard algorithms (simplex noise, marching cubes, PatchMatch, Poisson disk)
-- Parsers (SVG path, OBJ) with many command variants
-- Geometry functions with edge cases (arc-to-cubic, point-triangle distance)
-- Physics simulations (erosion, fluid advection, spring dynamics)
+All high-complexity library functions reviewed. Complexity reflects inherent algorithmic needs:
+- Noise/mesh algorithms (simplex, marching cubes, subdivision, remeshing)
+- Physics simulations (fluid, cloth, soft body, erosion)
+- Audio processing (FFT, time-stretch, room acoustics, pitch detection)
+- Geometry (arc-to-cubic, Delaunay, clipping, IK solvers)
+- Parsers (SVG path, OBJ) and procedural generation (mazes, roads, architecture)
+
+Only `examples/*/main` functions remain above threshold (intentionally verbose).
 
 ### Architecture / Future Extraction
 
