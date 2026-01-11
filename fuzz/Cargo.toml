@@ -1,0 +1,45 @@
+[package]
+name = "resin-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+
+# Crates to fuzz
+rhizome-resin-vector = { path = "../crates/resin-vector" }
+rhizome-resin-mesh = { path = "../crates/resin-mesh" }
+rhizome-resin-audio = { path = "../crates/resin-audio" }
+
+[[bin]]
+name = "svg_path"
+path = "fuzz_targets/svg_path.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "obj_import"
+path = "fuzz_targets/obj_import.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "wav_parse"
+path = "fuzz_targets/wav_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "midi_note"
+path = "fuzz_targets/midi_note.rs"
+test = false
+doc = false
+bench = false
