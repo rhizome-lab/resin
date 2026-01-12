@@ -120,6 +120,9 @@
 - [x] Inpainting - diffusion-based fill, multi-scale PatchMatch (inpaint_diffusion, inpaint_patchmatch, create_color_key_mask, dilate_mask)
 - [x] Image pyramid - downsample/upsample, coarse-to-fine processing (downsample, upsample, ImagePyramid, resize)
 - [x] Color adjustments - levels, curves, hue/saturation, color balance (adjust_levels, adjust_brightness_contrast, adjust_hsl, grayscale, invert, posterize, threshold)
+- [x] Color matrix - linear RGBA transforms (grayscale, sepia, channel mixing) (color_matrix)
+- [x] Position transform - 2D affine transforms on pixel positions (rotate, scale, translate) (transform_image, TransformConfig)
+- [x] LUT support - 1D per-channel curves and 3D trilinear color grading (Lut1D, Lut3D, apply_lut_1d, apply_lut_3d)
 
 ### Audio
 
@@ -129,10 +132,10 @@
 
 ### Audio Effects (guitar pedals / studio)
 
-- [ ] Compressor - dynamic range compression with attack/release/threshold/ratio
-- [ ] Limiter - brickwall limiting, lookahead
-- [ ] Noise gate - threshold-based gating with attack/hold/release
-- [ ] Bitcrusher - bit depth reduction, sample rate reduction
+- [x] Compressor - dynamic range compression with attack/release/threshold/ratio (Compressor)
+- [x] Limiter - brickwall limiting, lookahead (Limiter)
+- [x] Noise gate - threshold-based gating with attack/hold/release (NoiseGate)
+- [x] Bitcrusher - bit depth reduction, sample rate reduction (Bitcrusher)
 - [ ] Wah-wah - envelope follower + bandpass, auto-wah
 - [ ] Octaver - pitch tracking, sub-octave generation
 - [ ] Pitch shifter - real-time pitch shifting (simple, not time-stretch)
