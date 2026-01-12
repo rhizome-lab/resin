@@ -34,6 +34,56 @@
 
 ## Backlog
 
+### Constructive Modeling (Blender-style workflow)
+
+> **Goal:** Interactive mesh editing - start from primitive, select elements, transform, extrude, etc.
+
+**Primitives:**
+- [ ] Cylinder primitive - `cylinder(radius, height, segments)`
+- [ ] Cone primitive - `cone(radius, height, segments)`
+- [ ] Torus primitive - `torus(major_radius, minor_radius, major_segments, minor_segments)`
+- [ ] Pyramid primitive - `pyramid(base_size, height)`
+- [ ] Icosphere primitive - `icosphere(subdivisions)` (geodesic sphere)
+- [ ] Plane/grid primitive - `plane(width, height, subdivisions_x, subdivisions_y)`
+
+**Selection System:**
+- [ ] MeshSelection struct - store selected vertices/edges/faces as index sets
+- [ ] Selection modes - vertex, edge, face selection
+- [ ] Selection operations - select_all, deselect_all, invert_selection
+- [ ] Selection expansion - grow_selection, shrink_selection, select_linked
+- [ ] Selection by trait - select_by_normal, select_by_area, select_random
+- [ ] Soft selection / proportional editing - falloff weights for smooth transforms
+
+**Face Operations:**
+- [ ] Extrude faces - `extrude_faces(selection, amount)` with new side faces
+- [ ] Inset faces - `inset_faces(selection, amount, depth)` individual face inset
+- [ ] Scale faces - `scale_faces(selection, factor)` scale around face centers
+- [ ] Delete faces - `delete_faces(selection)` with cleanup options (verts, edges)
+- [ ] Subdivide faces - `subdivide_faces(selection)` selective subdivision
+- [ ] Poke faces - `poke_faces(selection)` add vertex at face center
+- [ ] Triangulate faces - `triangulate_faces(selection)` convert quads to tris
+
+**Edge Operations:**
+- [ ] Bridge edge loops - `bridge_edges(loop1, loop2)` connect two edge loops
+- [ ] Edge slide - `slide_edges(selection, factor)` slide along adjacent faces
+- [ ] Edge crease - `crease_edges(selection, weight)` for subdivision control
+- [ ] Knife/cut - `knife_cut(path)` cut through mesh with arbitrary path
+- [ ] Edge split - `split_edges(selection)` duplicate edges (hard edge)
+
+**Vertex Operations:**
+- [ ] Transform vertices - `transform_vertices(selection, matrix)` arbitrary transform
+- [ ] Merge vertices - `merge_vertices(selection, mode)` at center/cursor/collapse
+- [ ] Rip vertices - `rip_vertices(selection)` disconnect from adjacent faces
+- [ ] Smooth vertices - `smooth_vertices(selection, factor)` relax positions
+
+**Subdivision:**
+- [ ] Catmull-Clark subdivision - `subdivide_catmull_clark(mesh, levels)`
+- [ ] Selective subdivision - `subdivide_selected(selection, method)`
+
+**Edit History:**
+- [ ] MeshEditStack - undo/redo stack for mesh operations
+- [ ] Snapshot/restore - efficient mesh state serialization
+
 ### Geometry / Mesh
 
 - [x] Terrain generation - heightfield, hydraulic/thermal erosion (Heightfield, HydraulicErosion, ThermalErosion)
