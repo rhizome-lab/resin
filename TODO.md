@@ -127,6 +127,32 @@
 - [x] Room acoustics simulation - image-source early reflections (RoomAcoustics, calculate_early_reflections, generate_ir)
 - [x] Synthesizer patch system - preset save/load, modulation routing (SynthPatch, PatchBank, ModRouting)
 
+### Audio Effects (guitar pedals / studio)
+
+- [ ] Compressor - dynamic range compression with attack/release/threshold/ratio
+- [ ] Limiter - brickwall limiting, lookahead
+- [ ] Noise gate - threshold-based gating with attack/hold/release
+- [ ] Bitcrusher - bit depth reduction, sample rate reduction
+- [ ] Wah-wah - envelope follower + bandpass, auto-wah
+- [ ] Octaver - pitch tracking, sub-octave generation
+- [ ] Pitch shifter - real-time pitch shifting (simple, not time-stretch)
+- [ ] Ring modulator - carrier frequency modulation
+- [ ] Parametric EQ - multi-band with Q control
+- [ ] Graphic EQ - fixed frequency bands
+- [ ] Cabinet simulation - speaker impulse responses, mic placement
+
+### Glitch Art (image/video)
+
+- [ ] Pixel sorting - sort pixels by brightness/hue/saturation along rows/columns
+- [ ] RGB channel shift - independent X/Y offset per channel
+- [ ] Scan lines - CRT-style horizontal lines with configurable gap/intensity
+- [ ] JPEG artifacts - DCT block corruption, quantization artifacts
+- [ ] Static/noise overlay - TV static, film grain, digital noise
+- [ ] VHS tracking - horizontal displacement bands, color bleeding
+- [ ] Bit manipulation - XOR/AND/OR on raw pixel bytes
+- [ ] Datamosh (video) - P-frame/I-frame manipulation, motion vector corruption
+- [ ] Corrupt bytes - random byte insertion/deletion/swap in image data
+
 ### 2D Vector
 
 - [x] Curve booleans - proper path intersection with winding rules (FillRule, winding_number, path_xor_multi)
@@ -198,6 +224,13 @@ Only `examples/*/main` functions remain above threshold (intentionally verbose).
 
 - [ ] Scene graph generalization - evaluate if resin-motion's scene graph should be extracted to resin-scene for general use (2D/3D hierarchy, transforms, parent-child relationships)
 - [ ] Expression AST extensibility - figure out how users can add custom functions to MotionExpr/FieldExpr without forking
+
+### Extensibility / User-Defined Processing
+
+- [ ] Arbitrary shaders - user-provided WGSL/GLSL for image/field processing via resin-gpu
+- [ ] Arbitrary waveform manipulation - user-defined sample-by-sample audio processing (Fn(f32) -> f32)
+- [ ] Custom field functions - user-defined Field<I, O> implementations without forking
+- [ ] Plugin system - dynamic loading of user effects (.so/.dll/.dylib)
 
 ### Motion Graphics
 
