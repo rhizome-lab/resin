@@ -20,8 +20,9 @@ pub mod vocoder;
 pub mod wav;
 
 pub use effects::{
-    Chorus, Convolution, ConvolutionConfig, ConvolutionReverb, Distortion, DistortionMode, Flanger,
-    Phaser, Reverb, Tremolo, convolution_reverb, generate_room_ir,
+    Bitcrusher, Chorus, Compressor, Convolution, ConvolutionConfig, ConvolutionReverb, Distortion,
+    DistortionMode, Flanger, Limiter, NoiseGate, Phaser, Reverb, Tremolo, convolution_reverb,
+    generate_room_ir,
 };
 pub use envelope::{Adsr, AdsrState, Ar, Lfo, LfoWaveform};
 pub use filter::{

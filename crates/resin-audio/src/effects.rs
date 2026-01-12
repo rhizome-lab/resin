@@ -1069,6 +1069,404 @@ fn simple_hash(x: u32) -> u32 {
     h
 }
 
+// ============================================================================
+// Compressor
+// ============================================================================
+
+/// Dynamic range compressor.
+///
+/// Reduces the dynamic range of audio by attenuating signals above a threshold.
+/// Essential for mixing, mastering, and controlling transients.
+///
+/// # Example
+///
+/// ```
+/// use rhizome_resin_audio::effects::Compressor;
+///
+/// let mut comp = Compressor::new(44100.0);
+/// comp.threshold = -20.0; // dB
+/// comp.ratio = 4.0;       // 4:1 compression
+/// comp.attack = 0.01;     // 10ms attack
+/// comp.release = 0.1;     // 100ms release
+///
+/// let compressed = comp.process(0.8);
+/// ```
+pub struct Compressor {
+    /// Threshold in dB (signals above this are compressed).
+    pub threshold: f32,
+    /// Compression ratio (e.g., 4.0 means 4:1).
+    pub ratio: f32,
+    /// Attack time in seconds.
+    pub attack: f32,
+    /// Release time in seconds.
+    pub release: f32,
+    /// Makeup gain in dB.
+    pub makeup_gain: f32,
+    /// Knee width in dB (0 = hard knee).
+    pub knee: f32,
+    /// Current envelope level.
+    envelope: f32,
+    /// Sample rate.
+    sample_rate: f32,
+}
+
+impl Compressor {
+    /// Creates a new compressor with default settings.
+    pub fn new(sample_rate: f32) -> Self {
+        Self {
+            threshold: -20.0,
+            ratio: 4.0,
+            attack: 0.01,
+            release: 0.1,
+            makeup_gain: 0.0,
+            knee: 0.0,
+            envelope: 0.0,
+            sample_rate,
+        }
+    }
+
+    /// Processes a single sample.
+    pub fn process(&mut self, input: f32) -> f32 {
+        // Convert to dB
+        let input_db = if input.abs() > 1e-10 {
+            20.0 * input.abs().log10()
+        } else {
+            -100.0
+        };
+
+        // Calculate gain reduction
+        let gain_db = self.compute_gain(input_db);
+
+        // Smooth the gain with attack/release envelope
+        let target = gain_db;
+        let coeff = if target < self.envelope {
+            (-1.0 / (self.attack * self.sample_rate)).exp()
+        } else {
+            (-1.0 / (self.release * self.sample_rate)).exp()
+        };
+        self.envelope = coeff * self.envelope + (1.0 - coeff) * target;
+
+        // Apply gain reduction and makeup gain
+        let gain_linear = 10.0f32.powf((self.envelope + self.makeup_gain) / 20.0);
+        input * gain_linear
+    }
+
+    /// Computes gain reduction in dB for a given input level.
+    fn compute_gain(&self, input_db: f32) -> f32 {
+        if self.knee > 0.0 {
+            // Soft knee
+            let knee_start = self.threshold - self.knee / 2.0;
+            let knee_end = self.threshold + self.knee / 2.0;
+
+            if input_db < knee_start {
+                0.0
+            } else if input_db > knee_end {
+                (self.threshold - input_db) * (1.0 - 1.0 / self.ratio)
+            } else {
+                // Quadratic interpolation in knee region
+                let x = input_db - knee_start;
+                let slope = (1.0 - 1.0 / self.ratio) / (2.0 * self.knee);
+                -slope * x * x
+            }
+        } else {
+            // Hard knee
+            if input_db > self.threshold {
+                (self.threshold - input_db) * (1.0 - 1.0 / self.ratio)
+            } else {
+                0.0
+            }
+        }
+    }
+
+    /// Resets the envelope.
+    pub fn reset(&mut self) {
+        self.envelope = 0.0;
+    }
+}
+
+impl AudioNode for Compressor {
+    fn process(&mut self, input: f32, _ctx: &AudioContext) -> f32 {
+        Compressor::process(self, input)
+    }
+
+    fn reset(&mut self) {
+        Compressor::reset(self);
+    }
+}
+
+// ============================================================================
+// Limiter
+// ============================================================================
+
+/// Brickwall limiter with lookahead.
+///
+/// Prevents audio from exceeding a ceiling level. Uses lookahead to
+/// catch transients before they clip.
+pub struct Limiter {
+    /// Ceiling level in dB.
+    pub ceiling: f32,
+    /// Release time in seconds.
+    pub release: f32,
+    /// Lookahead time in samples.
+    lookahead_samples: usize,
+    /// Lookahead buffer.
+    lookahead_buffer: Vec<f32>,
+    /// Buffer write position.
+    write_pos: usize,
+    /// Current gain reduction.
+    gain: f32,
+    /// Sample rate.
+    sample_rate: f32,
+}
+
+impl Limiter {
+    /// Creates a new limiter with default settings.
+    pub fn new(sample_rate: f32) -> Self {
+        let lookahead_ms = 5.0;
+        let lookahead_samples = (lookahead_ms * sample_rate / 1000.0) as usize;
+
+        Self {
+            ceiling: -0.3,
+            release: 0.1,
+            lookahead_samples,
+            lookahead_buffer: vec![0.0; lookahead_samples],
+            write_pos: 0,
+            gain: 1.0,
+            sample_rate,
+        }
+    }
+
+    /// Sets lookahead time in milliseconds.
+    pub fn set_lookahead(&mut self, ms: f32) {
+        self.lookahead_samples = (ms * self.sample_rate / 1000.0) as usize;
+        self.lookahead_buffer = vec![0.0; self.lookahead_samples.max(1)];
+        self.write_pos = 0;
+    }
+
+    /// Processes a single sample.
+    pub fn process(&mut self, input: f32) -> f32 {
+        // Get delayed sample
+        let delayed = self.lookahead_buffer[self.write_pos];
+
+        // Store current sample
+        self.lookahead_buffer[self.write_pos] = input;
+        self.write_pos = (self.write_pos + 1) % self.lookahead_samples.max(1);
+
+        // Calculate required gain for ceiling
+        let ceiling_linear = 10.0f32.powf(self.ceiling / 20.0);
+
+        // Look ahead to find peak
+        let peak = self
+            .lookahead_buffer
+            .iter()
+            .map(|x| x.abs())
+            .fold(0.0f32, f32::max);
+
+        let target_gain = if peak > ceiling_linear {
+            ceiling_linear / peak
+        } else {
+            1.0
+        };
+
+        // Instant attack, smooth release
+        if target_gain < self.gain {
+            self.gain = target_gain;
+        } else {
+            let release_coeff = (-1.0 / (self.release * self.sample_rate)).exp();
+            self.gain = release_coeff * self.gain + (1.0 - release_coeff) * target_gain;
+        }
+
+        delayed * self.gain
+    }
+
+    /// Resets the limiter state.
+    pub fn reset(&mut self) {
+        self.lookahead_buffer.fill(0.0);
+        self.write_pos = 0;
+        self.gain = 1.0;
+    }
+}
+
+impl AudioNode for Limiter {
+    fn process(&mut self, input: f32, _ctx: &AudioContext) -> f32 {
+        Limiter::process(self, input)
+    }
+
+    fn reset(&mut self) {
+        Limiter::reset(self);
+    }
+}
+
+// ============================================================================
+// Noise Gate
+// ============================================================================
+
+/// Noise gate with attack, hold, and release.
+///
+/// Silences audio below a threshold level. Useful for removing background
+/// noise, leakage, or creating gated effects.
+pub struct NoiseGate {
+    /// Threshold in dB (signals below this are gated).
+    pub threshold: f32,
+    /// Attack time in seconds.
+    pub attack: f32,
+    /// Hold time in seconds (gate stays open after signal drops).
+    pub hold: f32,
+    /// Release time in seconds.
+    pub release: f32,
+    /// Range in dB (how much to attenuate, -inf for full gate).
+    pub range: f32,
+    /// Current gate state (0 = closed, 1 = open).
+    gate_level: f32,
+    /// Hold counter in samples.
+    hold_counter: usize,
+    /// Sample rate.
+    sample_rate: f32,
+}
+
+impl NoiseGate {
+    /// Creates a new noise gate with default settings.
+    pub fn new(sample_rate: f32) -> Self {
+        Self {
+            threshold: -40.0,
+            attack: 0.001,
+            hold: 0.05,
+            release: 0.1,
+            range: -80.0,
+            gate_level: 0.0,
+            hold_counter: 0,
+            sample_rate,
+        }
+    }
+
+    /// Processes a single sample.
+    pub fn process(&mut self, input: f32) -> f32 {
+        // Convert to dB
+        let input_db = if input.abs() > 1e-10 {
+            20.0 * input.abs().log10()
+        } else {
+            -100.0
+        };
+
+        // Determine target gate level
+        let target = if input_db > self.threshold {
+            self.hold_counter = (self.hold * self.sample_rate) as usize;
+            1.0
+        } else if self.hold_counter > 0 {
+            self.hold_counter -= 1;
+            1.0
+        } else {
+            0.0
+        };
+
+        // Smooth with attack/release
+        let coeff = if target > self.gate_level {
+            (-1.0 / (self.attack * self.sample_rate)).exp()
+        } else {
+            (-1.0 / (self.release * self.sample_rate)).exp()
+        };
+        self.gate_level = coeff * self.gate_level + (1.0 - coeff) * target;
+
+        // Apply gate with range
+        let range_linear = 10.0f32.powf(self.range / 20.0);
+        let gain = range_linear + self.gate_level * (1.0 - range_linear);
+        input * gain
+    }
+
+    /// Resets the gate state.
+    pub fn reset(&mut self) {
+        self.gate_level = 0.0;
+        self.hold_counter = 0;
+    }
+}
+
+impl AudioNode for NoiseGate {
+    fn process(&mut self, input: f32, _ctx: &AudioContext) -> f32 {
+        NoiseGate::process(self, input)
+    }
+
+    fn reset(&mut self) {
+        NoiseGate::reset(self);
+    }
+}
+
+// ============================================================================
+// Bitcrusher
+// ============================================================================
+
+/// Bitcrusher effect for lo-fi distortion.
+///
+/// Reduces bit depth and/or sample rate for crunchy, retro digital artifacts.
+///
+/// # Example
+///
+/// ```
+/// use rhizome_resin_audio::effects::Bitcrusher;
+///
+/// let mut crusher = Bitcrusher::new(44100.0);
+/// crusher.bits = 8;              // 8-bit audio
+/// crusher.downsample_rate = 8000.0; // Downsample to 8kHz
+///
+/// let crushed = crusher.process(0.5);
+/// ```
+pub struct Bitcrusher {
+    /// Bit depth (1-32).
+    pub bits: u32,
+    /// Target sample rate for downsampling.
+    pub downsample_rate: f32,
+    /// Current held sample (for downsampling).
+    held_sample: f32,
+    /// Phase accumulator for downsampling.
+    phase: f32,
+    /// Original sample rate.
+    sample_rate: f32,
+}
+
+impl Bitcrusher {
+    /// Creates a new bitcrusher with default settings.
+    pub fn new(sample_rate: f32) -> Self {
+        Self {
+            bits: 8,
+            downsample_rate: sample_rate,
+            held_sample: 0.0,
+            phase: 0.0,
+            sample_rate,
+        }
+    }
+
+    /// Processes a single sample.
+    pub fn process(&mut self, input: f32) -> f32 {
+        // Downsampling via sample-and-hold
+        self.phase += self.downsample_rate / self.sample_rate;
+        if self.phase >= 1.0 {
+            self.phase -= 1.0;
+            self.held_sample = input;
+        }
+
+        // Bit reduction
+        let levels = (1u32 << self.bits.min(31)) as f32;
+        let quantized = (self.held_sample * levels).round() / levels;
+
+        quantized
+    }
+
+    /// Resets the effect state.
+    pub fn reset(&mut self) {
+        self.held_sample = 0.0;
+        self.phase = 0.0;
+    }
+}
+
+impl AudioNode for Bitcrusher {
+    fn process(&mut self, input: f32, _ctx: &AudioContext) -> f32 {
+        Bitcrusher::process(self, input)
+    }
+
+    fn reset(&mut self) {
+        Bitcrusher::reset(self);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1326,5 +1724,118 @@ mod tests {
         assert!(out.is_finite());
 
         reverb.reset();
+    }
+
+    #[test]
+    fn test_compressor() {
+        let mut comp = Compressor::new(44100.0);
+        comp.threshold = -10.0;
+        comp.ratio = 4.0;
+
+        // Quiet signal should pass through mostly unchanged
+        let quiet = comp.process(0.1);
+        assert!(quiet.abs() < 0.2);
+
+        // Reset and test loud signal
+        comp.reset();
+        let mut loud_out = 0.0;
+        for _ in 0..1000 {
+            loud_out = comp.process(0.9);
+        }
+        // Loud signal should be compressed (reduced)
+        assert!(loud_out.abs() < 0.9);
+    }
+
+    #[test]
+    fn test_compressor_soft_knee() {
+        let mut comp = Compressor::new(44100.0);
+        comp.threshold = -10.0;
+        comp.ratio = 4.0;
+        comp.knee = 6.0; // Soft knee
+
+        // Process some samples
+        for _ in 0..100 {
+            let out = comp.process(0.5);
+            assert!(out.is_finite());
+        }
+    }
+
+    #[test]
+    fn test_limiter() {
+        let mut limiter = Limiter::new(44100.0);
+        limiter.ceiling = -3.0;
+
+        // Process loud signal
+        let mut max_out = 0.0f32;
+        for _ in 0..1000 {
+            let out = limiter.process(1.0);
+            max_out = max_out.max(out.abs());
+        }
+
+        // Output should be limited (ceiling is -3dB ≈ 0.708)
+        let ceiling_linear = 10.0f32.powf(-3.0 / 20.0);
+        assert!(max_out <= ceiling_linear + 0.01);
+    }
+
+    #[test]
+    fn test_noise_gate() {
+        let mut gate = NoiseGate::new(44100.0);
+        gate.threshold = -20.0;
+        gate.range = -80.0;
+
+        // Quiet signal should be gated
+        let mut gated_out = 0.0;
+        for _ in 0..1000 {
+            gated_out = gate.process(0.01);
+        }
+        assert!(gated_out.abs() < 0.01);
+
+        // Loud signal should pass through
+        gate.reset();
+        let mut loud_out = 0.0;
+        for _ in 0..1000 {
+            loud_out = gate.process(0.5);
+        }
+        assert!(loud_out.abs() > 0.3);
+    }
+
+    #[test]
+    fn test_bitcrusher() {
+        let mut crusher = Bitcrusher::new(44100.0);
+        crusher.bits = 4;
+        crusher.downsample_rate = 44100.0; // No downsampling
+
+        // Process and check quantization
+        let out1 = crusher.process(0.5);
+        let out2 = crusher.process(0.51);
+
+        // With 4 bits (16 levels), nearby values should quantize to same level
+        // 16 levels means step size is 1/16 = 0.0625
+        assert!((out1 - out2).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_bitcrusher_downsample() {
+        let mut crusher = Bitcrusher::new(44100.0);
+        crusher.bits = 16;
+        crusher.downsample_rate = 4410.0; // 10x downsample
+
+        // Process varying input
+        let mut outputs = Vec::new();
+        for i in 0..100 {
+            outputs.push(crusher.process((i as f32 * 0.1).sin()));
+        }
+
+        // Due to sample-and-hold, consecutive samples should often be equal
+        let mut equal_pairs = 0;
+        for w in outputs.windows(2) {
+            if (w[0] - w[1]).abs() < 0.0001 {
+                equal_pairs += 1;
+            }
+        }
+        assert!(
+            equal_pairs > 50,
+            "Downsampling should create repeated samples"
+        );
     }
 }

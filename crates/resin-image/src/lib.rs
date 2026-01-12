@@ -3075,6 +3075,448 @@ pub fn dilate_mask(mask: &ImageField, radius: u32) -> ImageField {
     }
 }
 
+// ============================================================================
+// Glitch Effects
+// ============================================================================
+
+/// Pixel sorting configuration.
+#[derive(Debug, Clone)]
+pub struct PixelSort {
+    /// Sort direction.
+    pub direction: SortDirection,
+    /// What to sort by.
+    pub sort_by: SortBy,
+    /// Threshold for starting a sort span (0-1).
+    pub threshold_min: f32,
+    /// Threshold for ending a sort span (0-1).
+    pub threshold_max: f32,
+    /// Reverse sort order.
+    pub reverse: bool,
+}
+
+/// Direction to sort pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SortDirection {
+    /// Sort along rows (left to right).
+    #[default]
+    Horizontal,
+    /// Sort along columns (top to bottom).
+    Vertical,
+}
+
+/// Metric to sort pixels by.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SortBy {
+    /// Sort by brightness (luminance).
+    #[default]
+    Brightness,
+    /// Sort by hue.
+    Hue,
+    /// Sort by saturation.
+    Saturation,
+    /// Sort by red channel.
+    Red,
+    /// Sort by green channel.
+    Green,
+    /// Sort by blue channel.
+    Blue,
+}
+
+impl Default for PixelSort {
+    fn default() -> Self {
+        Self {
+            direction: SortDirection::Horizontal,
+            sort_by: SortBy::Brightness,
+            threshold_min: 0.25,
+            threshold_max: 0.75,
+            reverse: false,
+        }
+    }
+}
+
+/// Sorts pixels in the image based on brightness or other metrics.
+///
+/// Creates a distinctive glitch art aesthetic by sorting spans of pixels.
+///
+/// # Example
+///
+/// ```ignore
+/// use rhizome_resin_image::{pixel_sort, PixelSort, SortBy};
+///
+/// let config = PixelSort {
+///     sort_by: SortBy::Brightness,
+///     threshold_min: 0.2,
+///     threshold_max: 0.8,
+///     ..Default::default()
+/// };
+/// let sorted = pixel_sort(&image, &config);
+/// ```
+pub fn pixel_sort(image: &ImageField, config: &PixelSort) -> ImageField {
+    let width = image.width as usize;
+    let height = image.height as usize;
+    let mut data = image.data.clone();
+
+    let get_sort_value = |pixel: &[f32; 4]| -> f32 {
+        match config.sort_by {
+            SortBy::Brightness => 0.299 * pixel[0] + 0.587 * pixel[1] + 0.114 * pixel[2],
+            SortBy::Red => pixel[0],
+            SortBy::Green => pixel[1],
+            SortBy::Blue => pixel[2],
+            SortBy::Hue => {
+                let (r, g, b) = (pixel[0], pixel[1], pixel[2]);
+                let max = r.max(g).max(b);
+                let min = r.min(g).min(b);
+                if (max - min).abs() < 1e-6 {
+                    0.0
+                } else if (max - r).abs() < 1e-6 {
+                    ((g - b) / (max - min)).rem_euclid(6.0) / 6.0
+                } else if (max - g).abs() < 1e-6 {
+                    ((b - r) / (max - min) + 2.0) / 6.0
+                } else {
+                    ((r - g) / (max - min) + 4.0) / 6.0
+                }
+            }
+            SortBy::Saturation => {
+                let (r, g, b) = (pixel[0], pixel[1], pixel[2]);
+                let max = r.max(g).max(b);
+                let min = r.min(g).min(b);
+                if max < 1e-6 { 0.0 } else { (max - min) / max }
+            }
+        }
+    };
+
+    match config.direction {
+        SortDirection::Horizontal => {
+            for y in 0..height {
+                let row_start = y * width;
+                let row = &mut data[row_start..row_start + width];
+
+                // Find spans to sort
+                let mut spans: Vec<(usize, usize)> = Vec::new();
+                let mut span_start: Option<usize> = None;
+
+                for (x, pixel) in row.iter().enumerate() {
+                    let value = get_sort_value(pixel);
+                    let in_range = value >= config.threshold_min && value <= config.threshold_max;
+
+                    match (span_start, in_range) {
+                        (None, true) => span_start = Some(x),
+                        (Some(start), false) => {
+                            if x > start + 1 {
+                                spans.push((start, x));
+                            }
+                            span_start = None;
+                        }
+                        _ => {}
+                    }
+                }
+                if let Some(start) = span_start {
+                    if width > start + 1 {
+                        spans.push((start, width));
+                    }
+                }
+
+                // Sort each span
+                for (start, end) in spans {
+                    let span = &mut row[start..end];
+                    span.sort_by(|a, b| {
+                        let va = get_sort_value(a);
+                        let vb = get_sort_value(b);
+                        if config.reverse {
+                            vb.partial_cmp(&va).unwrap_or(std::cmp::Ordering::Equal)
+                        } else {
+                            va.partial_cmp(&vb).unwrap_or(std::cmp::Ordering::Equal)
+                        }
+                    });
+                }
+            }
+        }
+        SortDirection::Vertical => {
+            for x in 0..width {
+                // Extract column
+                let mut column: Vec<[f32; 4]> = (0..height).map(|y| data[y * width + x]).collect();
+
+                // Find spans to sort
+                let mut spans: Vec<(usize, usize)> = Vec::new();
+                let mut span_start: Option<usize> = None;
+
+                for (y, pixel) in column.iter().enumerate() {
+                    let value = get_sort_value(pixel);
+                    let in_range = value >= config.threshold_min && value <= config.threshold_max;
+
+                    match (span_start, in_range) {
+                        (None, true) => span_start = Some(y),
+                        (Some(start), false) => {
+                            if y > start + 1 {
+                                spans.push((start, y));
+                            }
+                            span_start = None;
+                        }
+                        _ => {}
+                    }
+                }
+                if let Some(start) = span_start {
+                    if height > start + 1 {
+                        spans.push((start, height));
+                    }
+                }
+
+                // Sort each span
+                for (start, end) in spans {
+                    let span = &mut column[start..end];
+                    span.sort_by(|a, b| {
+                        let va = get_sort_value(a);
+                        let vb = get_sort_value(b);
+                        if config.reverse {
+                            vb.partial_cmp(&va).unwrap_or(std::cmp::Ordering::Equal)
+                        } else {
+                            va.partial_cmp(&vb).unwrap_or(std::cmp::Ordering::Equal)
+                        }
+                    });
+                }
+
+                // Write column back
+                for (y, pixel) in column.into_iter().enumerate() {
+                    data[y * width + x] = pixel;
+                }
+            }
+        }
+    }
+
+    ImageField {
+        data,
+        width: image.width,
+        height: image.height,
+        wrap_mode: image.wrap_mode,
+        filter_mode: image.filter_mode,
+    }
+}
+
+/// RGB channel shift configuration.
+#[derive(Debug, Clone)]
+pub struct RgbShift {
+    /// Red channel offset (x, y) in pixels.
+    pub red_offset: (i32, i32),
+    /// Green channel offset (x, y) in pixels.
+    pub green_offset: (i32, i32),
+    /// Blue channel offset (x, y) in pixels.
+    pub blue_offset: (i32, i32),
+}
+
+impl Default for RgbShift {
+    fn default() -> Self {
+        Self {
+            red_offset: (-5, 0),
+            green_offset: (0, 0),
+            blue_offset: (5, 0),
+        }
+    }
+}
+
+/// Shifts RGB channels independently for a glitch effect.
+///
+/// Creates color fringing similar to analog video distortion.
+pub fn rgb_shift(image: &ImageField, config: &RgbShift) -> ImageField {
+    let width = image.width as i32;
+    let height = image.height as i32;
+
+    let sample = |x: i32, y: i32| -> [f32; 4] {
+        let wx = x.rem_euclid(width) as usize;
+        let wy = y.rem_euclid(height) as usize;
+        image.data[wy * width as usize + wx]
+    };
+
+    let mut data = Vec::with_capacity(image.data.len());
+
+    for y in 0..height {
+        for x in 0..width {
+            let r = sample(x + config.red_offset.0, y + config.red_offset.1)[0];
+            let g = sample(x + config.green_offset.0, y + config.green_offset.1)[1];
+            let b = sample(x + config.blue_offset.0, y + config.blue_offset.1)[2];
+            let a = image.data[(y * width + x) as usize][3];
+            data.push([r, g, b, a]);
+        }
+    }
+
+    ImageField {
+        data,
+        width: image.width,
+        height: image.height,
+        wrap_mode: image.wrap_mode,
+        filter_mode: image.filter_mode,
+    }
+}
+
+/// Scan lines configuration.
+#[derive(Debug, Clone)]
+pub struct ScanLines {
+    /// Gap between scan lines in pixels.
+    pub gap: u32,
+    /// Thickness of dark lines in pixels.
+    pub thickness: u32,
+    /// Darkness of the lines (0 = transparent, 1 = black).
+    pub intensity: f32,
+    /// Vertical offset.
+    pub offset: u32,
+}
+
+impl Default for ScanLines {
+    fn default() -> Self {
+        Self {
+            gap: 2,
+            thickness: 1,
+            intensity: 0.5,
+            offset: 0,
+        }
+    }
+}
+
+/// Adds CRT-style scan lines to an image.
+pub fn scan_lines(image: &ImageField, config: &ScanLines) -> ImageField {
+    let width = image.width as usize;
+    let height = image.height as usize;
+    let period = config.gap + config.thickness;
+
+    let mut data = image.data.clone();
+
+    for y in 0..height {
+        let line_pos = ((y as u32 + config.offset) % period) as u32;
+        if line_pos < config.thickness {
+            let factor = 1.0 - config.intensity;
+            for x in 0..width {
+                let pixel = &mut data[y * width + x];
+                pixel[0] *= factor;
+                pixel[1] *= factor;
+                pixel[2] *= factor;
+            }
+        }
+    }
+
+    ImageField {
+        data,
+        width: image.width,
+        height: image.height,
+        wrap_mode: image.wrap_mode,
+        filter_mode: image.filter_mode,
+    }
+}
+
+/// Adds random noise/static to an image.
+///
+/// # Arguments
+/// * `image` - Input image
+/// * `intensity` - Noise intensity (0-1)
+/// * `seed` - Random seed for reproducibility
+pub fn static_noise(image: &ImageField, intensity: f32, seed: u32) -> ImageField {
+    let mut data = image.data.clone();
+    let intensity = intensity.clamp(0.0, 1.0);
+
+    for (i, pixel) in data.iter_mut().enumerate() {
+        // Simple hash for deterministic noise
+        let hash = simple_hash(seed.wrapping_add(i as u32));
+        let noise = (hash as f32 / u32::MAX as f32) * 2.0 - 1.0; // -1 to 1
+
+        pixel[0] = (pixel[0] + noise * intensity).clamp(0.0, 1.0);
+        pixel[1] = (pixel[1] + noise * intensity).clamp(0.0, 1.0);
+        pixel[2] = (pixel[2] + noise * intensity).clamp(0.0, 1.0);
+    }
+
+    ImageField {
+        data,
+        width: image.width,
+        height: image.height,
+        wrap_mode: image.wrap_mode,
+        filter_mode: image.filter_mode,
+    }
+}
+
+/// VHS tracking distortion configuration.
+#[derive(Debug, Clone)]
+pub struct VhsTracking {
+    /// Maximum horizontal displacement in pixels.
+    pub displacement: f32,
+    /// Frequency of displacement bands.
+    pub frequency: f32,
+    /// Color bleeding amount (0-1).
+    pub color_bleed: f32,
+    /// Vertical scroll offset.
+    pub scroll: f32,
+    /// Random seed.
+    pub seed: u32,
+}
+
+impl Default for VhsTracking {
+    fn default() -> Self {
+        Self {
+            displacement: 10.0,
+            frequency: 0.1,
+            color_bleed: 0.3,
+            scroll: 0.0,
+            seed: 42,
+        }
+    }
+}
+
+/// Applies VHS tracking distortion effect.
+///
+/// Simulates analog video tracking errors with horizontal displacement
+/// bands and color bleeding.
+pub fn vhs_tracking(image: &ImageField, config: &VhsTracking) -> ImageField {
+    let width = image.width as i32;
+    let height = image.height as i32;
+
+    let sample = |x: i32, y: i32| -> [f32; 4] {
+        let wx = x.clamp(0, width - 1) as usize;
+        let wy = y.clamp(0, height - 1) as usize;
+        image.data[wy * width as usize + wx]
+    };
+
+    let mut data = Vec::with_capacity(image.data.len());
+
+    for y in 0..height {
+        // Calculate displacement for this row
+        let y_norm = (y as f32 + config.scroll) / height as f32;
+        let hash = simple_hash(config.seed.wrapping_add((y_norm * 1000.0) as u32));
+        let noise = (hash as f32 / u32::MAX as f32) * 2.0 - 1.0;
+
+        let wave = (y_norm * config.frequency * std::f32::consts::TAU).sin();
+        let displacement = ((wave + noise * 0.5) * config.displacement) as i32;
+
+        for x in 0..width {
+            let base = sample(x + displacement, y);
+
+            // Color bleeding - offset red channel slightly more
+            let bleed_offset = (config.color_bleed * 3.0) as i32;
+            let r = if config.color_bleed > 0.0 {
+                let left = sample(x + displacement - bleed_offset, y)[0];
+                base[0] * (1.0 - config.color_bleed) + left * config.color_bleed
+            } else {
+                base[0]
+            };
+
+            data.push([r, base[1], base[2], base[3]]);
+        }
+    }
+
+    ImageField {
+        data,
+        width: image.width,
+        height: image.height,
+        wrap_mode: image.wrap_mode,
+        filter_mode: image.filter_mode,
+    }
+}
+
+/// Simple hash for deterministic noise.
+fn simple_hash(x: u32) -> u32 {
+    let mut h = x;
+    h = h.wrapping_mul(0x85ebca6b);
+    h ^= h >> 13;
+    h = h.wrapping_mul(0xc2b2ae35);
+    h ^= h >> 16;
+    h
+}
+
 /// Registers all image operations with an [`OpRegistry`].
 ///
 /// Call this to enable deserialization of image ops from saved pipelines.
